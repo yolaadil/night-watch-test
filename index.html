@@ -4,9 +4,74 @@
 <meta charset="utf-8">
 <title>The Night Watch Interactive</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: Arial, Tahoma, sans-serif;
+  }
+
+  #languageOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #languageBox {
+    width: min(520px, 90vw);
+    background: rgba(20, 20, 20, 0.94);
+    color: white;
+    border-radius: 18px;
+    padding: 30px 24px;
+    text-align: center;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+  }
+
+  #languageBox h1 {
+    margin: 0 0 10px;
+    color: #ffe680;
+    font-size: 30px;
+  }
+
+  #languageBox p {
+    margin: 0 0 24px;
+    color: #ddd;
+    font-size: 17px;
+  }
+
+  .languageButton {
+    cursor: pointer;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 26px;
+    margin: 8px;
+    font-size: 19px;
+    background: #333;
+    color: white;
+  }
+
+  .languageButton:hover {
+    background: #555;
+  }
+</style>
 </head>
 
 <body>
+
+<!-- CLICKABLE START MENU -->
+<div id="languageOverlay">
+  <div id="languageBox">
+    <h1>The Night Watch</h1>
+    <p>Choose language / اختر اللغة</p>
+    <button class="languageButton" onclick="startExperience('en')">English</button>
+    <button class="languageButton" onclick="startExperience('ar')">العربية</button>
+  </div>
+</div>
 
 <a-scene>
 
@@ -41,109 +106,34 @@
   <a-plane class="hotspot" id="rightGroup" position="1.35 1.60 -2.95" width="0.50" height="0.80" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
 
-  <!-- INFO PANEL -->
+  <!-- INFO PANEL WITH CANVAS TEXT TEXTURE -->
   <a-plane
     id="infoPanel"
     visible="false"
     position="0 0 -2.8"
-    width="1.65"
-    height="0.66"
-    material="color:#111; opacity:0.65; transparent:true">
+    width="1.75"
+    height="0.72"
+    material="transparent:true; opacity:1">
   </a-plane>
 
-  <a-text
-    id="infoText"
+  <!-- WELCOME -->
+  <a-plane
+    id="welcomePanel"
     visible="false"
-    value=""
-    position="0 -0.08 -2.75"
-    width="1.18"
-    color="white">
-  </a-text>
-
-  <!-- LANGUAGE MENU -->
-  <a-entity id="languageMenu" position="0 1.6 -2.2" visible="true">
-    <a-plane
-      width="2.35"
-      height="1.35"
-      material="color:#111; opacity:0.78; transparent:true">
-    </a-plane>
-
-    <a-text
-      value="The Night Watch"
-      position="-0.62 0.43 0.03"
-      width="1.6"
-      color="#ffe680"
-      align="center">
-    </a-text>
-
-    <a-text
-      value="Choose language / اختر اللغة"
-      position="-0.82 0.22 0.03"
-      width="1.65"
-      color="white"
-      align="center">
-    </a-text>
-
-    <a-plane
-      id="englishBtn"
-      class="menuButton"
-      position="-0.52 -0.20 0.04"
-      width="0.82"
-      height="0.36"
-      material="color:#333; opacity:0.95">
-    </a-plane>
-
-    <a-text
-      value="English"
-      position="-0.72 -0.26 0.07"
-      width="1.1"
-      color="white">
-    </a-text>
-
-    <a-plane
-      id="arabicBtn"
-      class="menuButton"
-      position="0.52 -0.20 0.04"
-      width="0.82"
-      height="0.36"
-      material="color:#333; opacity:0.95">
-    </a-plane>
-
-    <a-text
-      value="العربية"
-      position="0.28 -0.26 0.07"
-      width="1.1"
-      color="white"
-      align="center">
-    </a-text>
-
-    <a-text
-      value="Gaze at a language for 2 seconds"
-      position="-0.72 -0.52 0.03"
-      width="1.45"
-      color="#dddddd"
-      align="center">
-    </a-text>
-  </a-entity>
-
-  <!-- WELCOME / INSTRUCTION -->
-  <a-text
-    id="welcome"
-    value=""
-    visible="false"
-    position="-0.85 0.55 -2.8"
-    width="1.25"
-    color="black">
-  </a-text>
+    position="0 0.55 -2.8"
+    width="1.9"
+    height="0.48"
+    material="transparent:true; opacity:1">
+  </a-plane>
 
   <!-- CAMERA -->
   <a-camera position="0 1.6 0">
     <a-cursor
       id="gazeCursor"
-      visible="true"
+      visible="false"
       fuse="true"
       fuse-timeout="2000"
-      raycaster="objects: .hotspot, .menuButton"
+      raycaster="objects: .hotspot"
       color="black">
     </a-cursor>
   </a-camera>
@@ -152,12 +142,9 @@
 
 <script>
 const infoPanel = document.querySelector('#infoPanel');
-const infoText = document.querySelector('#infoText');
-const welcome = document.querySelector('#welcome');
+const welcomePanel = document.querySelector('#welcomePanel');
 const gazeCursor = document.querySelector('#gazeCursor');
-const languageMenu = document.querySelector('#languageMenu');
-const englishBtn = document.querySelector('#englishBtn');
-const arabicBtn = document.querySelector('#arabicBtn');
+const languageOverlay = document.querySelector('#languageOverlay');
 
 let pageReady = false;
 let currentLanguage = null;
@@ -208,6 +195,88 @@ const hotspotTexts = {
   }
 };
 
+function makeCanvasTexture(text, language, width = 900, height = 380) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = 'rgba(17, 17, 17, 0.72)';
+  roundRect(ctx, 0, 0, width, height, 34);
+  ctx.fill();
+
+  ctx.fillStyle = 'white';
+  ctx.textBaseline = 'top';
+
+  if (language === 'ar') {
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.font = '36px Tahoma, Arial, sans-serif';
+    drawWrappedText(ctx, text, width - 52, 42, width - 90, 50, true);
+  } else {
+    ctx.direction = 'ltr';
+    ctx.textAlign = 'left';
+    ctx.font = '34px Arial, sans-serif';
+    drawWrappedText(ctx, text, 52, 42, width - 90, 48, false);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, rtl) {
+  const paragraphs = text.split('\n');
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      y += lineHeight * 0.7;
+      continue;
+    }
+
+    const words = paragraph.split(' ');
+    let line = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+      const testWidth = ctx.measureText(testLine).width;
+
+      if (testWidth > maxWidth && i > 0) {
+        ctx.fillText(line.trim(), x, y);
+        line = words[i] + ' ';
+        y += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+
+    ctx.fillText(line.trim(), x, y);
+    y += lineHeight;
+  }
+}
+
+function setPanelText(panel, text, language) {
+  const texture = makeCanvasTexture(text, language);
+  panel.getObject3D('mesh').material.map = texture;
+  panel.getObject3D('mesh').material.transparent = true;
+  panel.getObject3D('mesh').material.needsUpdate = true;
+}
+
 function getHaloForHotspot(id) {
   return document.querySelector('#' + id + 'Halo');
 }
@@ -241,41 +310,19 @@ function showInfo(text, hotspot) {
   const pos = hotspot.getAttribute('position');
 
   let panelX = pos.x + 0.68;
-  let textX = pos.x + 0.18;
+  if (pos.x > 0.8) panelX = pos.x - 0.68;
 
-  if (pos.x > 0.8) {
-    panelX = pos.x - 0.68;
-    textX = pos.x - 1.13;
-  }
-
-  let panelY = pos.y + 0.22;
-  let textY = pos.y + 0.30;
-
-  if (pos.y > 2.0) {
-    panelY = pos.y - 0.42;
-    textY = pos.y - 0.35;
-  }
+  let panelY = pos.y + 0.25;
+  if (pos.y > 2.0) panelY = pos.y - 0.42;
 
   infoPanel.setAttribute('position', `${panelX} ${panelY} -2.8`);
-  infoText.setAttribute('position', `${textX} ${textY} -2.75`);
+  setPanelText(infoPanel, text, currentLanguage);
 
   infoPanel.setAttribute('visible', true);
-  infoText.setAttribute('visible', true);
-  infoText.setAttribute('value', text);
-
-  if (currentLanguage === 'ar') {
-    infoText.setAttribute('align', 'right');
-    infoText.setAttribute('width', '1.2');
-  } else {
-    infoText.setAttribute('align', 'left');
-    infoText.setAttribute('width', '1.18');
-  }
 }
 
 function hideInfo() {
   infoPanel.setAttribute('visible', false);
-  infoText.setAttribute('visible', false);
-  infoText.setAttribute('value', '');
   activeHotspot = null;
 }
 
@@ -310,32 +357,20 @@ function startExperience(language) {
   currentLanguage = language;
   pageReady = true;
 
-  languageMenu.setAttribute('visible', false);
-  welcome.setAttribute('visible', true);
+  languageOverlay.style.display = 'none';
   gazeCursor.setAttribute('visible', true);
 
-  if (language === 'ar') {
-    welcome.setAttribute('value', 'انظر إلى التفاصيل المضيئة في اللوحة لاكتشاف الشرح.');
-    welcome.setAttribute('align', 'right');
-    welcome.setAttribute('position', '-0.2 0.55 -2.8');
-  } else {
-    welcome.setAttribute('value', 'Look at highlighted details in the painting to discover more.');
-    welcome.setAttribute('align', 'left');
-    welcome.setAttribute('position', '-0.85 0.55 -2.8');
-  }
+  const welcomeText = language === 'ar'
+    ? 'انظر إلى التفاصيل المضيئة في اللوحة لاكتشاف الشرح.'
+    : 'Look at highlighted details in the painting to discover more.';
+
+  setPanelText(welcomePanel, welcomeText, language);
+  welcomePanel.setAttribute('visible', true);
 
   setTimeout(() => {
-    welcome.setAttribute('visible', false);
+    welcomePanel.setAttribute('visible', false);
   }, 3500);
 }
-
-englishBtn.addEventListener('click', () => {
-  startExperience('en');
-});
-
-arabicBtn.addEventListener('click', () => {
-  startExperience('ar');
-});
 
 addHotspot('captain');
 addHotspot('lieutenant');
@@ -352,9 +387,7 @@ window.addEventListener('load', () => {
   hideInfo();
   pageReady = false;
   currentLanguage = null;
-  languageMenu.setAttribute('visible', true);
-  welcome.setAttribute('visible', false);
-  gazeCursor.setAttribute('visible', true);
+  gazeCursor.setAttribute('visible', false);
 });
 </script>
 
