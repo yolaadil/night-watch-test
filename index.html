@@ -212,12 +212,12 @@ function makeCanvasTexture(text, language, width = 650, height = 240) {
   if (language === 'ar') {
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
-    ctx.font = '36px Tahoma, Arial, sans-serif';
+    ctx.font = '26px Tahoma, Arial, sans-serif';
     drawWrappedText(ctx, text, width - 52, 42, width - 90, 50, true);
   } else {
     ctx.direction = 'ltr';
     ctx.textAlign = 'left';
-    ctx.font = '34px Arial, sans-serif';
+    ctx.font = '24px Arial, sans-serif';
     drawWrappedText(ctx, text, 52, 42, width - 90, 48, false);
   }
 
