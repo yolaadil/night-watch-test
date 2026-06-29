@@ -29,7 +29,6 @@
     border-radius: 18px;
     padding: 30px 24px;
     text-align: center;
-    box-shadow: 0 12px 35px rgba(0,0,0,0.4);
   }
 
   #languageBox h1 {
@@ -63,7 +62,6 @@
 
 <body>
 
-<!-- CLICKABLE START MENU -->
 <div id="languageOverlay">
   <div id="languageBox">
     <h1>The Night Watch</h1>
@@ -82,17 +80,26 @@
     height="3.45">
   </a-image>
 
-  <!-- HALOS: hidden by default -->
-  <a-circle id="captainHalo" position="-0.05 1.35 -2.94" radius="0.25" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="lieutenantHalo" position="0.45 1.30 -2.94" radius="0.25" color="#fff2aa" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="girlHalo" position="-0.80 1.18 -2.94" radius="0.22" color="#fff7c2" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="drummerHalo" position="1.75 1.25 -2.94" radius="0.25" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="flagHalo" position="-1.08 1.95 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="dogHalo" position="0.95 0.75 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="leftGroupHalo" position="-1.55 1.55 -2.94" radius="0.28" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="rightGroupHalo" position="1.35 1.60 -2.94" radius="0.28" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
-  <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.30" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <!-- HALOS -->
+  <a-circle id="captainHalo" position="-0.05 1.35 -2.94" radius="0.25" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="lieutenantHalo" position="0.45 1.30 -2.94" radius="0.25" color="#fff2aa" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="girlHalo" position="-0.80 1.18 -2.94" radius="0.22" color="#fff7c2" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="drummerHalo" position="1.75 1.25 -2.94" radius="0.25" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="flagHalo" position="-1.08 1.95 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="dogHalo" position="0.95 0.75 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="leftGroupHalo" position="-1.55 1.55 -2.94" radius="0.28" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="rightGroupHalo" position="1.35 1.60 -2.94" radius="0.28" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.30" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+
+  <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#fff7c2" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.16" color="#fff7c2" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.35" color="#fff7c2" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
   <!-- INVISIBLE HOTSPOTS -->
   <a-plane class="hotspot" id="captain" position="-0.05 1.35 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
@@ -106,7 +113,16 @@
   <a-plane class="hotspot" id="rightGroup" position="1.35 1.60 -2.95" width="0.50" height="0.80" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
 
-  <!-- INFO PANEL WITH CANVAS TEXT TEXTURE -->
+  <a-plane class="hotspot" id="captainHand" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot" id="redSash" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+
+  <!-- INFO PANEL -->
   <a-plane
     id="infoPanel"
     visible="false"
@@ -116,7 +132,6 @@
     material="transparent:true; opacity:1">
   </a-plane>
 
-  <!-- WELCOME -->
   <a-plane
     id="welcomePanel"
     visible="false"
@@ -126,7 +141,6 @@
     material="transparent:true; opacity:1">
   </a-plane>
 
-  <!-- CAMERA -->
   <a-camera position="0 1.6 0">
     <a-cursor
       id="gazeCursor"
@@ -154,55 +168,86 @@ let lastTextChangeTime = 0;
 
 const hotspotTexts = {
   captain: {
-    en: 'Captain Frans Banning Cocq\n\nLeader of the Amsterdam civic guard and the central figure of the composition.',
-    ar: 'الكابتن فرانس بانينغ كوك\n\nقائد الحرس المدني في أمستردام، وهو الشخصية المركزية في التكوين.'
+    en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. Rembrandt places him at the center, stepping forward in black with a red sash.',
+    ar: 'الكابتن فرانس بانينك كوك\n\nقائد فرقة الحرس المدني في أمستردام. يضعه رامبرانت في مركز اللوحة مرتديًا الأسود مع وشاح أحمر.'
   },
   lieutenant: {
-    en: 'Lieutenant Willem van Ruytenburch\n\nRecognizable by his bright yellow costume and illuminated appearance.',
-    ar: 'الملازم فيليم فان رويتنبرخ\n\nيمكن تمييزه من خلال ملابسه الصفراء الساطعة وحضوره المضيء.'
+    en: 'Lieutenant Willem van Ruytenburch\n\nThe lieutenant stands beside the captain in bright yellow clothing, helping draw the viewer’s eye to the center.',
+    ar: 'الملازم فيليم فان رويتنبرخ\n\nيقف بجانب القائد بملابس صفراء لامعة، مما يجذب نظر المشاهد نحو مركز اللوحة.'
   },
   girl: {
-    en: 'The Girl with the Chicken\n\nA symbolic figure carrying objects associated with the civic guard.',
-    ar: 'الفتاة التي تحمل الدجاجة\n\nشخصية رمزية تحمل أشياء مرتبطة بالحرس المدني.'
+    en: 'The Illuminated Girl\n\nShe is not a regular militia member. She works as a symbolic figure, carrying objects connected to the identity of the civic guard.',
+    ar: 'الفتاة المضيئة\n\nليست عضوة عادية في الحرس، بل تظهر كشخصية رمزية تحمل أشياء مرتبطة بهوية الفرقة.'
   },
   drummer: {
-    en: 'The Drummer\n\nAdds energy and movement, helping create the feeling of a marching company.',
-    ar: 'قارِع الطبل\n\nيضيف طاقة وحركة، ويساعد في خلق إحساس بفرقة تسير للأمام.'
+    en: 'The Drummer\n\nThe drummer adds rhythm, sound, and movement, making the scene feel like a company about to march.',
+    ar: 'قارِع الطبل\n\nيضيف الإيقاع والصوت والحركة، فيجعل المشهد يبدو كفرقة تستعد للسير.'
   },
   flag: {
-    en: 'The Flag Bearer\n\nThe militia flag identifies the company and adds drama to the scene.',
-    ar: 'حامل الراية\n\nتُعرّف راية الميليشيا بالفرقة وتضيف طابعًا دراميًا إلى المشهد.'
+    en: 'The Flag Bearer\n\nThe flag identifies the militia company and adds height, movement, and ceremony to the scene.',
+    ar: 'حامل الراية\n\nتُعرّف الراية بفرقة الحرس وتضيف ارتفاعًا وحركة وطابعًا احتفاليًا إلى المشهد.'
   },
   musketeer: {
-    en: 'The Musketeer\n\nOne of several armed guards demonstrating the company in action.',
-    ar: 'حامل البندقية\n\nأحد الحراس المسلحين الذين يُظهرون الفرقة أثناء الحركة.'
+    en: 'The Musketeer\n\nThe armed guards refer to the civic militia’s role and training. Rembrandt shows the company as active rather than formally posed.',
+    ar: 'حامل البندقية\n\nيشير الحراس المسلحون إلى دور وتدريب الميليشيا المدنية. يصورهم رامبرانت في حركة لا في وقفة رسمية.'
   },
   dog: {
-    en: 'The Dog\n\nA small detail that adds realism and movement to the composition.',
-    ar: 'الكلب\n\nتفصيل صغير يضيف واقعية وحركة إلى التكوين.'
+    en: 'The Dog\n\nA small lively detail near the drummer. It adds spontaneity and a sense of everyday life to the crowded scene.',
+    ar: 'الكلب\n\nتفصيل صغير وحيوي قرب قارع الطبل، يضيف عفوية وإحساسًا بالحياة اليومية داخل المشهد المزدحم.'
   },
   leftGroup: {
-    en: 'Left Group of Guards\n\nThese figures create depth and lead the viewer into the painting.',
-    ar: 'مجموعة الحراس اليسرى\n\nتخلق هذه الشخصيات عمقًا بصريًا وتقود نظر المشاهد إلى داخل اللوحة.'
+    en: 'Left Group of Guards\n\nThese overlapping figures create depth and help turn the group portrait into a busy, moving scene.',
+    ar: 'مجموعة الحراس اليسرى\n\nتخلق هذه الشخصيات المتداخلة عمقًا بصريًا وتحول الصورة الجماعية إلى مشهد حي ومتحرك.'
   },
   rightGroup: {
-    en: 'Right Group of Guards\n\nBalances the composition and frames the main subjects.',
-    ar: 'مجموعة الحراس اليمنى\n\nتوازن التكوين وتؤطر الشخصيات الرئيسية.'
+    en: 'Right Group of Guards\n\nThe figures on the right balance the central pair and expand the sense of a large company gathering.',
+    ar: 'مجموعة الحراس اليمنى\n\nتوازن الشخصيات في اليمين الثنائي المركزي وتوسع الإحساس بتجمع فرقة كبيرة.'
   },
   backgroundArch: {
-    en: 'Background Architecture\n\nThe dark architectural setting enhances the dramatic lighting.',
-    ar: 'الخلفية المعمارية\n\nتعزز الخلفية المعمارية الداكنة الإضاءة الدرامية في اللوحة.'
+    en: 'Background Architecture\n\nThe dark architectural space frames the action and strengthens Rembrandt’s dramatic use of light and shadow.',
+    ar: 'الخلفية المعمارية\n\nتؤطر المساحة المعمارية الداكنة المشهد وتعزز استخدام رامبرانت الدرامي للضوء والظل.'
+  },
+  captainHand: {
+    en: 'The Captain’s Hand\n\nA famous detail: the captain’s hand casts a shadow on the lieutenant’s yellow coat, visually linking the two leaders.',
+    ar: 'يد القائد\n\nتفصيل شهير: تلقي يد القائد ظلًا على معطف الملازم الأصفر، فتربط بصريًا بين القائدين.'
+  },
+  redSash: {
+    en: 'The Red Sash\n\nThe captain’s red sash helps identify his rank and makes him stand out against the darker clothing.',
+    ar: 'الوشاح الأحمر\n\nيساعد وشاح القائد الأحمر على إبراز مكانته ويميزه وسط الملابس الداكنة.'
+  },
+  chickenClaws: {
+    en: 'Chicken Claws\n\nThe claws carried by the girl are connected to the emblem of the arquebusiers, helping identify the militia company.',
+    ar: 'مخالب الدجاجة\n\nترتبط المخالب التي تحملها الفتاة بشعار حملة البنادق، وتساعد في تحديد هوية الفرقة.'
+  },
+  drinkingHorn: {
+    en: 'Drinking Horn\n\nThe girl also carries a ceremonial object linked to militia tradition and group identity.',
+    ar: 'قرن الشرب\n\nتحمل الفتاة أيضًا غرضًا احتفاليًا مرتبطًا بتقاليد الميليشيا وهوية الجماعة.'
+  },
+  weapons: {
+    en: 'Weapons and Training\n\nThe weapons suggest the civic guard’s military role, but Rembrandt turns them into part of a theatrical composition.',
+    ar: 'الأسلحة والتدريب\n\nتشير الأسلحة إلى الدور العسكري للحرس المدني، لكن رامبرانت يجعلها جزءًا من تكوين مسرحي.'
+  },
+  spears: {
+    en: 'Spears and Lines\n\nThe long spears and poles create diagonal lines that guide the viewer’s eye through the painting.',
+    ar: 'الرماح والخطوط\n\nتخلق الرماح والعصي الطويلة خطوطًا قطرية تقود عين المشاهد عبر اللوحة.'
+  },
+  light: {
+    en: 'Light and Shadow\n\nRembrandt uses strong contrasts of light and darkness to guide attention and create drama.',
+    ar: 'الضوء والظل\n\nيستخدم رامبرانت تباينًا قويًا بين الضوء والظلام لتوجيه الانتباه وخلق الدراما.'
+  },
+  shield: {
+    en: 'Shield with Names\n\nA shield in the background records the names of members of the company, connecting the painting to its patrons.',
+    ar: 'درع الأسماء\n\nيسجل الدرع في الخلفية أسماء أعضاء الفرقة، ويربط اللوحة بمن كلفوا برسمها.'
   }
 };
 
-function makeCanvasTexture(text, language, width = 650, height = 240) {
+function makeCanvasTexture(text, language, width = 650, height = 250) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = 'rgba(17, 17, 17, 0.72)';
+  ctx.fillStyle = 'rgba(17, 17, 17, 0.68)';
   roundRect(ctx, 0, 0, width, height, 34);
   ctx.fill();
 
@@ -212,13 +257,13 @@ function makeCanvasTexture(text, language, width = 650, height = 240) {
   if (language === 'ar') {
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
-    ctx.font = '26px Tahoma, Arial, sans-serif';
-    drawWrappedText(ctx, text, width - 52, 42, width - 90, 50, true);
+    ctx.font = '25px Tahoma, Arial, sans-serif';
+    drawWrappedText(ctx, text, width - 52, 38, width - 90, 46);
   } else {
     ctx.direction = 'ltr';
     ctx.textAlign = 'left';
     ctx.font = '24px Arial, sans-serif';
-    drawWrappedText(ctx, text, 52, 42, width - 90, 48, false);
+    drawWrappedText(ctx, text, 52, 38, width - 90, 46);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -240,12 +285,12 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, rtl) {
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
   const paragraphs = text.split('\n');
 
   for (const paragraph of paragraphs) {
     if (paragraph.trim() === '') {
-      y += lineHeight * 0.7;
+      y += lineHeight * 0.65;
       continue;
     }
 
@@ -254,9 +299,7 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, rtl) {
 
     for (let i = 0; i < words.length; i++) {
       const testLine = line + words[i] + ' ';
-      const testWidth = ctx.measureText(testLine).width;
-
-      if (testWidth > maxWidth && i > 0) {
+      if (ctx.measureText(testLine).width > maxWidth && i > 0) {
         ctx.fillText(line.trim(), x, y);
         line = words[i] + ' ';
         y += lineHeight;
@@ -272,9 +315,13 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, rtl) {
 
 function setPanelText(panel, text, language) {
   const texture = makeCanvasTexture(text, language);
-  panel.getObject3D('mesh').material.map = texture;
-  panel.getObject3D('mesh').material.transparent = true;
-  panel.getObject3D('mesh').material.needsUpdate = true;
+  const mesh = panel.getObject3D('mesh');
+
+  if (!mesh) return;
+
+  mesh.material.map = texture;
+  mesh.material.transparent = true;
+  mesh.material.needsUpdate = true;
 }
 
 function getHaloForHotspot(id) {
@@ -287,7 +334,7 @@ function showHalo(halo) {
   halo.setAttribute('visible', true);
   halo.setAttribute(
     'animation',
-    'property: material.opacity; from:0.03; to:0.12; dur:2500; dir:alternate; loop:true'
+    'property: material.opacity; from:0.03; to:0.10; dur:3000; dir:alternate; loop:true'
   );
 }
 
@@ -302,7 +349,7 @@ function showInfo(text, hotspot) {
   clearTimeout(closeTimer);
 
   const now = Date.now();
-  if (now - lastTextChangeTime < 1000 && activeHotspot !== hotspot) return;
+  if (now - lastTextChangeTime < 800 && activeHotspot !== hotspot) return;
   lastTextChangeTime = now;
 
   activeHotspot = hotspot;
@@ -317,7 +364,6 @@ function showInfo(text, hotspot) {
 
   infoPanel.setAttribute('position', `${panelX} ${panelY} -2.8`);
   setPanelText(infoPanel, text, currentLanguage);
-
   infoPanel.setAttribute('visible', true);
 }
 
@@ -330,9 +376,7 @@ function hideInfoDelayed(hotspot) {
   clearTimeout(closeTimer);
 
   closeTimer = setTimeout(() => {
-    if (activeHotspot === hotspot) {
-      hideInfo();
-    }
+    if (activeHotspot === hotspot) hideInfo();
   }, 1000);
 }
 
@@ -361,8 +405,8 @@ function startExperience(language) {
   gazeCursor.setAttribute('visible', true);
 
   const welcomeText = language === 'ar'
-    ? 'انظر إلى التفاصيل المضيئة في اللوحة لاكتشاف الشرح.'
-    : 'Look at highlighted details in the painting to discover more.';
+    ? 'انظر إلى التفاصيل في اللوحة لاكتشاف الشرح.'
+    : 'Look at details in the painting to discover more.';
 
   setPanelText(welcomePanel, welcomeText, language);
   welcomePanel.setAttribute('visible', true);
@@ -372,16 +416,7 @@ function startExperience(language) {
   }, 3500);
 }
 
-addHotspot('captain');
-addHotspot('lieutenant');
-addHotspot('girl');
-addHotspot('drummer');
-addHotspot('flag');
-addHotspot('musketeer');
-addHotspot('dog');
-addHotspot('leftGroup');
-addHotspot('rightGroup');
-addHotspot('backgroundArch');
+Object.keys(hotspotTexts).forEach(addHotspot);
 
 window.addEventListener('load', () => {
   hideInfo();
