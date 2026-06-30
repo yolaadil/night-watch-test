@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>The Night Watch Interactive</title>
+
+<!-- A-Frame library for WebXR / VR scene creation -->
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -12,6 +14,7 @@
     font-family: Arial, Tahoma, sans-serif;
   }
 
+  /* Full-screen opening overlay */
   #languageOverlay {
     position: fixed;
     inset: 0;
@@ -22,13 +25,15 @@
     justify-content: center;
   }
 
+  /* Main menu box */
   #languageBox {
-    width: min(520px, 90vw);
+    width: min(560px, 90vw);
     background: rgba(20, 20, 20, 0.94);
     color: white;
     border-radius: 18px;
     padding: 30px 24px;
     text-align: center;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.4);
   }
 
   #languageBox h1 {
@@ -43,6 +48,41 @@
     font-size: 17px;
   }
 
+  /* Tour option cards */
+  .tourCard {
+    background: #2d2d2d;
+    border: 1px solid #444;
+    border-radius: 14px;
+    padding: 18px;
+    margin: 16px 0;
+    cursor: pointer;
+    transition: 0.2s;
+    text-align: left;
+  }
+
+  .tourCard:hover {
+    background: #444;
+    border-color: #ffe680;
+  }
+
+  .tourCard h2 {
+    margin: 0 0 10px;
+    color: #ffe680;
+    font-size: 22px;
+  }
+
+  .tourCard p {
+    color: #eee;
+    margin: 0 0 10px;
+    line-height: 1.5;
+    font-size: 16px;
+  }
+
+  .tourCard small {
+    color: #bbb;
+  }
+
+  /* Language buttons */
   .languageButton {
     cursor: pointer;
     border: none;
@@ -62,17 +102,36 @@
 
 <body>
 
+<!-- Opening menu: first choose tour type, then language -->
 <div id="languageOverlay">
   <div id="languageBox">
     <h1>The Night Watch</h1>
-    <p>Choose language / اختر اللغة</p>
-    <button class="languageButton" onclick="startExperience('en')">English</button>
-    <button class="languageButton" onclick="startExperience('ar')">العربية</button>
+
+    <p style="font-size:20px;color:#ffe680;margin-bottom:24px;">
+      Choose Your Experience
+    </p>
+
+    <div class="tourCard" onclick="selectTour('gallery')">
+      <h2>Gallery Tour</h2>
+      <p>
+        Explore the painting through its principal figures and key artistic elements.
+      </p>
+      <small>Concise experience — around 10 key annotations</small>
+    </div>
+
+    <div class="tourCard" onclick="selectTour('curator')">
+      <h2>Curator's Tour</h2>
+      <p>
+        Reveal hidden symbols, artistic techniques, and fascinating stories behind the masterpiece.
+      </p>
+      <small>Expanded experience — includes hidden details and backstories</small>
+    </div>
   </div>
 </div>
 
 <a-scene>
 
+  <!-- Main painting image -->
   <a-image
     src="painting.jpg"
     position="0 1.6 -3"
@@ -80,7 +139,7 @@
     height="3.45">
   </a-image>
 
-  <!-- HALOS -->
+  <!-- HALOS: invisible by default, shown only after gaze selection -->
   <a-circle id="captainHalo" position="-0.05 1.35 -2.94" radius="0.25" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
   <a-circle id="lieutenantHalo" position="0.45 1.30 -2.94" radius="0.25" color="#fff2aa" visible="false" material="transparent:true; opacity:0.08"></a-circle>
   <a-circle id="girlHalo" position="-0.80 1.18 -2.94" radius="0.22" color="#fff7c2" visible="false" material="transparent:true; opacity:0.08"></a-circle>
@@ -92,6 +151,7 @@
   <a-circle id="rightGroupHalo" position="1.35 1.60 -2.94" radius="0.28" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
   <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.30" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
+  <!-- Extra Curator's Tour halos -->
   <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
   <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
   <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#fff7c2" visible="false" material="transparent:true; opacity:0.08"></a-circle>
@@ -101,7 +161,7 @@
   <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.35" color="#fff7c2" visible="false" material="transparent:true; opacity:0.08"></a-circle>
   <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
-  <!-- INVISIBLE HOTSPOTS -->
+  <!-- Invisible hotspot planes used for gaze detection -->
   <a-plane class="hotspot" id="captain" position="-0.05 1.35 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="lieutenant" position="0.45 1.30 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="girl" position="-0.80 1.18 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
@@ -113,6 +173,7 @@
   <a-plane class="hotspot" id="rightGroup" position="1.35 1.60 -2.95" width="0.50" height="0.80" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
 
+  <!-- Extra hidden-detail hotspots for Curator's Tour -->
   <a-plane class="hotspot" id="captainHand" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="redSash" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
@@ -122,7 +183,7 @@
   <a-plane class="hotspot" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
 
-  <!-- INFO PANEL -->
+  <!-- Text is rendered onto these planes as canvas textures -->
   <a-plane
     id="infoPanel"
     visible="false"
@@ -141,6 +202,7 @@
     material="transparent:true; opacity:1">
   </a-plane>
 
+  <!-- Camera and gaze cursor -->
   <a-camera position="0 1.6 0">
     <a-cursor
       id="gazeCursor"
@@ -155,17 +217,49 @@
 </a-scene>
 
 <script>
+/* DOM references */
 const infoPanel = document.querySelector('#infoPanel');
 const welcomePanel = document.querySelector('#welcomePanel');
 const gazeCursor = document.querySelector('#gazeCursor');
 const languageOverlay = document.querySelector('#languageOverlay');
+const languageBox = document.querySelector('#languageBox');
 
+/* Global state */
 let pageReady = false;
 let currentLanguage = null;
+let tourMode = null;
 let closeTimer = null;
 let activeHotspot = null;
 let lastTextChangeTime = 0;
 
+/* Gallery Tour = the 10 main regions */
+const galleryHotspots = [
+  'captain',
+  'lieutenant',
+  'girl',
+  'drummer',
+  'flag',
+  'musketeer',
+  'dog',
+  'leftGroup',
+  'rightGroup',
+  'backgroundArch'
+];
+
+/* Curator's Tour = all main regions + hidden details */
+const curatorHotspots = [
+  ...galleryHotspots,
+  'captainHand',
+  'redSash',
+  'chickenClaws',
+  'drinkingHorn',
+  'weapons',
+  'spears',
+  'light',
+  'shield'
+];
+
+/* Annotation text in English and Arabic */
 const hotspotTexts = {
   captain: {
     en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. Rembrandt places him at the center, stepping forward in black with a red sash.',
@@ -241,6 +335,19 @@ const hotspotTexts = {
   }
 };
 
+/* User selects Gallery Tour or Curator's Tour */
+function selectTour(mode) {
+  tourMode = mode;
+
+  languageBox.innerHTML = `
+    <h1>The Night Watch</h1>
+    <p>Choose language / اختر اللغة</p>
+    <button class="languageButton" onclick="startExperience('en')">English</button>
+    <button class="languageButton" onclick="startExperience('ar')">العربية</button>
+  `;
+}
+
+/* Create canvas texture for text, supports English and Arabic */
 function makeCanvasTexture(text, language, width = 650, height = 250) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -271,6 +378,7 @@ function makeCanvasTexture(text, language, width = 650, height = 250) {
   return texture;
 }
 
+/* Rounded rectangle background for text panels */
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -285,6 +393,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* Wrap long text lines inside the canvas panel */
 function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
   const paragraphs = text.split('\n');
 
@@ -313,6 +422,7 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
   }
 }
 
+/* Apply rendered text texture to an A-Frame plane */
 function setPanelText(panel, text, language) {
   const texture = makeCanvasTexture(text, language);
   const mesh = panel.getObject3D('mesh');
@@ -324,10 +434,12 @@ function setPanelText(panel, text, language) {
   mesh.material.needsUpdate = true;
 }
 
+/* Link hotspot ID to its halo */
 function getHaloForHotspot(id) {
   return document.querySelector('#' + id + 'Halo');
 }
 
+/* Show subtle halo after gaze selection */
 function showHalo(halo) {
   if (!halo) return;
 
@@ -338,6 +450,7 @@ function showHalo(halo) {
   );
 }
 
+/* Hide halo when gaze leaves hotspot */
 function hideHalo(halo) {
   if (!halo) return;
 
@@ -345,6 +458,7 @@ function hideHalo(halo) {
   halo.setAttribute('visible', false);
 }
 
+/* Position the text panel near the selected hotspot */
 function showInfo(text, hotspot) {
   clearTimeout(closeTimer);
 
@@ -367,11 +481,13 @@ function showInfo(text, hotspot) {
   infoPanel.setAttribute('visible', true);
 }
 
+/* Hide current text panel */
 function hideInfo() {
   infoPanel.setAttribute('visible', false);
   activeHotspot = null;
 }
 
+/* Hide panel shortly after user gazes away */
 function hideInfoDelayed(hotspot) {
   clearTimeout(closeTimer);
 
@@ -380,12 +496,20 @@ function hideInfoDelayed(hotspot) {
   }, 1000);
 }
 
+/* Register each hotspot interaction */
 function addHotspot(id) {
   const el = document.querySelector('#' + id);
   const halo = getHaloForHotspot(id);
 
+  if (!el) return;
+
   el.addEventListener('click', () => {
     if (!pageReady || !currentLanguage) return;
+
+    const allowedHotspots =
+      tourMode === 'gallery' ? galleryHotspots : curatorHotspots;
+
+    if (!allowedHotspots.includes(id)) return;
 
     showHalo(halo);
     showInfo(hotspotTexts[id][currentLanguage], el);
@@ -397,6 +521,7 @@ function addHotspot(id) {
   });
 }
 
+/* Start after tour + language are selected */
 function startExperience(language) {
   currentLanguage = language;
   pageReady = true;
@@ -405,8 +530,12 @@ function startExperience(language) {
   gazeCursor.setAttribute('visible', true);
 
   const welcomeText = language === 'ar'
-    ? 'انظر إلى التفاصيل في اللوحة لاكتشاف الشرح.'
-    : 'Look at details in the painting to discover more.';
+    ? tourMode === 'gallery'
+      ? 'بدأت جولة المعرض. انظر إلى العناصر الرئيسية في اللوحة لاكتشاف الشرح.'
+      : 'بدأت جولة القيّم الفني. ابحث عن الرموز والتفاصيل الخفية داخل اللوحة.'
+    : tourMode === 'gallery'
+      ? 'Gallery Tour started. Look at the main elements of the painting to discover more.'
+      : 'Curator’s Tour started. Look for symbols, hidden details, and artistic techniques.';
 
   setPanelText(welcomePanel, welcomeText, language);
   welcomePanel.setAttribute('visible', true);
@@ -416,12 +545,15 @@ function startExperience(language) {
   }, 3500);
 }
 
+/* Register all possible hotspots */
 Object.keys(hotspotTexts).forEach(addHotspot);
 
+/* Initial state */
 window.addEventListener('load', () => {
   hideInfo();
   pageReady = false;
   currentLanguage = null;
+  tourMode = null;
   gazeCursor.setAttribute('visible', false);
 });
 </script>
