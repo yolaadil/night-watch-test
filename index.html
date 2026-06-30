@@ -106,137 +106,53 @@ body {
     height="3.45">
   </a-image>
 
-  <!-- MAIN GALLERY HOTSPOTS: visible yellow boxes for calibration -->
-  <a-plane class="hotspot gallery" id="captain"
-    position="-0.03 1.28 -2.95"
-    width="0.35" height="0.75"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
+  <!-- GLOWING HALOS: hidden until gaze enters -->
+  <a-circle id="captainHalo" position="-0.03 1.28 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="lieutenantHalo" position="0.48 1.25 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="girlHalo" position="-0.66 1.12 -2.94" radius="0.23" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="drummerHalo" position="1.60 1.15 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="flagHalo" position="-0.68 1.82 -2.94" radius="0.34" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="dogHalo" position="1.08 0.58 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="leftGroupHalo" position="-1.45 1.63 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="rightGroupHalo" position="1.42 1.55 -2.94" radius="0.38" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.35" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
 
-  <a-plane class="hotspot gallery" id="lieutenant"
-    position="0.48 1.25 -2.95"
-    width="0.35" height="0.80"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
+  <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.36" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.40" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
 
-  <a-plane class="hotspot gallery" id="girl"
-    position="-0.66 1.12 -2.95"
-    width="0.32" height="0.60"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
+  <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
-  <a-plane class="hotspot gallery" id="drummer"
-    position="1.60 1.15 -2.95"
-    width="0.55" height="0.88"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
+  <!-- INVISIBLE HOTSPOTS -->
+  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.45" height="0.25" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot gallery" id="flag"
-    position="-0.68 1.82 -2.95"
-    width="0.58" height="0.95"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
+  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot gallery" id="musketeer"
-    position="-1.10 1.45 -2.95"
-    width="0.35" height="0.65"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot gallery" id="dog"
-    position="1.08 0.58 -2.95"
-    width="0.45" height="0.25"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot gallery" id="leftGroup"
-    position="-1.45 1.63 -2.95"
-    width="0.55" height="0.80"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot gallery" id="rightGroup"
-    position="1.42 1.55 -2.95"
-    width="0.70" height="0.88"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot gallery" id="backgroundArch"
-    position="0.45 2.25 -2.95"
-    width="0.80" height="0.55"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <!-- CURATOR HOTSPOTS: general hidden details -->
-  <a-plane class="hotspot curatorOnly" id="chickenClaws"
-    position="-0.72 1.02 -2.95"
-    width="0.24" height="0.24"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot curatorOnly" id="drinkingHorn"
-    position="-0.58 1.16 -2.95"
-    width="0.24" height="0.24"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot curatorOnly" id="weapons"
-    position="-1.00 1.35 -2.95"
-    width="0.36" height="0.45"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot curatorOnly" id="spears"
-    position="0.90 2.05 -2.95"
-    width="0.90" height="0.45"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot curatorOnly" id="light"
-    position="-0.25 1.20 -2.95"
-    width="0.80" height="0.75"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot curatorOnly" id="shield"
-    position="0.58 1.90 -2.95"
-    width="0.30" height="0.25"
-    material="color:yellow; opacity:0.35; transparent:true">
-  </a-plane>
-
-  <!-- CAPTAIN INNER HOTSPOTS: hidden until Captain is selected in Curator's Tour -->
-  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand"
-    visible="false"
-    position="-0.23 1.45 -2.95"
-    width="0.28" height="0.20"
-    material="color:orange; opacity:0.55; transparent:true">
-  </a-plane>
-
-  <a-plane class="hotspot curatorOnly captainDetail" id="redSash"
-    visible="false"
-    position="-0.10 1.25 -2.95"
-    width="0.22" height="0.30"
-    material="color:orange; opacity:0.55; transparent:true">
-  </a-plane>
+  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
 
   <!-- Text panels -->
-  <a-plane
-    id="infoPanel"
-    visible="false"
-    position="0 0 -2.8"
-    width="1.35"
-    height="0.5"
-    material="transparent:true; opacity:1">
-  </a-plane>
-
-  <a-plane
-    id="welcomePanel"
-    visible="false"
-    position="0 0.55 -2.8"
-    width="1.9"
-    height="0.48"
-    material="transparent:true; opacity:1">
-  </a-plane>
+  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
+  <a-plane id="welcomePanel" visible="false" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
 
   <!-- Camera and gaze cursor -->
   <a-camera position="0 1.6 0">
@@ -265,30 +181,17 @@ let tourMode = null;
 let closeTimer = null;
 let activeHotspot = null;
 let lastTextChangeTime = 0;
+let infoTimer = null;
 
 const galleryHotspots = [
-  'captain',
-  'lieutenant',
-  'girl',
-  'drummer',
-  'flag',
-  'musketeer',
-  'dog',
-  'leftGroup',
-  'rightGroup',
-  'backgroundArch'
+  'captain','lieutenant','girl','drummer','flag',
+  'musketeer','dog','leftGroup','rightGroup','backgroundArch'
 ];
 
 const curatorHotspots = [
   ...galleryHotspots,
-  'chickenClaws',
-  'drinkingHorn',
-  'weapons',
-  'spears',
-  'light',
-  'shield',
-  'captainHand',
-  'redSash'
+  'chickenClaws','drinkingHorn','weapons','spears',
+  'light','shield','captainHand','redSash'
 ];
 
 const hotspotTexts = {
@@ -373,12 +276,10 @@ function selectLanguage(language) {
     languageBox.innerHTML = `
       <h1>الحراسة الليلية</h1>
       <p>اختر نوع الجولة</p>
-
       <div class="tourOption" onclick="selectTour('gallery')" style="text-align:right">
         <h2>جولة المعرض</h2>
         <p>تعرف على الشخصيات والعناصر الرئيسية.</p>
       </div>
-
       <div class="tourOption" onclick="selectTour('curator')" style="text-align:right">
         <h2>جولة القيّم الفني</h2>
         <p>اكتشف الرموز والتفاصيل الخفية.</p>
@@ -388,12 +289,10 @@ function selectLanguage(language) {
     languageBox.innerHTML = `
       <h1>The Night Watch</h1>
       <p>Choose your tour</p>
-
       <div class="tourOption" onclick="selectTour('gallery')">
         <h2>Gallery Tour</h2>
         <p>Explore the main figures and key elements.</p>
       </div>
-
       <div class="tourOption" onclick="selectTour('curator')">
         <h2>Curator's Tour</h2>
         <p>Discover hidden symbols and details.</p>
@@ -404,11 +303,11 @@ function selectLanguage(language) {
 
 function selectTour(mode) {
   tourMode = mode;
-  updateVisibleDebugBoxes();
+  updateVisibleHotspots();
   startExperience();
 }
 
-function updateVisibleDebugBoxes() {
+function updateVisibleHotspots() {
   const allowedHotspots =
     tourMode === 'gallery' ? galleryHotspots : curatorHotspots;
 
@@ -429,7 +328,6 @@ function updateVisibleDebugBoxes() {
 
 function showCaptainDetails() {
   if (tourMode !== 'curator') return;
-
   document.querySelectorAll('.captainDetail').forEach(el => {
     el.setAttribute('visible', true);
   });
@@ -439,6 +337,33 @@ function hideCaptainDetails() {
   document.querySelectorAll('.captainDetail').forEach(el => {
     el.setAttribute('visible', false);
   });
+}
+
+function getHaloForHotspot(id) {
+  return document.querySelector('#' + id + 'Halo');
+}
+
+function showHalo(id) {
+  const halo = getHaloForHotspot(id);
+  if (!halo) return;
+
+  halo.setAttribute('visible', true);
+  halo.setAttribute(
+    'animation',
+    'property: material.opacity; from:0.04; to:0.12; dur:2800; dir:alternate; loop:true'
+  );
+}
+
+function hideHalo(id) {
+  const halo = getHaloForHotspot(id);
+  if (!halo) return;
+
+  halo.removeAttribute('animation');
+  halo.setAttribute('visible', false);
+}
+
+function hideAllHalos() {
+  Object.keys(hotspotTexts).forEach(id => hideHalo(id));
 }
 
 function makeCanvasTexture(text, language, width = 650, height = 250) {
@@ -516,7 +441,6 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
 function setPanelText(panel, text, language) {
   const texture = makeCanvasTexture(text, language);
   const mesh = panel.getObject3D('mesh');
-
   if (!mesh) return;
 
   mesh.material.map = texture;
@@ -551,18 +475,11 @@ function hideInfo() {
   activeHotspot = null;
 }
 
-function hideInfoDelayed(hotspot) {
-  clearTimeout(closeTimer);
-  closeTimer = setTimeout(() => {
-    if (activeHotspot === hotspot) hideInfo();
-  }, 1000);
-}
-
 function addHotspot(id) {
   const el = document.querySelector('#' + id);
   if (!el) return;
 
-  el.addEventListener('click', () => {
+  el.addEventListener('mouseenter', () => {
     if (!pageReady || !currentLanguage || !tourMode) return;
 
     const allowedHotspots =
@@ -570,19 +487,28 @@ function addHotspot(id) {
 
     if (!allowedHotspots.includes(id)) return;
 
-    if (id !== 'captain' && !el.classList.contains('captainDetail')) {
-      hideCaptainDetails();
-    }
+    clearTimeout(infoTimer);
+    clearTimeout(closeTimer);
 
-    showInfo(hotspotTexts[id][currentLanguage], el);
+    showHalo(id);
 
-    if (id === 'captain') {
-      showCaptainDetails();
-    }
+    infoTimer = setTimeout(() => {
+      showInfo(hotspotTexts[id][currentLanguage], el);
+
+      if (id === 'captain') {
+        showCaptainDetails();
+      }
+
+      if (id !== 'captain' && !el.classList.contains('captainDetail')) {
+        hideCaptainDetails();
+      }
+    }, 2000);
   });
 
   el.addEventListener('mouseleave', () => {
-    hideInfoDelayed(el);
+    clearTimeout(infoTimer);
+    hideHalo(id);
+    hideInfo();
   });
 }
 
@@ -612,6 +538,7 @@ Object.keys(hotspotTexts).forEach(addHotspot);
 
 window.addEventListener('load', () => {
   hideInfo();
+  hideAllHalos();
   pageReady = false;
   currentLanguage = null;
   tourMode = null;
