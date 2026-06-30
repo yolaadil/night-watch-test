@@ -63,8 +63,8 @@ body {
   background: #2b2b2b;
   border: 1px solid #444;
   border-radius: 14px;
-  padding: 16px;
-  margin: 14px 0;
+  padding: 15px;
+  margin: 12px 0;
   cursor: pointer;
 }
 
@@ -74,9 +74,9 @@ body {
 }
 
 .tourOption h2 {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   color: #ffe680;
-  font-size: 21px;
+  font-size: 20px;
 }
 
 .tourOption p {
@@ -89,6 +89,7 @@ body {
 
 <body>
 
+<!-- Opening menu: language first, then tour options in the selected language -->
 <div id="languageOverlay">
   <div id="languageBox">
     <h1>The Night Watch</h1>
@@ -108,31 +109,142 @@ body {
     height="3.45">
   </a-image>
 
-  <!-- YELLOW DEBUG HOTSPOT BOXES: visible all the time for positioning -->
-  <a-plane class="hotspot" id="captain" position="-0.05 1.35 -2.95" width="0.35" height="0.75" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="lieutenant" position="0.45 1.30 -2.95" width="0.35" height="0.80" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="girl" position="-0.80 1.18 -2.95" width="0.32" height="0.60" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="drummer" position="1.75 1.25 -2.95" width="0.38" height="0.80" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="flag" position="-1.08 1.95 -2.95" width="0.95" height="0.65" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="dog" position="0.95 0.75 -2.95" width="0.35" height="0.25" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="leftGroup" position="-1.55 1.55 -2.95" width="0.42" height="0.75" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="rightGroup" position="1.35 1.60 -2.95" width="0.50" height="0.80" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
+  <!-- 
+    DEBUG HOTSPOT BOXES
+    These are intentionally visible yellow boxes for alignment.
+    After positioning is finalized, change opacity back to 0 or replace with halos.
+  -->
 
-  <!-- Extra Curator's Tour boxes -->
-  <a-plane class="hotspot" id="captainHand" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="redSash" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
-  <a-plane class="hotspot" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="color:yellow; opacity:0.25; transparent:true"></a-plane>
+  <!-- Gallery Tour hotspots: main 10 regions -->
+  <a-plane class="hotspot gallery" id="captain"
+    position="-0.03 1.28 -2.95"
+    width="0.35" height="0.75"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
 
-  <!-- Text panels -->
-  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
-  <a-plane id="welcomePanel" visible="false" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
+  <a-plane class="hotspot gallery" id="lieutenant"
+    position="0.48 1.25 -2.95"
+    width="0.35" height="0.80"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot gallery" id="girl"
+    position="-0.66 1.12 -2.95"
+    width="0.32" height="0.60"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot gallery" id="drummer"
+    position="1.88 1.18 -2.95"
+    width="0.38" height="0.80"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <!-- Flag bearer: now mainly on the man, not the flag cloth -->
+  <a-plane class="hotspot gallery" id="flag"
+    position="-0.78 1.70 -2.95"
+    width="0.42" height="0.82"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot gallery" id="musketeer"
+    position="-1.10 1.45 -2.95"
+    width="0.35" height="0.65"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <!-- Dog moved down and slightly right -->
+  <a-plane class="hotspot gallery" id="dog"
+    position="1.18 0.60 -2.95"
+    width="0.28" height="0.18"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot gallery" id="leftGroup"
+    position="-1.56 1.68 -2.95"
+    width="0.42" height="0.75"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot gallery" id="rightGroup"
+    position="1.50 1.58 -2.95"
+    width="0.50" height="0.80"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot gallery" id="backgroundArch"
+    position="0.45 2.25 -2.95"
+    width="0.80" height="0.55"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <!-- Curator's Tour extra hotspots -->
+  <a-plane class="hotspot curatorOnly" id="captainHand"
+    position="-0.23 1.45 -2.95"
+    width="0.28" height="0.20"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="redSash"
+    position="-0.10 1.25 -2.95"
+    width="0.22" height="0.30"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="chickenClaws"
+    position="-0.72 1.02 -2.95"
+    width="0.24" height="0.24"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="drinkingHorn"
+    position="-0.58 1.16 -2.95"
+    width="0.24" height="0.24"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="weapons"
+    position="-1.00 1.35 -2.95"
+    width="0.36" height="0.45"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="spears"
+    position="0.90 2.05 -2.95"
+    width="0.90" height="0.45"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="light"
+    position="-0.25 1.20 -2.95"
+    width="0.80" height="0.75"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="shield"
+    position="0.58 1.90 -2.95"
+    width="0.30" height="0.25"
+    material="color:yellow; opacity:0.35; transparent:true">
+  </a-plane>
+
+  <!-- Text panels: canvas-rendered text will be placed on these planes -->
+  <a-plane
+    id="infoPanel"
+    visible="false"
+    position="0 0 -2.8"
+    width="1.35"
+    height="0.5"
+    material="transparent:true; opacity:1">
+  </a-plane>
+
+  <a-plane
+    id="welcomePanel"
+    visible="false"
+    position="0 0.55 -2.8"
+    width="1.9"
+    height="0.48"
+    material="transparent:true; opacity:1">
+  </a-plane>
 
   <!-- Camera and gaze cursor -->
   <a-camera position="0 1.6 0">
@@ -149,12 +261,14 @@ body {
 </a-scene>
 
 <script>
+/* Main scene references */
 const infoPanel = document.querySelector('#infoPanel');
 const welcomePanel = document.querySelector('#welcomePanel');
 const gazeCursor = document.querySelector('#gazeCursor');
 const languageOverlay = document.querySelector('#languageOverlay');
 const languageBox = document.querySelector('#languageBox');
 
+/* Experience state */
 let pageReady = false;
 let currentLanguage = null;
 let tourMode = null;
@@ -162,20 +276,34 @@ let closeTimer = null;
 let activeHotspot = null;
 let lastTextChangeTime = 0;
 
-/* Gallery Tour: main regions only */
+/* Gallery Tour: only the 10 main regions */
 const galleryHotspots = [
-  'captain', 'lieutenant', 'girl', 'drummer', 'flag',
-  'musketeer', 'dog', 'leftGroup', 'rightGroup', 'backgroundArch'
+  'captain',
+  'lieutenant',
+  'girl',
+  'drummer',
+  'flag',
+  'musketeer',
+  'dog',
+  'leftGroup',
+  'rightGroup',
+  'backgroundArch'
 ];
 
-/* Curator's Tour: all regions */
+/* Curator's Tour: all Gallery regions + hidden-detail regions */
 const curatorHotspots = [
   ...galleryHotspots,
-  'captainHand', 'redSash', 'chickenClaws', 'drinkingHorn',
-  'weapons', 'spears', 'light', 'shield'
+  'captainHand',
+  'redSash',
+  'chickenClaws',
+  'drinkingHorn',
+  'weapons',
+  'spears',
+  'light',
+  'shield'
 ];
 
-/* Annotation text */
+/* Annotation text in both languages */
 const hotspotTexts = {
   captain: {
     en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. Rembrandt places him at the center, stepping forward in black with a red sash.',
@@ -194,8 +322,8 @@ const hotspotTexts = {
     ar: 'قارِع الطبل\n\nيضيف الإيقاع والصوت والحركة، فيجعل المشهد يبدو كفرقة تستعد للسير.'
   },
   flag: {
-    en: 'The Flag Bearer\n\nThe flag identifies the militia company and adds height, movement, and ceremony to the scene.',
-    ar: 'حامل الراية\n\nتُعرّف الراية بفرقة الحرس وتضيف ارتفاعًا وحركة وطابعًا احتفاليًا إلى المشهد.'
+    en: 'The Flag Bearer\n\nThe flag identifies the militia company and adds ceremony to the scene.',
+    ar: 'حامل الراية\n\nتُعرّف الراية بفرقة الحرس وتضيف طابعًا احتفاليًا إلى المشهد.'
   },
   musketeer: {
     en: 'The Musketeer\n\nThe armed guards refer to the civic militia’s role and training. Rembrandt shows the company as active rather than formally posed.',
@@ -251,7 +379,7 @@ const hotspotTexts = {
   }
 };
 
-/* Step 1: choose language first */
+/* Step 1: language selection */
 function selectLanguage(language) {
   currentLanguage = language;
 
@@ -262,12 +390,12 @@ function selectLanguage(language) {
 
       <div class="tourOption" onclick="selectTour('gallery')" style="text-align:right">
         <h2>جولة المعرض</h2>
-        <p>تعرف على الشخصيات والعناصر الرئيسية في اللوحة.</p>
+        <p>تعرف على الشخصيات والعناصر الرئيسية.</p>
       </div>
 
       <div class="tourOption" onclick="selectTour('curator')" style="text-align:right">
         <h2>جولة القيّم الفني</h2>
-        <p>اكتشف الرموز والتفاصيل الخفية والقصص وراء اللوحة.</p>
+        <p>اكتشف الرموز والتفاصيل الخفية.</p>
       </div>
     `;
   } else {
@@ -277,24 +405,43 @@ function selectLanguage(language) {
 
       <div class="tourOption" onclick="selectTour('gallery')">
         <h2>Gallery Tour</h2>
-        <p>Explore the main figures and key elements of the painting.</p>
+        <p>Explore the main figures and key elements.</p>
       </div>
 
       <div class="tourOption" onclick="selectTour('curator')">
         <h2>Curator's Tour</h2>
-        <p>Discover hidden symbols, details, and stories behind the painting.</p>
+        <p>Discover hidden symbols and details.</p>
       </div>
     `;
   }
 }
 
-/* Step 2: choose tour mode */
+/* Step 2: tour selection */
 function selectTour(mode) {
   tourMode = mode;
+  updateVisibleDebugBoxes();
   startExperience();
 }
 
-/* Create canvas texture for English/Arabic text */
+/* Show different yellow boxes depending on selected tour */
+function updateVisibleDebugBoxes() {
+  const allHotspots = document.querySelectorAll('.hotspot');
+
+  allHotspots.forEach(el => {
+    const id = el.getAttribute('id');
+
+    const allowedHotspots =
+      tourMode === 'gallery' ? galleryHotspots : curatorHotspots;
+
+    if (allowedHotspots.includes(id)) {
+      el.setAttribute('visible', true);
+    } else {
+      el.setAttribute('visible', false);
+    }
+  });
+}
+
+/* Canvas texture for English and Arabic labels */
 function makeCanvasTexture(text, language, width = 650, height = 250) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -325,6 +472,7 @@ function makeCanvasTexture(text, language, width = 650, height = 250) {
   return texture;
 }
 
+/* Draw rounded rectangle background for text panel */
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -339,6 +487,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* Wrap text inside panel */
 function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
   const paragraphs = text.split('\n');
 
@@ -367,9 +516,11 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
   }
 }
 
+/* Apply canvas texture to A-Frame panel */
 function setPanelText(panel, text, language) {
   const texture = makeCanvasTexture(text, language);
   const mesh = panel.getObject3D('mesh');
+
   if (!mesh) return;
 
   mesh.material.map = texture;
@@ -377,7 +528,7 @@ function setPanelText(panel, text, language) {
   mesh.material.needsUpdate = true;
 }
 
-/* Show annotation near selected hotspot */
+/* Show text panel near selected hotspot */
 function showInfo(text, hotspot) {
   clearTimeout(closeTimer);
 
@@ -400,11 +551,13 @@ function showInfo(text, hotspot) {
   infoPanel.setAttribute('visible', true);
 }
 
+/* Hide text panel */
 function hideInfo() {
   infoPanel.setAttribute('visible', false);
   activeHotspot = null;
 }
 
+/* Hide text panel shortly after leaving hotspot */
 function hideInfoDelayed(hotspot) {
   clearTimeout(closeTimer);
   closeTimer = setTimeout(() => {
@@ -412,7 +565,7 @@ function hideInfoDelayed(hotspot) {
   }, 1000);
 }
 
-/* Add gaze/click behavior to hotspot */
+/* Register gaze/click behavior for each hotspot */
 function addHotspot(id) {
   const el = document.querySelector('#' + id);
   if (!el) return;
@@ -433,7 +586,7 @@ function addHotspot(id) {
   });
 }
 
-/* Start actual WebXR experience */
+/* Start experience after language and tour are selected */
 function startExperience() {
   pageReady = true;
   languageOverlay.style.display = 'none';
@@ -466,6 +619,11 @@ window.addEventListener('load', () => {
   currentLanguage = null;
   tourMode = null;
   gazeCursor.setAttribute('visible', false);
+
+  /* Hide all boxes until a tour is selected */
+  document.querySelectorAll('.hotspot').forEach(el => {
+    el.setAttribute('visible', false);
+  });
 });
 </script>
 
