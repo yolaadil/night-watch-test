@@ -98,57 +98,79 @@ body {
 
 <a-scene>
 
-  <!-- Painting -->
-  <a-image
-    src="painting.jpg"
-    position="0 1.6 -3"
-    width="4"
-    height="3.45">
-  </a-image>
+  <!-- Everything inside this group zooms together -->
+  <a-entity id="paintingGroup" position="0 0 0" scale="1 1 1">
 
-  <!-- GLOWING HALOS: hidden until gaze enters -->
-  <a-circle id="captainHalo" position="-0.03 1.28 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="lieutenantHalo" position="0.48 1.25 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="girlHalo" position="-0.66 1.12 -2.94" radius="0.23" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="drummerHalo" position="1.60 1.15 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="flagHalo" position="-0.68 1.82 -2.94" radius="0.34" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="dogHalo" position="1.08 0.58 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="leftGroupHalo" position="-1.45 1.63 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="rightGroupHalo" position="1.42 1.55 -2.94" radius="0.38" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.35" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <!-- Painting -->
+    <a-image
+      src="painting.jpg"
+      position="0 1.6 -3"
+      width="4"
+      height="3.45">
+    </a-image>
 
-  <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.36" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.40" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <!-- GLOWING HALOS -->
+    <a-circle id="captainHalo" position="-0.03 1.28 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="lieutenantHalo" position="0.48 1.25 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="girlHalo" position="-0.66 1.12 -2.94" radius="0.23" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="drummerHalo" position="1.60 1.15 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="flagHalo" position="-0.68 1.82 -2.94" radius="0.34" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="dogHalo" position="1.08 0.58 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="leftGroupHalo" position="-1.45 1.63 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="rightGroupHalo" position="1.42 1.55 -2.94" radius="0.38" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.35" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
 
-  <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
-  <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+    <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.36" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.40" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
 
-  <!-- INVISIBLE HOTSPOTS -->
-  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.45" height="0.25" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
+    <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+    <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
-  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+    <!-- INVISIBLE HOTSPOTS -->
+    <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.45" height="0.25" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+
+    <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
+    <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
+
+  </a-entity>
+
+  <!-- BACK BUTTON -->
+  <a-plane id="backBtn" class="backControl"
+    visible="false"
+    position="0 0.35 -1.8"
+    width="0.65"
+    height="0.28"
+    color="#333">
+  </a-plane>
+
+  <a-text id="backText"
+    visible="false"
+    value="Back"
+    position="-0.20 0.41 -1.75"
+    width="0.9"
+    color="white">
+  </a-text>
 
   <!-- Text panels -->
   <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
@@ -161,7 +183,7 @@ body {
       visible="false"
       fuse="true"
       fuse-timeout="2000"
-      raycaster="objects: .hotspot"
+      raycaster="objects: .hotspot, .backControl"
       color="black">
     </a-cursor>
   </a-camera>
@@ -175,6 +197,10 @@ const gazeCursor = document.querySelector('#gazeCursor');
 const languageOverlay = document.querySelector('#languageOverlay');
 const languageBox = document.querySelector('#languageBox');
 
+const paintingGroup = document.querySelector('#paintingGroup');
+const backBtn = document.querySelector('#backBtn');
+const backText = document.querySelector('#backText');
+
 let pageReady = false;
 let currentLanguage = null;
 let tourMode = null;
@@ -182,6 +208,7 @@ let closeTimer = null;
 let activeHotspot = null;
 let lastTextChangeTime = 0;
 let infoTimer = null;
+let zoomedIn = false;
 
 const galleryHotspots = [
   'captain','lieutenant','girl','drummer','flag',
@@ -196,7 +223,7 @@ const curatorHotspots = [
 
 const hotspotTexts = {
   captain: {
-    en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. In Curator’s Tour, selecting him reveals smaller details such as his hand and red sash.',
+    en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. In Curator’s Tour, selecting him zooms into the figure and reveals smaller details such as his hand and red sash.',
     ar: 'الكابتن فرانس بانينك كوك\n\nقائد فرقة الحرس المدني في أمستردام. في جولة القيّم الفني، يكشف اختياره عن تفاصيل أصغر مثل يده ووشاحه الأحمر.'
   },
   lieutenant: {
@@ -338,6 +365,50 @@ function hideCaptainDetails() {
     el.setAttribute('visible', false);
   });
 }
+
+function zoomToCaptain() {
+  if (tourMode !== 'curator' || zoomedIn) return;
+
+  zoomedIn = true;
+
+  paintingGroup.setAttribute(
+    'animation__scale',
+    'property: scale; to: 2 2 2; dur: 800; easing: easeInOutQuad'
+  );
+
+  paintingGroup.setAttribute(
+    'animation__move',
+    'property: position; to: 0.10 -0.18 1.05; dur: 800; easing: easeInOutQuad'
+  );
+
+  showCaptainDetails();
+
+  backBtn.setAttribute('visible', true);
+  backText.setAttribute('visible', true);
+}
+
+function resetZoom() {
+  zoomedIn = false;
+
+  paintingGroup.setAttribute(
+    'animation__scale',
+    'property: scale; to: 1 1 1; dur: 800; easing: easeInOutQuad'
+  );
+
+  paintingGroup.setAttribute(
+    'animation__move',
+    'property: position; to: 0 0 0; dur: 800; easing: easeInOutQuad'
+  );
+
+  hideCaptainDetails();
+  hideInfo();
+  hideAllHalos();
+
+  backBtn.setAttribute('visible', false);
+  backText.setAttribute('visible', false);
+}
+
+backBtn.addEventListener('click', resetZoom);
 
 function getHaloForHotspot(id) {
   return document.querySelector('#' + id + 'Halo');
@@ -497,6 +568,7 @@ function addHotspot(id) {
 
       if (id === 'captain') {
         showCaptainDetails();
+        zoomToCaptain();
       }
 
       if (id !== 'captain' && !el.classList.contains('captainDetail')) {
@@ -507,8 +579,14 @@ function addHotspot(id) {
 
   el.addEventListener('mouseleave', () => {
     clearTimeout(infoTimer);
-    hideHalo(id);
-    hideInfo();
+
+    if (!zoomedIn || !el.classList.contains('captainDetail')) {
+      hideHalo(id);
+    }
+
+    if (!zoomedIn) {
+      hideInfo();
+    }
   });
 }
 
@@ -521,10 +599,10 @@ function startExperience() {
     currentLanguage === 'ar'
       ? tourMode === 'gallery'
         ? 'بدأت جولة المعرض. انظر إلى العناصر الرئيسية في اللوحة.'
-        : 'بدأت جولة القيّم الفني. اختر القائد لاكتشاف تفاصيل داخلية إضافية.'
+        : 'بدأت جولة القيّم الفني. اختر القائد لتكبير التفاصيل الداخلية.'
       : tourMode === 'gallery'
         ? 'Gallery Tour started. Look at the main elements of the painting.'
-        : "Curator's Tour started. Select the Captain to reveal inner details.";
+        : "Curator's Tour started. Select the Captain to zoom into inner details.";
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
@@ -547,6 +625,9 @@ window.addEventListener('load', () => {
   document.querySelectorAll('.hotspot').forEach(el => {
     el.setAttribute('visible', false);
   });
+
+  backBtn.setAttribute('visible', false);
+  backText.setAttribute('visible', false);
 });
 </script>
 
