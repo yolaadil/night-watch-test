@@ -1,210 +1,84 @@
-<!--
-REWRITE PLAN
-============
-This file is the preserved working baseline.
-
-Planned refactor:
-1. Remove HTML overlay menu.
-2. Replace with in-scene A-Frame menu panels.
-3. VR-clickable language selection.
-4. VR-clickable Gallery / Curator tour selection.
-5. Preserve:
-   - Captain zoom
-   - Nested hotspots
-   - Halo interactions
-   - Welcome panel
-   - English/Arabic annotations
-   - Back button
-
-This preserved copy is intended as the starting point for the rewrite.
--->
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <title>The Night Watch Interactive</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-
-<style>
-body {
-  margin: 0;
-  overflow: hidden;
-  font-family: Arial, Tahoma, sans-serif;
-}
-
-#languageOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.72);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#languageBox {
-  width: min(520px, 90vw);
-  background: rgba(20,20,20,0.94);
-  color: white;
-  border-radius: 18px;
-  padding: 28px 24px;
-  text-align: center;
-}
-
-#languageBox h1 {
-  margin: 0 0 12px;
-  color: #ffe680;
-  font-size: 30px;
-}
-
-#languageBox p {
-  color: #ddd;
-  font-size: 17px;
-}
-
-.languageButton {
-  cursor: pointer;
-  border: none;
-  border-radius: 12px;
-  padding: 13px 22px;
-  margin: 8px;
-  font-size: 18px;
-  background: #333;
-  color: white;
-}
-
-.languageButton:hover {
-  background: #555;
-}
-
-.tourOption {
-  background: #2b2b2b;
-  border: 1px solid #444;
-  border-radius: 14px;
-  padding: 15px;
-  margin: 12px 0;
-  cursor: pointer;
-}
-
-.tourOption:hover {
-  background: #444;
-  border-color: #ffe680;
-}
-
-.tourOption h2 {
-  margin: 0 0 7px;
-  color: #ffe680;
-  font-size: 20px;
-}
-
-.tourOption p {
-  margin: 0;
-  font-size: 15px;
-  color: #ddd;
-}
-</style>
 </head>
 
 <body>
-
-<div id="languageOverlay">
-  <div id="languageBox">
-    <h1>The Night Watch</h1>
-    <p>Choose language / اختر اللغة</p>
-    <button class="languageButton" onclick="selectLanguage('en')">English</button>
-    <button class="languageButton" onclick="selectLanguage('ar')">العربية</button>
-  </div>
-</div>
-
 <a-scene>
 
-  <!-- Everything inside this group zooms together -->
-  <a-entity id="paintingGroup" position="0 0 0" scale="1 1 1">
+  <!-- PAINTING -->
+  <a-image
+    src="painting.jpg"
+    position="0 1.6 -3"
+    width="4"
+    height="3.45">
+  </a-image>
 
-    <!-- Painting -->
-    <a-image
-      src="painting.jpg"
-      position="0 1.6 -3"
-      width="4"
-      height="3.45">
-    </a-image>
+  <!-- START MENU -->
+  <a-entity id="startMenu">
+    <a-plane position="0 1.6 -2.25" width="3.2" height="2.2"
+      material="color:#111; opacity:0.85; transparent:true"></a-plane>
 
-    <!-- GLOWING HALOS -->
-    <a-circle id="captainHalo" position="-0.03 1.28 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="lieutenantHalo" position="0.48 1.25 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="girlHalo" position="-0.66 1.12 -2.94" radius="0.23" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="drummerHalo" position="1.60 1.15 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="flagHalo" position="-0.68 1.82 -2.94" radius="0.34" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="dogHalo" position="1.08 0.58 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="leftGroupHalo" position="-1.45 1.63 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="rightGroupHalo" position="1.42 1.55 -2.94" radius="0.38" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.35" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-text value="The Night Watch" position="-1.2 2.35 -2.15" width="3" color="white"></a-text>
+    <a-text value="Choose your experience" position="-1.15 2.08 -2.15" width="2.5" color="#dddddd"></a-text>
 
-    <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.36" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.40" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-    <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+    <a-plane id="openTourBtn" class="selectable menuButton" position="-0.75 1.65 -2.1" width="1.1" height="0.35" color="#555"></a-plane>
+    <a-text value="Open Tour" position="-1.08 1.72 -2.05" width="1.5" color="white"></a-text>
 
-    <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
-    <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+    <a-plane id="guidedTourBtn" class="selectable menuButton" position="0.75 1.65 -2.1" width="1.1" height="0.35" color="#333"></a-plane>
+    <a-text value="Guided Tour" position="0.37 1.72 -2.05" width="1.5" color="white"></a-text>
 
-    <!-- INVISIBLE HOTSPOTS -->
-    <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.45" height="0.25" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
+    <a-plane id="generalBtn" class="selectable menuButton" position="-0.75 1.15 -2.1" width="1.1" height="0.35" color="#555"></a-plane>
+    <a-text value="General Info" position="-1.12 1.22 -2.05" width="1.5" color="white"></a-text>
 
-    <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+    <a-plane id="hiddenBtn" class="selectable menuButton" position="0.75 1.15 -2.1" width="1.1" height="0.35" color="#333"></a-plane>
+    <a-text value="Hidden Stories" position="0.33 1.22 -2.05" width="1.5" color="white"></a-text>
 
-    <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
-    <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
-
+    <a-plane id="beginBtn" class="selectable menuButton" position="0 0.65 -2.1" width="1.4" height="0.38" color="#666"></a-plane>
+    <a-text value="Begin Experience" position="-0.52 0.72 -2.05" width="1.8" color="white"></a-text>
   </a-entity>
 
-  <!-- BACK BUTTON -->
-  <a-plane id="backBtn" class="backControl"
-    visible="false"
-    position="0 0.35 -1.8"
-    width="0.65"
-    height="0.28"
-    color="#333">
-  </a-plane>
+  <!-- HALOS: hidden by default -->
+  <a-circle id="captainHalo" position="-0.05 1.35 -2.94" radius="0.25" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="lieutenantHalo" position="0.45 1.30 -2.94" radius="0.25" color="#fff2aa" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="girlHalo" position="-0.80 1.18 -2.94" radius="0.22" color="#fff7c2" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="drummerHalo" position="1.75 1.25 -2.94" radius="0.25" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="flagHalo" position="-1.08 1.95 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="dogHalo" position="0.95 0.75 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="leftGroupHalo" position="-1.55 1.55 -2.94" radius="0.28" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="rightGroupHalo" position="1.35 1.60 -2.94" radius="0.28" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
+  <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.30" color="#ffe680" visible="false" material="transparent:true; opacity:0.22"></a-circle>
 
-  <a-text id="backText"
-    visible="false"
-    value="Back"
-    position="-0.20 0.41 -1.75"
-    width="0.9"
-    color="white">
-  </a-text>
+  <!-- INVISIBLE HOTSPOTS -->
+  <a-plane class="hotspot selectable" id="captain" position="-0.05 1.35 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="lieutenant" position="0.45 1.30 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="girl" position="-0.80 1.18 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="drummer" position="1.75 1.25 -2.95" width="0.38" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="flag" position="-1.08 1.95 -2.95" width="0.95" height="0.65" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="dog" position="0.95 0.75 -2.95" width="0.35" height="0.25" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="leftGroup" position="-1.55 1.55 -2.95" width="0.42" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="rightGroup" position="1.35 1.60 -2.95" width="0.50" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot selectable" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
 
-  <!-- Text panels -->
-  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
-  <a-plane id="welcomePanel" visible="false" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
+  <!-- INFO PANEL -->
+  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.55" height="0.58"
+    material="color:#111; opacity:0.60; transparent:true"></a-plane>
 
-  <!-- Camera and gaze cursor -->
+  <a-text id="infoText" visible="false" value="" position="0 -0.08 -2.75" width="1.15" color="white"></a-text>
+
+  <!-- CAMERA -->
   <a-camera position="0 1.6 0">
     <a-cursor
       id="gazeCursor"
-      visible="false"
+      visible="true"
       fuse="true"
-      fuse-timeout="2000"
-      raycaster="objects: .hotspot, .backControl"
+      fuse-timeout="3000"
+      raycaster="objects: .selectable"
       color="black">
     </a-cursor>
   </a-camera>
@@ -213,443 +87,280 @@ body {
 
 <script>
 const infoPanel = document.querySelector('#infoPanel');
-const welcomePanel = document.querySelector('#welcomePanel');
-const gazeCursor = document.querySelector('#gazeCursor');
-const languageOverlay = document.querySelector('#languageOverlay');
-const languageBox = document.querySelector('#languageBox');
-
-const paintingGroup = document.querySelector('#paintingGroup');
-const backBtn = document.querySelector('#backBtn');
-const backText = document.querySelector('#backText');
+const infoText = document.querySelector('#infoText');
+const startMenu = document.querySelector('#startMenu');
 
 let pageReady = false;
-let currentLanguage = null;
-let tourMode = null;
+let tourType = "open";
+let contentMode = "general";
 let closeTimer = null;
 let activeHotspot = null;
-let lastTextChangeTime = 0;
-let infoTimer = null;
-let zoomedIn = false;
+let guidedIndex = -1;
 
-const galleryHotspots = [
-  'captain','lieutenant','girl','drummer','flag',
-  'musketeer','dog','leftGroup','rightGroup','backgroundArch'
-];
-
-const curatorHotspots = [
-  ...galleryHotspots,
-  'chickenClaws','drinkingHorn','weapons','spears',
-  'light','shield','captainHand','redSash'
-];
-
-const hotspotTexts = {
+const annotations = {
   captain: {
-    en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. In Curator’s Tour, selecting him zooms into the figure and reveals smaller details such as his hand and red sash.',
-    ar: 'الكابتن فرانس بانينك كوك\n\nقائد فرقة الحرس المدني في أمستردام. في جولة القيّم الفني، يكشف اختياره عن تفاصيل أصغر مثل يده ووشاحه الأحمر.'
+    general: "Captain Frans Banning Cocq\n\nThe captain leads the civic guard and stands at the center of the composition.",
+    hidden: "Captain Frans Banning Cocq\n\nRembrandt turns what could have been a static group portrait into a scene of action, with the captain's gesture helping direct the movement of the group."
   },
   lieutenant: {
-    en: 'Lieutenant Willem van Ruytenburch\n\nThe lieutenant stands beside the captain in bright yellow clothing, helping draw the viewer’s eye to the center.',
-    ar: 'الملازم فيليم فان رويتنبرخ\n\nيقف بجانب القائد بملابس صفراء لامعة، مما يجذب نظر المشاهد نحو مركز اللوحة.'
+    general: "Lieutenant Willem van Ruytenburch\n\nThe lieutenant stands beside the captain and is recognizable by his bright yellow clothing.",
+    hidden: "Lieutenant Willem van Ruytenburch\n\nHis bright costume makes him visually prominent, helping guide the viewer's eye through the central figures."
   },
   girl: {
-    en: 'The Illuminated Girl\n\nShe is not a regular militia member. She works as a symbolic figure, carrying objects connected to the identity of the civic guard.',
-    ar: 'الفتاة المضيئة\n\nليست عضوة عادية في الحرس، بل تظهر كشخصية رمزية تحمل أشياء مرتبطة بهوية الفرقة.'
+    general: "The Girl with the Chicken\n\nThe illuminated girl is one of the most recognizable figures in the painting.",
+    hidden: "The Girl with the Chicken\n\nShe is often read as a symbolic figure. The chicken claws are associated with the militia company and help identify the group."
   },
   drummer: {
-    en: 'The Drummer\n\nThe drummer adds rhythm, sound, and movement, making the scene feel like a company about to march.',
-    ar: 'قارِع الطبل\n\nيضيف الإيقاع والصوت والحركة، فيجعل المشهد يبدو كفرقة تستعد للسير.'
+    general: "The Drummer\n\nThe drummer adds movement and sound to the scene.",
+    hidden: "The Drummer\n\nHis presence helps make the scene feel like a living procession rather than a posed portrait."
   },
   flag: {
-    en: 'The Flag Bearer\n\nThe flag identifies the militia company and adds ceremony to the scene.',
-    ar: 'حامل الراية\n\nتُعرّف الراية بفرقة الحرس وتضيف طابعًا احتفاليًا إلى المشهد.'
+    general: "The Flag Bearer\n\nThe flag identifies the militia company and adds drama to the composition.",
+    hidden: "The Flag Bearer\n\nThe flag creates height and movement, helping transform the group into a theatrical civic procession."
   },
   musketeer: {
-    en: 'The Musketeer\n\nThe armed guards refer to the civic militia’s role and training.',
-    ar: 'حامل البندقية\n\nيشير الحراس المسلحون إلى دور وتدريب الميليشيا المدنية.'
+    general: "The Musketeer\n\nThis figure represents the armed role of the civic guard.",
+    hidden: "The Musketeer\n\nWeapons and gestures throughout the painting create a sense of staged action and civic identity."
   },
   dog: {
-    en: 'The Dog\n\nA small lively detail near the drummer. It adds spontaneity and everyday life to the crowded scene.',
-    ar: 'الكلب\n\nتفصيل صغير وحيوي قرب قارع الطبل، يضيف عفوية وإحساسًا بالحياة اليومية.'
+    general: "The Dog\n\nThe small dog adds liveliness near the lower part of the painting.",
+    hidden: "The Dog\n\nThe dog may not carry a major symbolic role, but it adds spontaneity and everyday life to the busy scene."
   },
   leftGroup: {
-    en: 'Left Group of Guards\n\nThese overlapping figures create depth and help turn the group portrait into a busy, moving scene.',
-    ar: 'مجموعة الحراس اليسرى\n\nتخلق هذه الشخصيات المتداخلة عمقًا بصريًا وتحول الصورة الجماعية إلى مشهد متحرك.'
+    general: "Left Group of Guards\n\nThese figures help create depth and crowd movement.",
+    hidden: "Left Group of Guards\n\nThe overlapping figures help break the rigid format of traditional group portraits."
   },
   rightGroup: {
-    en: 'Right Group of Guards\n\nThe figures on the right balance the central pair and expand the sense of a large company gathering.',
-    ar: 'مجموعة الحراس اليمنى\n\nتوازن الشخصيات في اليمين الثنائي المركزي وتوسع الإحساس بتجمع فرقة كبيرة.'
+    general: "Right Group of Guards\n\nThese figures balance the composition and frame the main action.",
+    hidden: "Right Group of Guards\n\nThe crowded right side reinforces the sense of a company gathering and moving into action."
   },
   backgroundArch: {
-    en: 'Background Architecture\n\nThe dark architectural space frames the action and strengthens Rembrandt’s dramatic use of light and shadow.',
-    ar: 'الخلفية المعمارية\n\nتؤطر المساحة المعمارية الداكنة المشهد وتعزز استخدام رامبرانت الدرامي للضوء والظل.'
-  },
-  captainHand: {
-    en: 'The Captain’s Hand\n\nHis outstretched hand is one of the painting’s famous details and helps guide the viewer’s attention toward the central action.',
-    ar: 'يد القائد\n\nتُعد يده الممدودة من التفاصيل الشهيرة في اللوحة وتساعد في توجيه نظر المشاهد نحو الحركة المركزية.'
-  },
-  redSash: {
-    en: 'The Red Sash\n\nThe captain’s red sash helps him stand out against the darker clothing and reinforces his leading role.',
-    ar: 'الوشاح الأحمر\n\nيساعد وشاح القائد الأحمر على تمييزه وسط الملابس الداكنة ويؤكد دوره القيادي.'
-  },
-  chickenClaws: {
-    en: 'Chicken Claws\n\nThe claws carried by the girl are linked to the emblem of the arquebusiers, helping identify the militia company.',
-    ar: 'مخالب الدجاجة\n\nترتبط المخالب التي تحملها الفتاة بشعار حملة البنادق، وتساعد في تحديد هوية الفرقة.'
-  },
-  drinkingHorn: {
-    en: 'Drinking Horn\n\nThe girl also carries a ceremonial object linked to militia tradition and group identity.',
-    ar: 'قرن الشرب\n\nتحمل الفتاة أيضًا غرضًا احتفاليًا مرتبطًا بتقاليد الميليشيا وهوية الجماعة.'
-  },
-  weapons: {
-    en: 'Weapons and Training\n\nThe weapons suggest the civic guard’s military role, but Rembrandt turns them into part of a theatrical composition.',
-    ar: 'الأسلحة والتدريب\n\nتشير الأسلحة إلى الدور العسكري للحرس المدني، لكن رامبرانت يجعلها جزءًا من تكوين مسرحي.'
-  },
-  spears: {
-    en: 'Spears and Lines\n\nThe long spears and poles create diagonal lines that guide the viewer’s eye through the painting.',
-    ar: 'الرماح والخطوط\n\nتخلق الرماح والعصي الطويلة خطوطًا قطرية تقود عين المشاهد عبر اللوحة.'
-  },
-  light: {
-    en: 'Light and Shadow\n\nRembrandt uses strong contrasts of light and darkness to guide attention and create drama.',
-    ar: 'الضوء والظل\n\nيستخدم رامبرانت تباينًا قويًا بين الضوء والظلام لتوجيه الانتباه وخلق الدراما.'
-  },
-  shield: {
-    en: 'Shield with Names\n\nA shield in the background records the names of members of the company, connecting the painting to its patrons.',
-    ar: 'درع الأسماء\n\nيسجل الدرع في الخلفية أسماء أعضاء الفرقة، ويربط اللوحة بمن كلفوا برسمها.'
+    general: "Background Architecture\n\nThe darker background frames the figures and emphasizes the central light.",
+    hidden: "Background Architecture\n\nThe shadowed architecture intensifies the dramatic contrast between darkness and illumination."
   }
 };
 
-function selectLanguage(language) {
-  currentLanguage = language;
+const guidedSequence = [
+  "intro",
+  "captain",
+  "lieutenant",
+  "girl",
+  "flag",
+  "drummer",
+  "dog",
+  "backgroundArch",
+  "summary"
+];
 
-  if (language === 'ar') {
-    languageBox.innerHTML = `
-      <h1>الحراسة الليلية</h1>
-      <p>اختر نوع الجولة</p>
-      <div class="tourOption" onclick="selectTour('gallery')" style="text-align:right">
-        <h2>جولة المعرض</h2>
-        <p>تعرف على الشخصيات والعناصر الرئيسية.</p>
-      </div>
-      <div class="tourOption" onclick="selectTour('curator')" style="text-align:right">
-        <h2>جولة القيّم الفني</h2>
-        <p>اكتشف الرموز والتفاصيل الخفية.</p>
-      </div>
-    `;
-  } else {
-    languageBox.innerHTML = `
-      <h1>The Night Watch</h1>
-      <p>Choose your tour</p>
-      <div class="tourOption" onclick="selectTour('gallery')">
-        <h2>Gallery Tour</h2>
-        <p>Explore the main figures and key elements.</p>
-      </div>
-      <div class="tourOption" onclick="selectTour('curator')">
-        <h2>Curator's Tour</h2>
-        <p>Discover hidden symbols and details.</p>
-      </div>
-    `;
-  }
-}
-
-function selectTour(mode) {
-  tourMode = mode;
-  updateVisibleHotspots();
-  startExperience();
-}
-
-function updateVisibleHotspots() {
-  const allowedHotspots =
-    tourMode === 'gallery' ? galleryHotspots : curatorHotspots;
-
-  document.querySelectorAll('.hotspot').forEach(el => {
-    const id = el.getAttribute('id');
-
-    if (allowedHotspots.includes(id)) {
-      if (el.classList.contains('captainDetail')) {
-        el.setAttribute('visible', false);
-      } else {
-        el.setAttribute('visible', true);
-      }
-    } else {
-      el.setAttribute('visible', false);
-    }
-  });
-}
-
-function showCaptainDetails() {
-  if (tourMode !== 'curator') return;
-  document.querySelectorAll('.captainDetail').forEach(el => {
-    el.setAttribute('visible', true);
-  });
-}
-
-function hideCaptainDetails() {
-  document.querySelectorAll('.captainDetail').forEach(el => {
-    el.setAttribute('visible', false);
-  });
-}
-
-function zoomToCaptain() {
-  if (tourMode !== 'curator' || zoomedIn) return;
-
-  zoomedIn = true;
-
-  paintingGroup.setAttribute(
-    'animation__scale',
-    'property: scale; to: 2 2 2; dur: 800; easing: easeInOutQuad'
-  );
-
-  paintingGroup.setAttribute(
-    'animation__move',
-    'property: position; to: 0.10 -0.18 1.05; dur: 800; easing: easeInOutQuad'
-  );
-
-  showCaptainDetails();
-
-  backBtn.setAttribute('visible', true);
-  backText.setAttribute('visible', true);
-}
-
-function resetZoom() {
-  zoomedIn = false;
-
-  paintingGroup.setAttribute(
-    'animation__scale',
-    'property: scale; to: 1 1 1; dur: 800; easing: easeInOutQuad'
-  );
-
-  paintingGroup.setAttribute(
-    'animation__move',
-    'property: position; to: 0 0 0; dur: 800; easing: easeInOutQuad'
-  );
-
-  hideCaptainDetails();
-  hideInfo();
-  hideAllHalos();
-
-  backBtn.setAttribute('visible', false);
-  backText.setAttribute('visible', false);
-}
-
-backBtn.addEventListener('click', resetZoom);
-
-function getHaloForHotspot(id) {
-  return document.querySelector('#' + id + 'Halo');
-}
-
-function showHalo(id) {
-  const halo = getHaloForHotspot(id);
-  if (!halo) return;
-
-  halo.setAttribute('visible', true);
-  halo.setAttribute(
-    'animation',
-    'property: material.opacity; from:0.04; to:0.12; dur:2800; dir:alternate; loop:true'
-  );
-}
-
-function hideHalo(id) {
-  const halo = getHaloForHotspot(id);
-  if (!halo) return;
-
-  halo.removeAttribute('animation');
-  halo.setAttribute('visible', false);
+function getHalo(id) {
+  return document.querySelector("#" + id + "Halo");
 }
 
 function hideAllHalos() {
-  Object.keys(hotspotTexts).forEach(id => hideHalo(id));
+  Object.keys(annotations).forEach(id => {
+    const halo = getHalo(id);
+    if (halo) {
+      halo.removeAttribute("animation");
+      halo.setAttribute("visible", false);
+    }
+  });
 }
 
-function makeCanvasTexture(text, language, width = 650, height = 250) {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
+function showHalo(id) {
+  const halo = getHalo(id);
+  if (!halo) return;
 
-  ctx.fillStyle = 'rgba(17, 17, 17, 0.68)';
-  roundRect(ctx, 0, 0, width, height, 34);
-  ctx.fill();
+  halo.setAttribute("visible", true);
+  halo.setAttribute(
+    "animation",
+    "property: material.opacity; from:0.12; to:0.28; dur:900; dir:alternate; loop:true"
+  );
+}
 
-  ctx.fillStyle = 'white';
-  ctx.textBaseline = 'top';
+function positionInfoNear(hotspot) {
+  const pos = hotspot.getAttribute("position");
 
-  if (language === 'ar') {
-    ctx.direction = 'rtl';
-    ctx.textAlign = 'right';
-    ctx.font = '25px Tahoma, Arial, sans-serif';
-    drawWrappedText(ctx, text, width - 52, 38, width - 90, 46);
-  } else {
-    ctx.direction = 'ltr';
-    ctx.textAlign = 'left';
-    ctx.font = '24px Arial, sans-serif';
-    drawWrappedText(ctx, text, 52, 38, width - 90, 46);
+  let panelX = pos.x + 0.68;
+  let textX = pos.x + 0.18;
+
+  if (pos.x > 0.8) {
+    panelX = pos.x - 0.68;
+    textX = pos.x - 1.13;
   }
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
-}
+  let panelY = pos.y + 0.22;
+  let textY = pos.y + 0.30;
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
-  const paragraphs = text.split('\n');
-
-  for (const paragraph of paragraphs) {
-    if (paragraph.trim() === '') {
-      y += lineHeight * 0.65;
-      continue;
-    }
-
-    const words = paragraph.split(' ');
-    let line = '';
-
-    for (let i = 0; i < words.length; i++) {
-      const testLine = line + words[i] + ' ';
-      if (ctx.measureText(testLine).width > maxWidth && i > 0) {
-        ctx.fillText(line.trim(), x, y);
-        line = words[i] + ' ';
-        y += lineHeight;
-      } else {
-        line = testLine;
-      }
-    }
-
-    ctx.fillText(line.trim(), x, y);
-    y += lineHeight;
+  if (pos.y > 2.0) {
+    panelY = pos.y - 0.42;
+    textY = pos.y - 0.35;
   }
+
+  infoPanel.setAttribute("position", `${panelX} ${panelY} -2.8`);
+  infoText.setAttribute("position", `${textX} ${textY} -2.75`);
 }
 
-function setPanelText(panel, text, language) {
-  const texture = makeCanvasTexture(text, language);
-  const mesh = panel.getObject3D('mesh');
-  if (!mesh) return;
-
-  mesh.material.map = texture;
-  mesh.material.transparent = true;
-  mesh.material.needsUpdate = true;
+function showInfoText(text) {
+  infoPanel.setAttribute("visible", true);
+  infoText.setAttribute("visible", true);
+  infoText.setAttribute("value", text);
 }
 
 function showInfo(text, hotspot) {
   clearTimeout(closeTimer);
-
-  const now = Date.now();
-  if (now - lastTextChangeTime < 800 && activeHotspot !== hotspot) return;
-  lastTextChangeTime = now;
-
   activeHotspot = hotspot;
-
-  const pos = hotspot.getAttribute('position');
-
-  let panelX = pos.x + 0.68;
-  if (pos.x > 0.8) panelX = pos.x - 0.68;
-
-  let panelY = pos.y + 0.25;
-  if (pos.y > 2.0) panelY = pos.y - 0.42;
-
-  infoPanel.setAttribute('position', `${panelX} ${panelY} -2.8`);
-  setPanelText(infoPanel, text, currentLanguage);
-  infoPanel.setAttribute('visible', true);
+  positionInfoNear(hotspot);
+  showInfoText(text);
 }
 
 function hideInfo() {
-  infoPanel.setAttribute('visible', false);
+  infoPanel.setAttribute("visible", false);
+  infoText.setAttribute("visible", false);
+  infoText.setAttribute("value", "");
   activeHotspot = null;
 }
 
+function hideInfoDelayed(hotspot) {
+  clearTimeout(closeTimer);
+  closeTimer = setTimeout(() => {
+    if (activeHotspot === hotspot) hideInfo();
+  }, 1000);
+}
+
+function setMenuChoice(buttonId, group) {
+  if (group === "tour") {
+    document.querySelector("#openTourBtn").setAttribute("color", "#333");
+    document.querySelector("#guidedTourBtn").setAttribute("color", "#333");
+  } else {
+    document.querySelector("#generalBtn").setAttribute("color", "#333");
+    document.querySelector("#hiddenBtn").setAttribute("color", "#333");
+  }
+  document.querySelector(buttonId).setAttribute("color", "#666");
+}
+
+document.querySelector("#openTourBtn").addEventListener("click", () => {
+  tourType = "open";
+  setMenuChoice("#openTourBtn", "tour");
+});
+
+document.querySelector("#guidedTourBtn").addEventListener("click", () => {
+  tourType = "guided";
+  setMenuChoice("#guidedTourBtn", "tour");
+});
+
+document.querySelector("#generalBtn").addEventListener("click", () => {
+  contentMode = "general";
+  setMenuChoice("#generalBtn", "content");
+});
+
+document.querySelector("#hiddenBtn").addEventListener("click", () => {
+  contentMode = "hidden";
+  setMenuChoice("#hiddenBtn", "content");
+});
+
+document.querySelector("#beginBtn").addEventListener("click", () => {
+  startMenu.setAttribute("visible", false);
+  pageReady = true;
+  hideAllHalos();
+  hideInfo();
+
+  if (tourType === "guided") {
+    startGuidedTour();
+  }
+});
+
 function addHotspot(id) {
-  const el = document.querySelector('#' + id);
-  if (!el) return;
+  const el = document.querySelector("#" + id);
 
-  el.addEventListener('mouseenter', () => {
-    if (!pageReady || !currentLanguage || !tourMode) return;
+  el.addEventListener("mouseenter", () => {
+    if (!pageReady) return;
 
-    const allowedHotspots =
-      tourMode === 'gallery' ? galleryHotspots : curatorHotspots;
-
-    if (!allowedHotspots.includes(id)) return;
-
-    clearTimeout(infoTimer);
     clearTimeout(closeTimer);
 
-    showHalo(id);
-
-    infoTimer = setTimeout(() => {
-      showInfo(hotspotTexts[id][currentLanguage], el);
-
-      if (id === 'captain') {
-        showCaptainDetails();
-        zoomToCaptain();
-      }
-
-      if (id !== 'captain' && !el.classList.contains('captainDetail')) {
-        hideCaptainDetails();
-      }
-    }, 2000);
+    if (tourType === "open") {
+      showHalo(id);
+    }
   });
 
-  el.addEventListener('mouseleave', () => {
-    clearTimeout(infoTimer);
+  el.addEventListener("click", () => {
+    if (!pageReady) return;
 
-    if (!zoomedIn || !el.classList.contains('captainDetail')) {
-      hideHalo(id);
+    if (tourType === "open") {
+      showInfo(annotations[id][contentMode], el);
     }
 
-    if (!zoomedIn) {
-      hideInfo();
+    if (tourType === "guided") {
+      const currentId = guidedSequence[guidedIndex];
+      if (id === currentId) {
+        showInfo(annotations[id][contentMode], el);
+        setTimeout(nextGuidedStep, 4500);
+      }
+    }
+  });
+
+  el.addEventListener("mouseleave", () => {
+    if (tourType === "open") {
+      const halo = getHalo(id);
+      if (halo) {
+        halo.removeAttribute("animation");
+        halo.setAttribute("visible", false);
+      }
+      hideInfoDelayed(el);
     }
   });
 }
 
-function startExperience() {
-  pageReady = true;
-  languageOverlay.style.display = 'none';
-  gazeCursor.setAttribute('visible', true);
+Object.keys(annotations).forEach(addHotspot);
 
-  const welcomeText =
-    currentLanguage === 'ar'
-      ? tourMode === 'gallery'
-        ? 'بدأت جولة المعرض. انظر إلى العناصر الرئيسية في اللوحة.'
-        : 'بدأت جولة القيّم الفني. اختر القائد لتكبير التفاصيل الداخلية.'
-      : tourMode === 'gallery'
-        ? 'Gallery Tour started. Look at the main elements of the painting.'
-        : "Curator's Tour started. Select the Captain to zoom into inner details.";
+function startGuidedTour() {
+  guidedIndex = 0;
+  infoPanel.setAttribute("position", "0 1.15 -2.6");
+  infoText.setAttribute("position", "-0.65 1.35 -2.55");
+  showInfoText(
+    "Welcome to The Night Watch.\n\nThis painting by Rembrandt transforms a civic guard portrait into a dramatic scene of movement, light, and storytelling."
+  );
 
-  setPanelText(welcomePanel, welcomeText, currentLanguage);
-  welcomePanel.setAttribute('visible', true);
-
-  setTimeout(() => {
-    welcomePanel.setAttribute('visible', false);
-  }, 3500);
+  setTimeout(nextGuidedStep, 6000);
 }
 
-Object.keys(hotspotTexts).forEach(addHotspot);
-
-window.addEventListener('load', () => {
-  hideInfo();
+function nextGuidedStep() {
   hideAllHalos();
-  pageReady = false;
-  currentLanguage = null;
-  tourMode = null;
-  gazeCursor.setAttribute('visible', false);
+  hideInfo();
 
-  document.querySelectorAll('.hotspot').forEach(el => {
-    el.setAttribute('visible', false);
-  });
+  guidedIndex++;
 
-  backBtn.setAttribute('visible', false);
-  backText.setAttribute('visible', false);
-});
+  const step = guidedSequence[guidedIndex];
+
+  if (step === "summary") {
+    infoPanel.setAttribute("position", "0 1.15 -2.6");
+    infoText.setAttribute("position", "-0.65 1.35 -2.55");
+    showInfoText(
+      "End of guided tour.\n\nYou have followed the main visual path through the painting. You can refresh the page and choose Open Tour to explore freely."
+    );
+    return;
+  }
+
+  const halo = getHalo(step);
+  const target = document.querySelector("#" + step);
+
+  if (halo && target) {
+    showHalo(step);
+    positionInfoNear(target);
+
+    const labels = {
+      captain: "Look at the captain in black with the red sash.",
+      lieutenant: "Now look at the lieutenant in yellow.",
+      girl: "Find the brightly lit girl.",
+      flag: "Now look toward the flag bearer.",
+      drummer: "Look for the drummer on the right.",
+      dog: "Look near the lower area for the small dog.",
+      backgroundArch: "Finally, look toward the darker architecture above."
+    };
+
+    showInfoText(labels[step]);
+  }
+}
+
 </script>
 
 </body>
