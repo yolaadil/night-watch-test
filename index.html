@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch Interactive</title>
+<title>The Night Watch — Gaze Guided Detail</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -84,52 +84,11 @@ body {
 }
 
 
-#tileControls {
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  z-index: 9998;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-#storyStatus {
-  padding: 9px 12px;
-  border-radius: 10px;
-  background: rgba(20,20,20,0.72);
-  color: #ffe680;
-  font-size: 13px;
-  min-width: 160px;
-}
-
-.tileButton {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 14px;
-  background: rgba(20,20,20,0.82);
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.tileButton:hover {
-  background: rgba(60,60,60,0.92);
-}
 
 </style>
 </head>
 
 <body>
-<div id="tileControls">
-  <button class="tileButton" onclick="storyEngine.start()">Start story</button>
-  <button class="tileButton" onclick="storyEngine.next()">Next</button>
-  <button class="tileButton" onclick="storyEngine.stop()">Clear</button>
-  <span id="storyStatus">Ready</span>
-</div>
-
-
 <div id="languageOverlay">
   <div id="languageBox">
     <h1>The Night Watch</h1>
@@ -224,136 +183,120 @@ const gazeCursor = document.querySelector('#gazeCursor');
 const languageOverlay = document.querySelector('#languageOverlay');
 const languageBox = document.querySelector('#languageBox');
 const tileLayer = document.querySelector('#tileLayer');
-const storyStatus = document.querySelector('#storyStatus');
 
-/*
- * Deep Zoom metadata from painting.dzi.
- * The loader also tries to read painting.dzi at runtime, so these values are
- * safe fallbacks when the file is unavailable during local testing.
- */
-const deepZoom = {
-  width: 15354,
-  height: 13230,
-  tileSize: 254,
-  overlap: 1,
-  format: 'jpeg',
-  maxLevel: 14,
-  folder: 'tiles',
-  worldWidth: 4,
-  worldHeight: 3.45
-};
+// Deep Zoom settings. These match painting.dzi / libvips output.
+const TILE_IMAGE_WIDTH = 15354;
+const TILE_IMAGE_HEIGHT = 13230;
+const TILE_WORLD_WIDTH = 4;
+const TILE_WORLD_HEIGHT = 3.45;
+const TILE_SIZE = 254;
+const TILE_OVERLAP = 1;
+const MAX_LEVEL = 14;
+const TILE_FOLDER = 'tiles';
 
-function setStoryStatus(message) {
-  storyStatus.textContent = message;
-}
+let loadedTileKeys = new Set();
+let guidedStepIndex = 0;
+let guidedAdvanceTimer = null;
+let guidedSharpenTimer = null;
+let guidedGazeTimer = null;
+let guidedStoryRunning = false;
+let guidedTargetCompleted = false;
 
-async function loadDeepZoomMetadata() {
-  try {
-    const response = await fetch('painting.dzi', { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const xmlText = await response.text();
-    const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
-    const imageNode = xml.querySelector('Image');
-    const sizeNode = xml.querySelector('Size');
-
-    if (!imageNode || !sizeNode) throw new Error('Invalid DZI metadata');
-
-    deepZoom.tileSize = Number(imageNode.getAttribute('TileSize'));
-    deepZoom.overlap = Number(imageNode.getAttribute('Overlap'));
-    deepZoom.format = imageNode.getAttribute('Format') || 'jpeg';
-    deepZoom.width = Number(sizeNode.getAttribute('Width'));
-    deepZoom.height = Number(sizeNode.getAttribute('Height'));
-    deepZoom.maxLevel = Math.ceil(
-      Math.log2(Math.max(deepZoom.width, deepZoom.height))
-    );
-
-    setStoryStatus('DZI ready');
-  } catch (error) {
-    console.warn('Could not read painting.dzi; using fallback metadata.', error);
-    setStoryStatus('Using built-in metadata');
+const guidedStory = [
+  {
+    id: 'captain',
+    levels: [10, 12, 14],
+    dwell: 1100,
+    readTime: 6500
+  },
+  {
+    id: 'lieutenant',
+    levels: [10, 12, 14],
+    dwell: 1100,
+    readTime: 6000
+  },
+  {
+    id: 'girl',
+    levels: [10, 12, 14],
+    dwell: 1100,
+    readTime: 6500
+  },
+  {
+    id: 'drummer',
+    levels: [10, 12, 14],
+    dwell: 1100,
+    readTime: 6000
+  },
+  {
+    id: 'backgroundArch',
+    levels: [10, 12, 14],
+    dwell: 1100,
+    readTime: 6000
   }
+];
+
+function levelScale(level) {
+  return Math.pow(2, level - MAX_LEVEL);
 }
 
 function levelDimensions(level) {
-  const divisor = Math.pow(2, deepZoom.maxLevel - level);
+  const scale = levelScale(level);
   return {
-    width: Math.ceil(deepZoom.width / divisor),
-    height: Math.ceil(deepZoom.height / divisor),
-    divisor
+    width: Math.ceil(TILE_IMAGE_WIDTH * scale),
+    height: Math.ceil(TILE_IMAGE_HEIGHT * scale)
   };
 }
 
-function fullRegionToLevel(region, level) {
-  const { divisor } = levelDimensions(level);
-  return {
-    x: region.x / divisor,
-    y: region.y / divisor,
-    width: region.width / divisor,
-    height: region.height / divisor
-  };
-}
+function addTile(level, col, row) {
+  const key = `${level}_${col}_${row}`;
+  if (loadedTileKeys.has(key)) return;
+  loadedTileKeys.add(key);
 
-function tileCoverage(level, col, row) {
-  const dimensions = levelDimensions(level);
-  const columns = Math.ceil(dimensions.width / deepZoom.tileSize);
-  const rows = Math.ceil(dimensions.height / deepZoom.tileSize);
+  const dims = levelDimensions(level);
+  const levelW = dims.width;
+  const levelH = dims.height;
 
-  if (col < 0 || row < 0 || col >= columns || row >= rows) return null;
+  const xCore = col * TILE_SIZE;
+  const yCore = row * TILE_SIZE;
 
-  // DZI tiles contain overlap pixels around interior edges. Position the plane
-  // using the actual pixel coverage instead of stretching every tile to 254px.
-  const left = Math.max(0, col * deepZoom.tileSize - (col > 0 ? deepZoom.overlap : 0));
-  const top = Math.max(0, row * deepZoom.tileSize - (row > 0 ? deepZoom.overlap : 0));
-  const right = Math.min(
-    dimensions.width,
-    (col + 1) * deepZoom.tileSize + (col < columns - 1 ? deepZoom.overlap : 0)
+  if (xCore >= levelW || yCore >= levelH) return;
+
+  const isLeft = col === 0;
+  const isTop = row === 0;
+  const cols = Math.ceil(levelW / TILE_SIZE);
+  const rows = Math.ceil(levelH / TILE_SIZE);
+  const isRight = col === cols - 1;
+  const isBottom = row === rows - 1;
+
+  const leftOverlap = isLeft ? 0 : TILE_OVERLAP;
+  const topOverlap = isTop ? 0 : TILE_OVERLAP;
+  const rightOverlap = isRight ? 0 : TILE_OVERLAP;
+  const bottomOverlap = isBottom ? 0 : TILE_OVERLAP;
+
+  const fileX = Math.max(0, xCore - leftOverlap);
+  const fileY = Math.max(0, yCore - topOverlap);
+  const fileW = Math.min(
+    TILE_SIZE + leftOverlap + rightOverlap,
+    levelW - fileX
   );
-  const bottom = Math.min(
-    dimensions.height,
-    (row + 1) * deepZoom.tileSize + (row < rows - 1 ? deepZoom.overlap : 0)
+  const fileH = Math.min(
+    TILE_SIZE + topOverlap + bottomOverlap,
+    levelH - fileY
   );
 
-  return {
-    left,
-    top,
-    width: right - left,
-    height: bottom - top,
-    levelWidth: dimensions.width,
-    levelHeight: dimensions.height
-  };
-}
+  const tileWorldW = fileW / levelW * TILE_WORLD_WIDTH;
+  const tileWorldH = fileH / levelH * TILE_WORLD_HEIGHT;
 
-function tileUrl(level, col, row) {
-  return `${deepZoom.folder}/${level}/${col}_${row}.${deepZoom.format}`;
-}
-
-function preloadImage(url) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(url);
-    image.onerror = () => reject(new Error(`Could not load ${url}`));
-    image.src = url;
-  });
-}
-
-function createTilePlane(level, col, row, group) {
-  const coverage = tileCoverage(level, col, row);
-  if (!coverage) return;
-
-  const worldW = coverage.width / coverage.levelWidth * deepZoom.worldWidth;
-  const worldH = coverage.height / coverage.levelHeight * deepZoom.worldHeight;
-  const centerX = (
-    (coverage.left + coverage.width / 2) / coverage.levelWidth - 0.5
-  ) * deepZoom.worldWidth;
-  const centerY = (
-    0.5 - (coverage.top + coverage.height / 2) / coverage.levelHeight
-  ) * deepZoom.worldHeight;
+  const centerX =
+    ((fileX + fileW / 2) / levelW - 0.5) * TILE_WORLD_WIDTH;
+  const centerY =
+    (0.5 - (fileY + fileH / 2) / levelH) * TILE_WORLD_HEIGHT;
 
   const tile = document.createElement('a-plane');
-  tile.setAttribute('src', tileUrl(level, col, row));
-  tile.setAttribute('width', worldW);
-  tile.setAttribute('height', worldH);
+  tile.setAttribute('data-tile-key', key);
+  tile.setAttribute('src', `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`);
+  tile.setAttribute('width', tileWorldW);
+  tile.setAttribute('height', tileWorldH);
   tile.setAttribute('position', `${centerX} ${centerY} 0`);
   tile.setAttribute(
     'material',
@@ -361,204 +304,182 @@ function createTilePlane(level, col, row, group) {
   );
   tile.setAttribute(
     'animation__fade',
-    'property: material.opacity; from: 0; to: 1; dur: 300; easing: easeOutQuad'
+    'property: material.opacity; from: 0; to: 1; dur: 350; easing: easeOutQuad'
   );
-  group.appendChild(tile);
+
+  tileLayer.appendChild(tile);
 }
 
-async function loadRegionAtLevel(region, level) {
-  const dimensions = levelDimensions(level);
-  const scaled = fullRegionToLevel(region, level);
+function loadRegionAroundHotspot(hotspotId, level, padding = 0.20) {
+  const hotspot = document.querySelector('#' + hotspotId);
+  if (!hotspot) return;
 
-  const startCol = Math.max(0, Math.floor(scaled.x / deepZoom.tileSize));
-  const endCol = Math.min(
-    Math.ceil(dimensions.width / deepZoom.tileSize) - 1,
-    Math.floor((scaled.x + scaled.width - 1) / deepZoom.tileSize)
+  const pos = hotspot.getAttribute('position');
+  const width = parseFloat(hotspot.getAttribute('width')) || 0.4;
+  const height = parseFloat(hotspot.getAttribute('height')) || 0.6;
+
+  const localX = pos.x;
+  const localY = pos.y - 1.6;
+
+  const leftWorld = localX - width / 2 - padding;
+  const rightWorld = localX + width / 2 + padding;
+  const topWorld = localY + height / 2 + padding;
+  const bottomWorld = localY - height / 2 - padding;
+
+  const dims = levelDimensions(level);
+
+  const leftPx = Math.max(
+    0,
+    ((leftWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
   );
-  const startRow = Math.max(0, Math.floor(scaled.y / deepZoom.tileSize));
-  const endRow = Math.min(
-    Math.ceil(dimensions.height / deepZoom.tileSize) - 1,
-    Math.floor((scaled.y + scaled.height - 1) / deepZoom.tileSize)
+  const rightPx = Math.min(
+    dims.width,
+    ((rightWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
+  );
+  const topPx = Math.max(
+    0,
+    (0.5 - topWorld / TILE_WORLD_HEIGHT) * dims.height
+  );
+  const bottomPx = Math.min(
+    dims.height,
+    (0.5 - bottomWorld / TILE_WORLD_HEIGHT) * dims.height
   );
 
-  const coordinates = [];
+  const startCol = Math.floor(leftPx / TILE_SIZE);
+  const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
+  const startRow = Math.floor(topPx / TILE_SIZE);
+  const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+
   for (let row = startRow; row <= endRow; row++) {
     for (let col = startCol; col <= endCol; col++) {
-      coordinates.push({ col, row });
+      addTile(level, col, row);
     }
   }
-
-  setStoryStatus(`Loading level ${level} (${coordinates.length} tiles)`);
-
-  const results = await Promise.allSettled(
-    coordinates.map(({ col, row }) => preloadImage(tileUrl(level, col, row)))
-  );
-
-  const group = document.createElement('a-entity');
-  group.classList.add('story-tile-group');
-  group.setAttribute('data-level', level);
-  group.setAttribute('position', '0 0 0');
-
-  results.forEach((result, index) => {
-    if (result.status !== 'fulfilled') {
-      console.warn(result.reason);
-      return;
-    }
-    const { col, row } = coordinates[index];
-    createTilePlane(level, col, row, group);
-  });
-
-  tileLayer.appendChild(group);
-
-  // Keep the old level visible until the new level has faded in.
-  setTimeout(() => {
-    tileLayer.querySelectorAll('.story-tile-group').forEach(oldGroup => {
-      if (oldGroup !== group) oldGroup.remove();
-    });
-  }, 340);
-
-  return group;
 }
 
 function clearStoryTiles() {
+  clearTimeout(guidedSharpenTimer);
   tileLayer.innerHTML = '';
+  loadedTileKeys.clear();
 }
 
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function progressiveSharpen(hotspotId, levels = [10, 12, 14]) {
+  clearStoryTiles();
+
+  let index = 0;
+  let previousLevel = null;
+
+  function loadNextLevel() {
+    if (index >= levels.length) return;
+
+    const level = levels[index];
+    loadRegionAroundHotspot(hotspotId, level);
+
+    if (previousLevel !== null) {
+      setTimeout(() => {
+        document
+          .querySelectorAll(`[data-tile-key^="${previousLevel}_"]`)
+          .forEach(tile => tile.remove());
+
+        loadedTileKeys = new Set(
+          [...loadedTileKeys].filter(
+            key => !key.startsWith(`${previousLevel}_`)
+          )
+        );
+      }, 420);
+    }
+
+    previousLevel = level;
+    index += 1;
+
+    if (index < levels.length) {
+      guidedSharpenTimer = setTimeout(loadNextLevel, 520);
+    }
+  }
+
+  loadNextLevel();
 }
 
-/*
- * Story scenes are expressed only in original-image pixel coordinates.
- * Fine-tune these rectangles later without changing the tile-loading code.
- */
-const STORY = [
-  {
-    id: 'captain',
-    title: {
-      en: 'The Captain Steps Forward',
-      ar: 'يتقدم القائد إلى الأمام'
-    },
-    region: { x: 6550, y: 5850, width: 1900, height: 3900 },
-    narration: {
-      en: 'Begin with Captain Frans Banninck Cocq. His dark clothing, red sash and extended hand establish the direction and authority of the scene.',
-      ar: 'ابدأ بالكابتن فرانس بانينك كوك. تحدد ملابسه الداكنة ووشاحه الأحمر ويده الممدودة اتجاه المشهد وسلطته.'
-    }
-  },
-  {
-    id: 'lieutenant',
-    title: {
-      en: 'Light Meets Command',
-      ar: 'يلتقي الضوء بالقيادة'
-    },
-    region: { x: 8050, y: 5650, width: 1900, height: 4100 },
-    narration: {
-      en: 'Beside him, the lieutenant’s luminous yellow costume creates a striking contrast and pulls the eye toward the central pair.',
-      ar: 'إلى جانبه، يصنع زي الملازم الأصفر المضيء تباينًا قويًا ويجذب العين نحو الثنائي المركزي.'
-    }
-  },
-  {
-    id: 'girl',
-    title: {
-      en: 'The Symbolic Girl',
-      ar: 'الفتاة الرمزية'
-    },
-    region: { x: 4400, y: 6200, width: 1700, height: 3000 },
-    narration: {
-      en: 'The illuminated girl is not simply another figure. Her light and symbolic objects connect the lively scene to the identity of the civic guard.',
-      ar: 'الفتاة المضيئة ليست مجرد شخصية أخرى؛ فضوؤها وأغراضها الرمزية يربطان المشهد الحيوي بهوية الحرس المدني.'
-    }
-  },
-  {
-    id: 'drummer',
-    title: {
-      en: 'The Scene Finds Its Rhythm',
-      ar: 'يجد المشهد إيقاعه'
-    },
-    region: { x: 12800, y: 6100, width: 2300, height: 3700 },
-    narration: {
-      en: 'At the right edge, the drummer and nearby dog introduce imagined sound, movement and the disorder of a company preparing to march.',
-      ar: 'عند الحافة اليمنى، يضيف قارع الطبل والكلب القريب صوتًا متخيلاً وحركة وفوضى فرقة تستعد للسير.'
-    }
-  },
-  {
-    id: 'backgroundArch',
-    title: {
-      en: 'The Architecture Holds the Drama',
-      ar: 'العمارة تحتضن الدراما'
-    },
-    region: { x: 6900, y: 1700, width: 4200, height: 2900 },
-    narration: {
-      en: 'Finally, the dark architecture frames the gathering. Against it, Rembrandt’s selective light turns a formal portrait into a dramatic event.',
-      ar: 'أخيرًا، تؤطر العمارة الداكنة التجمع، ويحوّل ضوء رامبرانت الانتقائي الصورة الرسمية إلى حدث درامي.'
-    }
+function currentGuidedStep() {
+  return guidedStory[guidedStepIndex] || null;
+}
+
+function prepareGuidedStep() {
+  clearTimeout(guidedAdvanceTimer);
+  clearTimeout(guidedGazeTimer);
+  clearStoryTiles();
+  hideInfo();
+  hideAllHalos();
+  guidedTargetCompleted = false;
+
+  const step = currentGuidedStep();
+  if (!step) {
+    guidedStoryRunning = false;
+    const finishedText =
+      currentLanguage === 'ar'
+        ? 'انتهت الجولة القصصية. يمكنك الآن استكشاف اللوحة بحرية.'
+        : 'The guided story is complete. You can now explore freely.';
+
+    setPanelText(welcomePanel, finishedText, currentLanguage);
+    welcomePanel.setAttribute('visible', true);
+    setTimeout(() => welcomePanel.setAttribute('visible', false), 4500);
+    return;
   }
-];
 
-const storyEngine = {
-  index: -1,
-  running: false,
-  token: 0,
+  showHalo(step.id);
+}
 
-  async start() {
-    this.token += 1;
-    this.index = 0;
-    this.running = true;
-    await this.showCurrent(this.token);
-  },
+function beginGuidedStory() {
+  guidedStoryRunning = true;
+  guidedStepIndex = 0;
+  prepareGuidedStep();
+}
 
-  async next() {
-    if (!this.running) {
-      await this.start();
-      return;
-    }
 
-    this.token += 1;
-    this.index = (this.index + 1) % STORY.length;
-    await this.showCurrent(this.token);
-  },
+function completeGuidedTarget(step, hotspot) {
+  if (!guidedStoryRunning || guidedTargetCompleted) return;
 
-  stop() {
-    this.token += 1;
-    this.running = false;
-    this.index = -1;
-    clearStoryTiles();
-    hideInfo();
-    setStoryStatus('Ready');
-  },
+  guidedTargetCompleted = true;
+  hideHalo(step.id);
+  progressiveSharpen(step.id, step.levels);
+  showInfo(hotspotTexts[step.id][currentLanguage], hotspot);
 
-  async showCurrent(token) {
-    const scene = STORY[this.index];
-    clearStoryTiles();
-    hideInfo();
-
-    const title = scene.title[currentLanguage || 'en'];
-    setStoryStatus(`${this.index + 1}/${STORY.length}: ${title}`);
-
-    // Progressive focus: a quick preview, a medium level, then full detail.
-    for (const level of [10, 12, 14]) {
-      if (token !== this.token || !this.running) return;
-      await loadRegionAtLevel(scene.region, level);
-      if (token !== this.token || !this.running) return;
-      await wait(level === 14 ? 250 : 320);
-    }
-
-    const hotspot = document.querySelector(`#${scene.id}`);
-    if (hotspot) {
-      showHalo(scene.id);
-      showInfo(scene.narration[currentLanguage || 'en'], hotspot);
-    }
-
-    setStoryStatus(`${this.index + 1}/${STORY.length}: look at ${title}`);
+  if (step.id === 'captain') {
+    showCaptainDetails();
+  } else {
+    hideCaptainDetails();
   }
-};
 
-window.addEventListener('keydown', event => {
-  const key = event.key.toLowerCase();
-  if (key === 's') storyEngine.start();
-  if (key === 'n') storyEngine.next();
-  if (key === 'c') storyEngine.stop();
-});
+  guidedAdvanceTimer = setTimeout(() => {
+    guidedStepIndex += 1;
+    prepareGuidedStep();
+  }, step.readTime);
+}
+
+function handleGuidedGazeEnter(id, hotspot) {
+  if (!guidedStoryRunning) return false;
+
+  const step = currentGuidedStep();
+  if (!step || step.id !== id || guidedTargetCompleted) return true;
+
+  clearTimeout(guidedGazeTimer);
+  guidedGazeTimer = setTimeout(() => {
+    completeGuidedTarget(step, hotspot);
+  }, step.dwell);
+
+  return true;
+}
+
+function handleGuidedGazeLeave(id) {
+  if (!guidedStoryRunning) return false;
+
+  const step = currentGuidedStep();
+  if (step && step.id === id && !guidedTargetCompleted) {
+    clearTimeout(guidedGazeTimer);
+  }
+
+  return true;
+}
 
 
 let pageReady = false;
@@ -657,67 +578,17 @@ const hotspotTexts = {
 
 function selectLanguage(language) {
   currentLanguage = language;
-
-  if (language === 'ar') {
-    languageBox.innerHTML = `
-      <h1>الحراسة الليلية</h1>
-      <p>اختر نوع الجولة</p>
-      <div class="tourOption" onclick="selectTour('gallery')" style="text-align:right">
-        <h2>جولة المعرض</h2>
-        <p>تعرف على الشخصيات والعناصر الرئيسية.</p>
-      </div>
-      <div class="tourOption" onclick="selectTour('curator')" style="text-align:right">
-        <h2>جولة القيّم الفني</h2>
-        <p>اكتشف الرموز والتفاصيل الخفية.</p>
-      </div>
-      <div class="tourOption" onclick="selectTour('story')" style="text-align:right">
-        <h2>القصة الموجّهة</h2>
-        <p>دع تفاصيل اللوحة الواضحة تقود انتباهك خطوة بخطوة.</p>
-      </div>
-    `;
-  } else {
-    languageBox.innerHTML = `
-      <h1>The Night Watch</h1>
-      <p>Choose your tour</p>
-      <div class="tourOption" onclick="selectTour('gallery')">
-        <h2>Gallery Tour</h2>
-        <p>Explore the main figures and key elements.</p>
-      </div>
-      <div class="tourOption" onclick="selectTour('curator')">
-        <h2>Curator's Tour</h2>
-        <p>Discover hidden symbols and details.</p>
-      </div>
-      <div class="tourOption" onclick="selectTour('story')">
-        <h2>Guided Story</h2>
-        <p>Let progressively sharpened details guide your attention through the painting.</p>
-      </div>
-    `;
-  }
-}
-
-function selectTour(mode) {
-  tourMode = mode;
+  tourMode = 'guided';
   updateVisibleHotspots();
   startExperience();
 }
 
 function updateVisibleHotspots() {
-  const allowedHotspots =
-    tourMode === 'gallery' || tourMode === 'story'
-      ? galleryHotspots
-      : curatorHotspots;
-
   document.querySelectorAll('.hotspot').forEach(el => {
-    const id = el.getAttribute('id');
-
-    if (allowedHotspots.includes(id)) {
-      if (el.classList.contains('captainDetail')) {
-        el.setAttribute('visible', false);
-      } else {
-        el.setAttribute('visible', true);
-      }
-    } else {
+    if (el.classList.contains('captainDetail')) {
       el.setAttribute('visible', false);
+    } else {
+      el.setAttribute('visible', true);
     }
   });
 }
@@ -876,37 +747,13 @@ function addHotspot(id) {
   if (!el) return;
 
   el.addEventListener('mouseenter', () => {
-    if (!pageReady || !currentLanguage || !tourMode) return;
-
-    const allowedHotspots =
-      tourMode === 'gallery' || tourMode === 'story'
-        ? galleryHotspots
-        : curatorHotspots;
-
-    if (!allowedHotspots.includes(id)) return;
-
-    clearTimeout(infoTimer);
-    clearTimeout(closeTimer);
-
-    showHalo(id);
-
-    infoTimer = setTimeout(() => {
-      showInfo(hotspotTexts[id][currentLanguage], el);
-
-      if (id === 'captain') {
-        showCaptainDetails();
-      }
-
-      if (id !== 'captain' && !el.classList.contains('captainDetail')) {
-        hideCaptainDetails();
-      }
-    }, 2000);
+    if (!pageReady || !currentLanguage) return;
+    handleGuidedGazeEnter(id, el);
   });
 
   el.addEventListener('mouseleave', () => {
-    clearTimeout(infoTimer);
-    hideHalo(id);
-    hideInfo();
+    if (!pageReady || !currentLanguage) return;
+    handleGuidedGazeLeave(id);
   });
 }
 
@@ -917,33 +764,21 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? tourMode === 'gallery'
-        ? 'بدأت جولة المعرض. انظر إلى العناصر الرئيسية في اللوحة.'
-        : tourMode === 'curator'
-          ? 'بدأت جولة القيّم الفني. اختر القائد لاكتشاف تفاصيل داخلية إضافية.'
-          : 'بدأت القصة الموجّهة. ستزداد تفاصيل مناطق اللوحة وضوحًا لتقود انتباهك.'
-      : tourMode === 'gallery'
-        ? 'Gallery Tour started. Look at the main elements of the painting.'
-        : tourMode === 'curator'
-          ? "Curator's Tour started. Select the Captain to reveal inner details."
-          : 'Guided Story started. Selected regions will progressively sharpen to guide your attention.';
+      ? 'اتبع الإشارة بعينيك. ستظهر التفاصيل عالية الدقة تلقائيًا وتنتقل القصة إلى العنصر التالي.'
+      : 'Follow the visual cue with your gaze. High-resolution detail will appear automatically as the story progresses.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
 
   setTimeout(() => {
     welcomePanel.setAttribute('visible', false);
-
-    if (tourMode === 'story') {
-      storyEngine.start();
-    }
-  }, 3500);
+    beginGuidedStory();
+  }, 3000);
 }
 
 Object.keys(hotspotTexts).forEach(addHotspot);
 
 window.addEventListener('load', () => {
-  loadDeepZoomMetadata();
   hideInfo();
   hideAllHalos();
   pageReady = false;
