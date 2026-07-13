@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Gaze Guided Detail</title>
+<title>The Night Watch — Hotspots Restored</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -84,11 +84,39 @@ body {
 }
 
 
+#tileControls {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 9998;
+  display: flex;
+  gap: 8px;
+}
+
+.tileButton {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: rgba(20,20,20,0.82);
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tileButton:hover {
+  background: rgba(60,60,60,0.92);
+}
 
 </style>
 </head>
 
 <body>
+<div id="tileControls">
+  <button class="tileButton" onclick="loadPhase1Tiles()">Load test tiles</button>
+  <button class="tileButton" onclick="clearPhase1Tiles()">Clear tiles</button>
+</div>
+
+
 <div id="languageOverlay">
   <div id="languageBox">
     <h1>The Night Watch</h1>
@@ -184,113 +212,35 @@ const languageOverlay = document.querySelector('#languageOverlay');
 const languageBox = document.querySelector('#languageBox');
 const tileLayer = document.querySelector('#tileLayer');
 
-// Deep Zoom settings. These match painting.dzi / libvips output.
+// Phase 1 tile settings. These must match the original TIFF and libvips tiles.
 const TILE_IMAGE_WIDTH = 15354;
 const TILE_IMAGE_HEIGHT = 13230;
 const TILE_WORLD_WIDTH = 4;
 const TILE_WORLD_HEIGHT = 3.45;
 const TILE_SIZE = 254;
-const TILE_OVERLAP = 1;
-const MAX_LEVEL = 14;
+const TEST_LEVEL = 14;
 const TILE_FOLDER = 'tiles';
 
 let loadedTileKeys = new Set();
-let guidedStepIndex = 0;
-let guidedAdvanceTimer = null;
-let guidedSharpenTimer = null;
-let guidedGazeTimer = null;
-let guidedStoryRunning = false;
-let guidedTargetCompleted = false;
-
-const guidedStory = [
-  {
-    id: 'captain',
-    levels: [10, 12, 14],
-    dwell: 1100,
-    readTime: 6500
-  },
-  {
-    id: 'lieutenant',
-    levels: [10, 12, 14],
-    dwell: 1100,
-    readTime: 6000
-  },
-  {
-    id: 'girl',
-    levels: [10, 12, 14],
-    dwell: 1100,
-    readTime: 6500
-  },
-  {
-    id: 'drummer',
-    levels: [10, 12, 14],
-    dwell: 1100,
-    readTime: 6000
-  },
-  {
-    id: 'backgroundArch',
-    levels: [10, 12, 14],
-    dwell: 1100,
-    readTime: 6000
-  }
-];
-
-function levelScale(level) {
-  return Math.pow(2, level - MAX_LEVEL);
-}
-
-function levelDimensions(level) {
-  const scale = levelScale(level);
-  return {
-    width: Math.ceil(TILE_IMAGE_WIDTH * scale),
-    height: Math.ceil(TILE_IMAGE_HEIGHT * scale)
-  };
-}
 
 function addTile(level, col, row) {
   const key = `${level}_${col}_${row}`;
   if (loadedTileKeys.has(key)) return;
   loadedTileKeys.add(key);
 
-  const dims = levelDimensions(level);
-  const levelW = dims.width;
-  const levelH = dims.height;
+  const x1 = col * TILE_SIZE;
+  const y1 = row * TILE_SIZE;
 
-  const xCore = col * TILE_SIZE;
-  const yCore = row * TILE_SIZE;
+  if (x1 >= TILE_IMAGE_WIDTH || y1 >= TILE_IMAGE_HEIGHT) return;
 
-  if (xCore >= levelW || yCore >= levelH) return;
+  const tileWpx = Math.min(TILE_SIZE, TILE_IMAGE_WIDTH - x1);
+  const tileHpx = Math.min(TILE_SIZE, TILE_IMAGE_HEIGHT - y1);
 
-  const isLeft = col === 0;
-  const isTop = row === 0;
-  const cols = Math.ceil(levelW / TILE_SIZE);
-  const rows = Math.ceil(levelH / TILE_SIZE);
-  const isRight = col === cols - 1;
-  const isBottom = row === rows - 1;
+  const tileWorldW = tileWpx / TILE_IMAGE_WIDTH * TILE_WORLD_WIDTH;
+  const tileWorldH = tileHpx / TILE_IMAGE_HEIGHT * TILE_WORLD_HEIGHT;
 
-  const leftOverlap = isLeft ? 0 : TILE_OVERLAP;
-  const topOverlap = isTop ? 0 : TILE_OVERLAP;
-  const rightOverlap = isRight ? 0 : TILE_OVERLAP;
-  const bottomOverlap = isBottom ? 0 : TILE_OVERLAP;
-
-  const fileX = Math.max(0, xCore - leftOverlap);
-  const fileY = Math.max(0, yCore - topOverlap);
-  const fileW = Math.min(
-    TILE_SIZE + leftOverlap + rightOverlap,
-    levelW - fileX
-  );
-  const fileH = Math.min(
-    TILE_SIZE + topOverlap + bottomOverlap,
-    levelH - fileY
-  );
-
-  const tileWorldW = fileW / levelW * TILE_WORLD_WIDTH;
-  const tileWorldH = fileH / levelH * TILE_WORLD_HEIGHT;
-
-  const centerX =
-    ((fileX + fileW / 2) / levelW - 0.5) * TILE_WORLD_WIDTH;
-  const centerY =
-    (0.5 - (fileY + fileH / 2) / levelH) * TILE_WORLD_HEIGHT;
+  const centerX = ((x1 + tileWpx / 2) / TILE_IMAGE_WIDTH - 0.5) * TILE_WORLD_WIDTH;
+  const centerY = (0.5 - (y1 + tileHpx / 2) / TILE_IMAGE_HEIGHT) * TILE_WORLD_HEIGHT;
 
   const tile = document.createElement('a-plane');
   tile.setAttribute('data-tile-key', key);
@@ -298,58 +248,12 @@ function addTile(level, col, row) {
   tile.setAttribute('width', tileWorldW);
   tile.setAttribute('height', tileWorldH);
   tile.setAttribute('position', `${centerX} ${centerY} 0`);
-  tile.setAttribute(
-    'material',
-    'shader: flat; side: double; transparent: true; opacity: 0'
-  );
-  tile.setAttribute(
-    'animation__fade',
-    'property: material.opacity; from: 0; to: 1; dur: 350; easing: easeOutQuad'
-  );
+  tile.setAttribute('material', 'shader: flat; side: double');
 
   tileLayer.appendChild(tile);
 }
 
-function loadRegionAroundHotspot(hotspotId, level, padding = 0.20) {
-  const hotspot = document.querySelector('#' + hotspotId);
-  if (!hotspot) return;
-
-  const pos = hotspot.getAttribute('position');
-  const width = parseFloat(hotspot.getAttribute('width')) || 0.4;
-  const height = parseFloat(hotspot.getAttribute('height')) || 0.6;
-
-  const localX = pos.x;
-  const localY = pos.y - 1.6;
-
-  const leftWorld = localX - width / 2 - padding;
-  const rightWorld = localX + width / 2 + padding;
-  const topWorld = localY + height / 2 + padding;
-  const bottomWorld = localY - height / 2 - padding;
-
-  const dims = levelDimensions(level);
-
-  const leftPx = Math.max(
-    0,
-    ((leftWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
-  );
-  const rightPx = Math.min(
-    dims.width,
-    ((rightWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
-  );
-  const topPx = Math.max(
-    0,
-    (0.5 - topWorld / TILE_WORLD_HEIGHT) * dims.height
-  );
-  const bottomPx = Math.min(
-    dims.height,
-    (0.5 - bottomWorld / TILE_WORLD_HEIGHT) * dims.height
-  );
-
-  const startCol = Math.floor(leftPx / TILE_SIZE);
-  const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
-  const startRow = Math.floor(topPx / TILE_SIZE);
-  const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
-
+function loadTileBlock(level, startCol, endCol, startRow, endRow) {
   for (let row = startRow; row <= endRow; row++) {
     for (let col = startCol; col <= endCol; col++) {
       addTile(level, col, row);
@@ -357,129 +261,27 @@ function loadRegionAroundHotspot(hotspotId, level, padding = 0.20) {
   }
 }
 
-function clearStoryTiles() {
-  clearTimeout(guidedSharpenTimer);
+function loadPhase1Tiles() {
+  clearPhase1Tiles();
+
+  // Test patch around the Captain area.
+  // It loads only 36 tiles, not the whole 3,000+ tile level.
+  loadTileBlock(TEST_LEVEL, 28, 33, 29, 34);
+}
+
+function clearPhase1Tiles() {
   tileLayer.innerHTML = '';
   loadedTileKeys.clear();
 }
 
-function progressiveSharpen(hotspotId, levels = [10, 12, 14]) {
-  clearStoryTiles();
-
-  let index = 0;
-  let previousLevel = null;
-
-  function loadNextLevel() {
-    if (index >= levels.length) return;
-
-    const level = levels[index];
-    loadRegionAroundHotspot(hotspotId, level);
-
-    if (previousLevel !== null) {
-      setTimeout(() => {
-        document
-          .querySelectorAll(`[data-tile-key^="${previousLevel}_"]`)
-          .forEach(tile => tile.remove());
-
-        loadedTileKeys = new Set(
-          [...loadedTileKeys].filter(
-            key => !key.startsWith(`${previousLevel}_`)
-          )
-        );
-      }, 420);
-    }
-
-    previousLevel = level;
-    index += 1;
-
-    if (index < levels.length) {
-      guidedSharpenTimer = setTimeout(loadNextLevel, 520);
-    }
+window.addEventListener('keydown', event => {
+  if (event.key.toLowerCase() === 't') {
+    loadPhase1Tiles();
   }
-
-  loadNextLevel();
-}
-
-function currentGuidedStep() {
-  return guidedStory[guidedStepIndex] || null;
-}
-
-function prepareGuidedStep() {
-  clearTimeout(guidedAdvanceTimer);
-  clearTimeout(guidedGazeTimer);
-  clearStoryTiles();
-  hideInfo();
-  hideAllHalos();
-  guidedTargetCompleted = false;
-
-  const step = currentGuidedStep();
-  if (!step) {
-    guidedStoryRunning = false;
-    const finishedText =
-      currentLanguage === 'ar'
-        ? 'انتهت الجولة القصصية. يمكنك الآن استكشاف اللوحة بحرية.'
-        : 'The guided story is complete. You can now explore freely.';
-
-    setPanelText(welcomePanel, finishedText, currentLanguage);
-    welcomePanel.setAttribute('visible', true);
-    setTimeout(() => welcomePanel.setAttribute('visible', false), 4500);
-    return;
+  if (event.key.toLowerCase() === 'c') {
+    clearPhase1Tiles();
   }
-
-  showHalo(step.id);
-}
-
-function beginGuidedStory() {
-  guidedStoryRunning = true;
-  guidedStepIndex = 0;
-  prepareGuidedStep();
-}
-
-
-function completeGuidedTarget(step, hotspot) {
-  if (!guidedStoryRunning || guidedTargetCompleted) return;
-
-  guidedTargetCompleted = true;
-  hideHalo(step.id);
-  progressiveSharpen(step.id, step.levels);
-  showInfo(hotspotTexts[step.id][currentLanguage], hotspot);
-
-  if (step.id === 'captain') {
-    showCaptainDetails();
-  } else {
-    hideCaptainDetails();
-  }
-
-  guidedAdvanceTimer = setTimeout(() => {
-    guidedStepIndex += 1;
-    prepareGuidedStep();
-  }, step.readTime);
-}
-
-function handleGuidedGazeEnter(id, hotspot) {
-  if (!guidedStoryRunning) return false;
-
-  const step = currentGuidedStep();
-  if (!step || step.id !== id || guidedTargetCompleted) return true;
-
-  clearTimeout(guidedGazeTimer);
-  guidedGazeTimer = setTimeout(() => {
-    completeGuidedTarget(step, hotspot);
-  }, step.dwell);
-
-  return true;
-}
-
-function handleGuidedGazeLeave(id) {
-  if (!guidedStoryRunning) return false;
-
-  const step = currentGuidedStep();
-  if (step && step.id === id && !guidedTargetCompleted) {
-    clearTimeout(guidedGazeTimer);
-  }
-
-  return true;
-}
+});
 
 
 let pageReady = false;
@@ -578,7 +380,7 @@ const hotspotTexts = {
 
 function selectLanguage(language) {
   currentLanguage = language;
-  tourMode = 'guided';
+  tourMode = 'curator';
   updateVisibleHotspots();
   startExperience();
 }
@@ -748,12 +550,29 @@ function addHotspot(id) {
 
   el.addEventListener('mouseenter', () => {
     if (!pageReady || !currentLanguage) return;
-    handleGuidedGazeEnter(id, el);
+
+    clearTimeout(infoTimer);
+    clearTimeout(closeTimer);
+
+    showHalo(id);
+
+    infoTimer = setTimeout(() => {
+      showInfo(hotspotTexts[id][currentLanguage], el);
+
+      if (id === 'captain') {
+        showCaptainDetails();
+      }
+
+      if (id !== 'captain' && !el.classList.contains('captainDetail')) {
+        hideCaptainDetails();
+      }
+    }, 2000);
   });
 
   el.addEventListener('mouseleave', () => {
-    if (!pageReady || !currentLanguage) return;
-    handleGuidedGazeLeave(id);
+    clearTimeout(infoTimer);
+    hideHalo(id);
+    hideInfo();
   });
 }
 
@@ -764,16 +583,15 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'اتبع الإشارة بعينيك. ستظهر التفاصيل عالية الدقة تلقائيًا وتنتقل القصة إلى العنصر التالي.'
-      : 'Follow the visual cue with your gaze. High-resolution detail will appear automatically as the story progresses.';
+      ? 'انظر إلى أي عنصر لمدة ثانيتين لعرض وصفه.'
+      : 'Gaze at any highlighted element for two seconds to view its description.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
 
   setTimeout(() => {
     welcomePanel.setAttribute('visible', false);
-    beginGuidedStory();
-  }, 3000);
+  }, 3500);
 }
 
 Object.keys(hotspotTexts).forEach(addHotspot);
