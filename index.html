@@ -408,11 +408,16 @@ function zoomToHotspot(hotspotId) {
       focusTransitioning = false;
       showNestedDetailsFor(hotspotId);
       backButton.style.display = 'block';
+
+      const targetEl = document.querySelector('#' + hotspotId);
+      if (targetEl && hotspotTexts[hotspotId]) {
+        showInfo(hotspotTexts[hotspotId][currentLanguage], targetEl);
+      }
     }, 820);
   }, 250);
 }
 
-function switchFocusToHotspot(hotspotId) {
+function switchFocusToHotspot(hotspotId, hotspotEl) {
   if (!hotspotId || hotspotId === focusedHotspotId || focusTransitioning) return;
 
   clearTimeout(focusLeaveTimer);
@@ -439,6 +444,11 @@ function switchFocusToHotspot(hotspotId) {
     focusTransitioning = false;
     showNestedDetailsFor(hotspotId);
     backButton.style.display = 'block';
+
+    const targetEl = hotspotEl || document.querySelector('#' + hotspotId);
+    if (targetEl && hotspotTexts[hotspotId]) {
+      showInfo(hotspotTexts[hotspotId][currentLanguage], targetEl);
+    }
   }, 680);
 }
 
@@ -737,18 +747,27 @@ function addHotspot(id) {
     showHalo(id);
 
     infoTimer = setTimeout(() => {
-      showInfo(hotspotTexts[id][currentLanguage], el);
+      const textEntry = hotspotTexts[id];
 
-      if (focusedHotspotId && focusedHotspotId !== id && !focusTransitioning) {
-        switchFocusToHotspot(id);
+      if (!textEntry || !textEntry[currentLanguage]) {
+        console.warn(`Missing hotspot text for: ${id}`);
         return;
       }
 
-      if (
-        !el.classList.contains('captainDetail') &&
-        !focusedHotspotId &&
-        !focusTransitioning
-      ) {
+      showInfo(textEntry[currentLanguage], el);
+
+      // Nested Captain details display descriptions only.
+      // They do not replace the Captain's high-resolution tile region.
+      if (el.classList.contains('captainDetail')) {
+        return;
+      }
+
+      if (focusedHotspotId && focusedHotspotId !== id && !focusTransitioning) {
+        switchFocusToHotspot(id, el);
+        return;
+      }
+
+      if (!focusedHotspotId && !focusTransitioning) {
         setTimeout(() => {
           zoomToHotspot(id);
         }, 350);
@@ -759,6 +778,12 @@ function addHotspot(id) {
   el.addEventListener('mouseleave', () => {
     clearTimeout(infoTimer);
     hideHalo(id);
+
+    // Leaving a nested detail only closes its text, not the parent Captain view.
+    if (el.classList.contains('captainDetail')) {
+      hideInfo();
+      return;
+    }
 
     if (focusedHotspotId === id && !focusTransitioning) {
       focusLeaveTimer = setTimeout(() => {
@@ -797,9 +822,26 @@ window.addEventListener('keydown', event => {
   }
 });
 
+
+function auditHotspotTexts() {
+  const hotspotIds = [...document.querySelectorAll('.hotspot')]
+    .map(el => el.id);
+
+  hotspotIds.forEach(id => {
+    if (
+      !hotspotTexts[id] ||
+      !hotspotTexts[id].en ||
+      !hotspotTexts[id].ar
+    ) {
+      console.warn(`Hotspot is missing English or Arabic text: ${id}`);
+    }
+  });
+}
+
 Object.keys(hotspotTexts).forEach(addHotspot);
 
 window.addEventListener('load', () => {
+  auditHotspotTexts();
   hideInfo();
   hideAllHalos();
   pageReady = false;
