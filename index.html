@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — High-Resolution Hotspot Zoom</title>
+<title>The Night Watch — Progressive Attention Guidance</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -235,6 +235,26 @@ let focusedHotspotId = null;
 let focusTransitioning = false;
 let focusLeaveTimer = null;
 
+// Progressive attention guidance.
+const attentionSequence = [
+  'captain',
+  'lieutenant',
+  'girl',
+  'drummer',
+  'flag',
+  'musketeer',
+  'dog',
+  'leftGroup',
+  'rightGroup',
+  'backgroundArch'
+];
+
+let attentionIndex = 0;
+let attentionTargetId = null;
+let attentionLevelTimer = null;
+let attentionAdvanceTimer = null;
+let attentionRunning = false;
+
 function levelDimensions(level) {
   const scale = Math.pow(2, level - MAX_LEVEL);
   return {
@@ -293,7 +313,8 @@ function addTile(level, col, row) {
   tile.setAttribute('src', `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`);
   tile.setAttribute('width', worldWidth);
   tile.setAttribute('height', worldHeight);
-  tile.setAttribute('position', `${centerX} ${centerY} 0`);
+  const levelDepth = (level - MAX_LEVEL) * 0.0005;
+  tile.setAttribute('position', `${centerX} ${centerY} ${levelDepth}`);
   tile.setAttribute(
     'material',
     'shader: flat; side: double; transparent: true; opacity: 0'
@@ -362,6 +383,89 @@ function loadTilesAroundHotspot(hotspotId, level = MAX_LEVEL, padding = 0.22) {
   }
 }
 
+
+function clearAttentionTimers() {
+  clearTimeout(attentionLevelTimer);
+  clearTimeout(attentionAdvanceTimer);
+}
+
+function stopProgressiveAttention({ clearTiles = false } = {}) {
+  clearAttentionTimers();
+  attentionRunning = false;
+  attentionTargetId = null;
+
+  if (clearTiles && !focusedHotspotId && !focusTransitioning) {
+    clearHighResolutionTiles();
+  }
+}
+
+function startProgressiveAttention(hotspotId) {
+  if (
+    !pageReady ||
+    focusedHotspotId ||
+    focusTransitioning ||
+    !hotspotId
+  ) {
+    return;
+  }
+
+  clearAttentionTimers();
+  clearHighResolutionTiles();
+
+  attentionRunning = true;
+  attentionTargetId = hotspotId;
+
+  // First reveal a modest amount of detail.
+  loadTilesAroundHotspot(hotspotId, 10, 0.24);
+
+  // Then refine the same area. Level 14 is reserved for confirmed gaze/zoom.
+  attentionLevelTimer = setTimeout(() => {
+    if (
+      attentionRunning &&
+      attentionTargetId === hotspotId &&
+      !focusedHotspotId
+    ) {
+      loadTilesAroundHotspot(hotspotId, 12, 0.24);
+    }
+  }, 650);
+
+  // If the visitor does not engage, guide attention to the next element.
+  attentionAdvanceTimer = setTimeout(() => {
+    if (
+      attentionRunning &&
+      attentionTargetId === hotspotId &&
+      !focusedHotspotId &&
+      !focusTransitioning
+    ) {
+      advanceProgressiveAttention();
+    }
+  }, 8000);
+}
+
+function advanceProgressiveAttention() {
+  clearAttentionTimers();
+
+  attentionIndex =
+    (attentionIndex + 1) % attentionSequence.length;
+
+  startProgressiveAttention(attentionSequence[attentionIndex]);
+}
+
+function resumeProgressiveAttentionAfterFocus(previousId) {
+  const selectedIndex = attentionSequence.indexOf(previousId);
+
+  if (selectedIndex >= 0) {
+    attentionIndex =
+      (selectedIndex + 1) % attentionSequence.length;
+  }
+
+  setTimeout(() => {
+    if (!focusedHotspotId && !focusTransitioning) {
+      startProgressiveAttention(attentionSequence[attentionIndex]);
+    }
+  }, 700);
+}
+
 function getZoomTargetForHotspot(hotspotId) {
   const hotspot = document.querySelector('#' + hotspotId);
   if (!hotspot) return null;
@@ -388,6 +492,8 @@ function showNestedDetailsFor(hotspotId) {
 
 function zoomToHotspot(hotspotId) {
   if (focusedHotspotId || focusTransitioning) return;
+
+  stopProgressiveAttention({ clearTiles: false });
 
   const target = getZoomTargetForHotspot(hotspotId);
   if (!target) return;
@@ -419,6 +525,8 @@ function zoomToHotspot(hotspotId) {
 
 function switchFocusToHotspot(hotspotId, hotspotEl) {
   if (!hotspotId || hotspotId === focusedHotspotId || focusTransitioning) return;
+
+  stopProgressiveAttention({ clearTiles: false });
 
   clearTimeout(focusLeaveTimer);
   focusTransitioning = true;
@@ -466,10 +574,13 @@ function returnFromFocus() {
     'property: position; to: 0 1.6 0; dur: 800; easing: easeInOutQuad'
   );
 
+  const previousFocusId = focusedHotspotId;
+
   setTimeout(() => {
     clearHighResolutionTiles();
     focusedHotspotId = null;
     focusTransitioning = false;
+    resumeProgressiveAttentionAfterFocus(previousFocusId);
   }, 820);
 }
 
@@ -744,6 +855,10 @@ function addHotspot(id) {
     clearTimeout(infoTimer);
     clearTimeout(closeTimer);
 
+    if (attentionRunning && attentionTargetId === id) {
+      clearTimeout(attentionAdvanceTimer);
+    }
+
     showHalo(id);
 
     infoTimer = setTimeout(() => {
@@ -779,6 +894,24 @@ function addHotspot(id) {
     clearTimeout(infoTimer);
     hideHalo(id);
 
+    if (
+      attentionRunning &&
+      attentionTargetId === id &&
+      !focusedHotspotId &&
+      !focusTransitioning
+    ) {
+      clearTimeout(attentionAdvanceTimer);
+      attentionAdvanceTimer = setTimeout(() => {
+        if (
+          attentionRunning &&
+          attentionTargetId === id &&
+          !focusedHotspotId
+        ) {
+          advanceProgressiveAttention();
+        }
+      }, 3500);
+    }
+
     // Leaving a nested detail only closes its text, not the parent Captain view.
     if (el.classList.contains('captainDetail')) {
       hideInfo();
@@ -805,14 +938,16 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'انظر إلى أي عنصر مميز لمدة ثانيتين لفتح عرضه القريب عالي الدقة.'
-      : 'Gaze at any highlighted element for two seconds to open its high-resolution close view.';
+      ? 'اتبع المنطقة التي تصبح أكثر وضوحًا تدريجيًا، ثم انظر إليها لمدة ثانيتين لفتح العرض القريب عالي الدقة.'
+      : 'Follow the area that gradually becomes sharper, then gaze at it for two seconds to open its high-resolution close view.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
 
   setTimeout(() => {
     welcomePanel.setAttribute('visible', false);
+    attentionIndex = 0;
+    startProgressiveAttention(attentionSequence[attentionIndex]);
   }, 3500);
 }
 
