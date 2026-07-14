@@ -233,6 +233,7 @@ const backButton = document.querySelector('#backButton');
 let loadedTileKeys = new Set();
 let focusedHotspotId = null;
 let focusTransitioning = false;
+let focusLeaveTimer = null;
 
 function levelDimensions(level) {
   const scale = Math.pow(2, level - MAX_LEVEL);
@@ -411,7 +412,38 @@ function zoomToHotspot(hotspotId) {
   }, 250);
 }
 
+function switchFocusToHotspot(hotspotId) {
+  if (!hotspotId || hotspotId === focusedHotspotId || focusTransitioning) return;
+
+  clearTimeout(focusLeaveTimer);
+  focusTransitioning = true;
+  hideInfo();
+  hideCaptainDetails();
+  clearHighResolutionTiles();
+
+  const target = getZoomTargetForHotspot(hotspotId);
+  if (!target) {
+    focusTransitioning = false;
+    return;
+  }
+
+  focusedHotspotId = hotspotId;
+  loadTilesAroundHotspot(hotspotId, MAX_LEVEL, 0.26);
+
+  mainCamera.setAttribute(
+    'animation__focusPosition',
+    `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 650; easing: easeInOutQuad`
+  );
+
+  setTimeout(() => {
+    focusTransitioning = false;
+    showNestedDetailsFor(hotspotId);
+    backButton.style.display = 'block';
+  }, 680);
+}
+
 function returnFromFocus() {
+  clearTimeout(focusLeaveTimer);
   if (!focusedHotspotId && !focusTransitioning) return;
 
   focusTransitioning = true;
@@ -698,6 +730,7 @@ function addHotspot(id) {
   el.addEventListener('mouseenter', () => {
     if (!pageReady || !currentLanguage) return;
 
+    clearTimeout(focusLeaveTimer);
     clearTimeout(infoTimer);
     clearTimeout(closeTimer);
 
@@ -705,6 +738,11 @@ function addHotspot(id) {
 
     infoTimer = setTimeout(() => {
       showInfo(hotspotTexts[id][currentLanguage], el);
+
+      if (focusedHotspotId && focusedHotspotId !== id && !focusTransitioning) {
+        switchFocusToHotspot(id);
+        return;
+      }
 
       if (
         !el.classList.contains('captainDetail') &&
@@ -721,6 +759,13 @@ function addHotspot(id) {
   el.addEventListener('mouseleave', () => {
     clearTimeout(infoTimer);
     hideHalo(id);
+
+    if (focusedHotspotId === id && !focusTransitioning) {
+      focusLeaveTimer = setTimeout(() => {
+        returnFromFocus();
+      }, 650);
+      return;
+    }
 
     if (!(focusedHotspotId === id || focusTransitioning)) {
       hideInfo();
