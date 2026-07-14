@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Hotspots Restored</title>
+<title>The Night Watch — High-Resolution Hotspot Zoom</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -115,7 +115,7 @@ body {
   <button
     id="backButton"
     class="tileButton"
-    onclick="returnFromCaptain()"
+    onclick="returnFromFocus()"
     style="display:none">
     ← Back
   </button>
@@ -231,8 +231,8 @@ const mainCamera = document.querySelector('#mainCamera');
 const backButton = document.querySelector('#backButton');
 
 let loadedTileKeys = new Set();
-let captainZoomed = false;
-let captainTransitioning = false;
+let focusedHotspotId = null;
+let focusTransitioning = false;
 
 function levelDimensions(level) {
   const scale = Math.pow(2, level - MAX_LEVEL);
@@ -361,45 +361,73 @@ function loadTilesAroundHotspot(hotspotId, level = MAX_LEVEL, padding = 0.22) {
   }
 }
 
-function zoomToCaptain() {
-  if (captainZoomed || captainTransitioning) return;
+function getZoomTargetForHotspot(hotspotId) {
+  const hotspot = document.querySelector('#' + hotspotId);
+  if (!hotspot) return null;
 
-  captainTransitioning = true;
-  loadTilesAroundHotspot('captain', MAX_LEVEL, 0.26);
+  const pos = hotspot.getAttribute('position');
 
-  // Allow the first tiles to begin loading before the movement starts.
+  // Move the camera toward the selected hotspot while keeping a comfortable distance.
+  return {
+    x: pos.x,
+    y: pos.y,
+    z: -1.15
+  };
+}
+
+function showNestedDetailsFor(hotspotId) {
+  hideCaptainDetails();
+
+  if (hotspotId === 'captain') {
+    showCaptainDetails();
+  }
+
+  // Additional nested-detail groups can be added later using the same pattern.
+}
+
+function zoomToHotspot(hotspotId) {
+  if (focusedHotspotId || focusTransitioning) return;
+
+  const target = getZoomTargetForHotspot(hotspotId);
+  if (!target) return;
+
+  focusTransitioning = true;
+  focusedHotspotId = hotspotId;
+
+  loadTilesAroundHotspot(hotspotId, MAX_LEVEL, 0.26);
+
+  // Allow tile loading to begin before the camera movement.
   setTimeout(() => {
     mainCamera.setAttribute(
-      'animation__captainPosition',
-      'property: position; to: -0.03 1.28 -1.15; dur: 800; easing: easeInOutQuad'
+      'animation__focusPosition',
+      `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 800; easing: easeInOutQuad`
     );
 
     setTimeout(() => {
-      captainZoomed = true;
-      captainTransitioning = false;
-      showCaptainDetails();
+      focusTransitioning = false;
+      showNestedDetailsFor(hotspotId);
       backButton.style.display = 'block';
     }, 820);
   }, 250);
 }
 
-function returnFromCaptain() {
-  if (!captainZoomed && !captainTransitioning) return;
+function returnFromFocus() {
+  if (!focusedHotspotId && !focusTransitioning) return;
 
-  captainTransitioning = true;
+  focusTransitioning = true;
   hideInfo();
   hideCaptainDetails();
   backButton.style.display = 'none';
 
   mainCamera.setAttribute(
-    'animation__captainPosition',
+    'animation__focusPosition',
     'property: position; to: 0 1.6 0; dur: 800; easing: easeInOutQuad'
   );
 
   setTimeout(() => {
     clearHighResolutionTiles();
-    captainZoomed = false;
-    captainTransitioning = false;
+    focusedHotspotId = null;
+    focusTransitioning = false;
   }, 820);
 }
 
@@ -678,18 +706,14 @@ function addHotspot(id) {
     infoTimer = setTimeout(() => {
       showInfo(hotspotTexts[id][currentLanguage], el);
 
-      if (id === 'captain' && !captainZoomed && !captainTransitioning) {
-        setTimeout(() => {
-          zoomToCaptain();
-        }, 350);
-      }
-
       if (
-        id !== 'captain' &&
         !el.classList.contains('captainDetail') &&
-        !captainZoomed
+        !focusedHotspotId &&
+        !focusTransitioning
       ) {
-        hideCaptainDetails();
+        setTimeout(() => {
+          zoomToHotspot(id);
+        }, 350);
       }
     }, 2000);
   });
@@ -698,7 +722,7 @@ function addHotspot(id) {
     clearTimeout(infoTimer);
     hideHalo(id);
 
-    if (!(id === 'captain' && (captainZoomed || captainTransitioning))) {
+    if (!(focusedHotspotId === id || focusTransitioning)) {
       hideInfo();
     }
   });
@@ -711,8 +735,8 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'انظر إلى القائد لمدة ثانيتين لفتح العرض القريب عالي الدقة. وتعرض بقية العناصر أوصافها كالمعتاد.'
-      : 'Gaze at the Captain for two seconds to open the high-resolution close view. Other hotspots still show descriptions.';
+      ? 'انظر إلى أي عنصر مميز لمدة ثانيتين لفتح عرضه القريب عالي الدقة.'
+      : 'Gaze at any highlighted element for two seconds to open its high-resolution close view.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
@@ -723,8 +747,8 @@ function startExperience() {
 }
 
 window.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && (captainZoomed || captainTransitioning)) {
-    returnFromCaptain();
+  if (event.key === 'Escape' && (focusedHotspotId || focusTransitioning)) {
+    returnFromFocus();
   }
 });
 
