@@ -112,8 +112,13 @@ body {
 
 <body>
 <div id="tileControls">
-  <button class="tileButton" onclick="loadPhase1Tiles()">Load test tiles</button>
-  <button class="tileButton" onclick="clearPhase1Tiles()">Clear tiles</button>
+  <button
+    id="backButton"
+    class="tileButton"
+    onclick="returnFromCaptain()"
+    style="display:none">
+    ← Back
+  </button>
 </div>
 
 
@@ -191,13 +196,13 @@ body {
   <a-plane id="welcomePanel" visible="false" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
 
   <!-- Camera and gaze cursor -->
-  <a-camera position="0 1.6 0">
+  <a-camera id="mainCamera" position="0 1.6 0">
     <a-cursor
       id="gazeCursor"
       visible="false"
       fuse="true"
       fuse-timeout="2000"
-      raycaster="objects: .hotspot"
+      raycaster="objects: .hotspot, .navButton"
       color="black">
     </a-cursor>
   </a-camera>
@@ -212,48 +217,143 @@ const languageOverlay = document.querySelector('#languageOverlay');
 const languageBox = document.querySelector('#languageBox');
 const tileLayer = document.querySelector('#tileLayer');
 
-// Phase 1 tile settings. These must match the original TIFF and libvips tiles.
+// Deep Zoom tile settings.
 const TILE_IMAGE_WIDTH = 15354;
 const TILE_IMAGE_HEIGHT = 13230;
 const TILE_WORLD_WIDTH = 4;
 const TILE_WORLD_HEIGHT = 3.45;
 const TILE_SIZE = 254;
-const TEST_LEVEL = 14;
+const TILE_OVERLAP = 1;
+const MAX_LEVEL = 14;
 const TILE_FOLDER = 'tiles';
 
+const mainCamera = document.querySelector('#mainCamera');
+const backButton = document.querySelector('#backButton');
+
 let loadedTileKeys = new Set();
+let captainZoomed = false;
+let captainTransitioning = false;
+
+function levelDimensions(level) {
+  const scale = Math.pow(2, level - MAX_LEVEL);
+  return {
+    width: Math.ceil(TILE_IMAGE_WIDTH * scale),
+    height: Math.ceil(TILE_IMAGE_HEIGHT * scale)
+  };
+}
 
 function addTile(level, col, row) {
   const key = `${level}_${col}_${row}`;
   if (loadedTileKeys.has(key)) return;
   loadedTileKeys.add(key);
 
-  const x1 = col * TILE_SIZE;
-  const y1 = row * TILE_SIZE;
+  const dims = levelDimensions(level);
+  const levelWidth = dims.width;
+  const levelHeight = dims.height;
 
-  if (x1 >= TILE_IMAGE_WIDTH || y1 >= TILE_IMAGE_HEIGHT) return;
+  const coreX = col * TILE_SIZE;
+  const coreY = row * TILE_SIZE;
 
-  const tileWpx = Math.min(TILE_SIZE, TILE_IMAGE_WIDTH - x1);
-  const tileHpx = Math.min(TILE_SIZE, TILE_IMAGE_HEIGHT - y1);
+  if (coreX >= levelWidth || coreY >= levelHeight) return;
 
-  const tileWorldW = tileWpx / TILE_IMAGE_WIDTH * TILE_WORLD_WIDTH;
-  const tileWorldH = tileHpx / TILE_IMAGE_HEIGHT * TILE_WORLD_HEIGHT;
+  const columns = Math.ceil(levelWidth / TILE_SIZE);
+  const rows = Math.ceil(levelHeight / TILE_SIZE);
 
-  const centerX = ((x1 + tileWpx / 2) / TILE_IMAGE_WIDTH - 0.5) * TILE_WORLD_WIDTH;
-  const centerY = (0.5 - (y1 + tileHpx / 2) / TILE_IMAGE_HEIGHT) * TILE_WORLD_HEIGHT;
+  const leftOverlap = col === 0 ? 0 : TILE_OVERLAP;
+  const topOverlap = row === 0 ? 0 : TILE_OVERLAP;
+  const rightOverlap = col === columns - 1 ? 0 : TILE_OVERLAP;
+  const bottomOverlap = row === rows - 1 ? 0 : TILE_OVERLAP;
+
+  const fileX = Math.max(0, coreX - leftOverlap);
+  const fileY = Math.max(0, coreY - topOverlap);
+
+  const fileWidth = Math.min(
+    TILE_SIZE + leftOverlap + rightOverlap,
+    levelWidth - fileX
+  );
+
+  const fileHeight = Math.min(
+    TILE_SIZE + topOverlap + bottomOverlap,
+    levelHeight - fileY
+  );
+
+  const worldWidth = fileWidth / levelWidth * TILE_WORLD_WIDTH;
+  const worldHeight = fileHeight / levelHeight * TILE_WORLD_HEIGHT;
+
+  const centerX =
+    ((fileX + fileWidth / 2) / levelWidth - 0.5) * TILE_WORLD_WIDTH;
+
+  const centerY =
+    (0.5 - (fileY + fileHeight / 2) / levelHeight) * TILE_WORLD_HEIGHT;
 
   const tile = document.createElement('a-plane');
+
   tile.setAttribute('data-tile-key', key);
   tile.setAttribute('src', `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`);
-  tile.setAttribute('width', tileWorldW);
-  tile.setAttribute('height', tileWorldH);
+  tile.setAttribute('width', worldWidth);
+  tile.setAttribute('height', worldHeight);
   tile.setAttribute('position', `${centerX} ${centerY} 0`);
-  tile.setAttribute('material', 'shader: flat; side: double');
+  tile.setAttribute(
+    'material',
+    'shader: flat; side: double; transparent: true; opacity: 0'
+  );
+  tile.setAttribute(
+    'animation__fade',
+    'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad'
+  );
 
   tileLayer.appendChild(tile);
 }
 
-function loadTileBlock(level, startCol, endCol, startRow, endRow) {
+function clearHighResolutionTiles() {
+  tileLayer.innerHTML = '';
+  loadedTileKeys.clear();
+}
+
+function loadTilesAroundHotspot(hotspotId, level = MAX_LEVEL, padding = 0.22) {
+  const hotspot = document.querySelector('#' + hotspotId);
+  if (!hotspot) return;
+
+  const pos = hotspot.getAttribute('position');
+  const hotspotWidth = parseFloat(hotspot.getAttribute('width')) || 0.4;
+  const hotspotHeight = parseFloat(hotspot.getAttribute('height')) || 0.7;
+
+  // Convert the hotspot's world position to paintingRoot-local coordinates.
+  const localCenterX = pos.x;
+  const localCenterY = pos.y - 1.6;
+
+  const leftWorld = localCenterX - hotspotWidth / 2 - padding;
+  const rightWorld = localCenterX + hotspotWidth / 2 + padding;
+  const topWorld = localCenterY + hotspotHeight / 2 + padding;
+  const bottomWorld = localCenterY - hotspotHeight / 2 - padding;
+
+  const dims = levelDimensions(level);
+
+  const leftPx = Math.max(
+    0,
+    ((leftWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
+  );
+
+  const rightPx = Math.min(
+    dims.width,
+    ((rightWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
+  );
+
+  const topPx = Math.max(
+    0,
+    (0.5 - topWorld / TILE_WORLD_HEIGHT) * dims.height
+  );
+
+  const bottomPx = Math.min(
+    dims.height,
+    (0.5 - bottomWorld / TILE_WORLD_HEIGHT) * dims.height
+  );
+
+  const startCol = Math.floor(leftPx / TILE_SIZE);
+  const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
+  const startRow = Math.floor(topPx / TILE_SIZE);
+  const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+
   for (let row = startRow; row <= endRow; row++) {
     for (let col = startCol; col <= endCol; col++) {
       addTile(level, col, row);
@@ -261,28 +361,47 @@ function loadTileBlock(level, startCol, endCol, startRow, endRow) {
   }
 }
 
-function loadPhase1Tiles() {
-  clearPhase1Tiles();
+function zoomToCaptain() {
+  if (captainZoomed || captainTransitioning) return;
 
-  // Test patch around the Captain area.
-  // It loads only 36 tiles, not the whole 3,000+ tile level.
-  loadTileBlock(TEST_LEVEL, 28, 33, 29, 34);
+  captainTransitioning = true;
+  loadTilesAroundHotspot('captain', MAX_LEVEL, 0.26);
+
+  // Allow the first tiles to begin loading before the movement starts.
+  setTimeout(() => {
+    mainCamera.setAttribute(
+      'animation__captainPosition',
+      'property: position; to: -0.03 1.28 -1.15; dur: 800; easing: easeInOutQuad'
+    );
+
+    setTimeout(() => {
+      captainZoomed = true;
+      captainTransitioning = false;
+      showCaptainDetails();
+      backButton.style.display = 'block';
+    }, 820);
+  }, 250);
 }
 
-function clearPhase1Tiles() {
-  tileLayer.innerHTML = '';
-  loadedTileKeys.clear();
+function returnFromCaptain() {
+  if (!captainZoomed && !captainTransitioning) return;
+
+  captainTransitioning = true;
+  hideInfo();
+  hideCaptainDetails();
+  backButton.style.display = 'none';
+
+  mainCamera.setAttribute(
+    'animation__captainPosition',
+    'property: position; to: 0 1.6 0; dur: 800; easing: easeInOutQuad'
+  );
+
+  setTimeout(() => {
+    clearHighResolutionTiles();
+    captainZoomed = false;
+    captainTransitioning = false;
+  }, 820);
 }
-
-window.addEventListener('keydown', event => {
-  if (event.key.toLowerCase() === 't') {
-    loadPhase1Tiles();
-  }
-  if (event.key.toLowerCase() === 'c') {
-    clearPhase1Tiles();
-  }
-});
-
 
 let pageReady = false;
 let currentLanguage = null;
@@ -559,11 +678,17 @@ function addHotspot(id) {
     infoTimer = setTimeout(() => {
       showInfo(hotspotTexts[id][currentLanguage], el);
 
-      if (id === 'captain') {
-        showCaptainDetails();
+      if (id === 'captain' && !captainZoomed && !captainTransitioning) {
+        setTimeout(() => {
+          zoomToCaptain();
+        }, 350);
       }
 
-      if (id !== 'captain' && !el.classList.contains('captainDetail')) {
+      if (
+        id !== 'captain' &&
+        !el.classList.contains('captainDetail') &&
+        !captainZoomed
+      ) {
         hideCaptainDetails();
       }
     }, 2000);
@@ -572,7 +697,10 @@ function addHotspot(id) {
   el.addEventListener('mouseleave', () => {
     clearTimeout(infoTimer);
     hideHalo(id);
-    hideInfo();
+
+    if (!(id === 'captain' && (captainZoomed || captainTransitioning))) {
+      hideInfo();
+    }
   });
 }
 
@@ -583,8 +711,8 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'انظر إلى أي عنصر لمدة ثانيتين لعرض وصفه.'
-      : 'Gaze at any highlighted element for two seconds to view its description.';
+      ? 'انظر إلى القائد لمدة ثانيتين لفتح العرض القريب عالي الدقة. وتعرض بقية العناصر أوصافها كالمعتاد.'
+      : 'Gaze at the Captain for two seconds to open the high-resolution close view. Other hotspots still show descriptions.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
@@ -593,6 +721,12 @@ function startExperience() {
     welcomePanel.setAttribute('visible', false);
   }, 3500);
 }
+
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && (captainZoomed || captainTransitioning)) {
+    returnFromCaptain();
+  }
+});
 
 Object.keys(hotspotTexts).forEach(addHotspot);
 
