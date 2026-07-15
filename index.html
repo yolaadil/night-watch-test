@@ -231,6 +231,7 @@ const mainCamera = document.querySelector('#mainCamera');
 const backButton = document.querySelector('#backButton');
 
 let loadedTileKeys = new Set();
+let tileGeneration = 0;
 let focusedHotspotId = null;
 let focusTransitioning = false;
 let focusLeaveTimer = null;
@@ -251,9 +252,9 @@ const attentionSequence = [
 
 // Attention and focus regions are independent from the invisible gaze planes.
 const attentionRegions = {
-  captain:        { offsetX: 0.00, offsetY: 0.18, width: 0.16, height: 0.16 },
-  lieutenant:     { offsetX: 0.00, offsetY: 0.20, width: 0.16, height: 0.16 },
-  girl:           { offsetX: 0.00, offsetY: 0.15, width: 0.14, height: 0.14 },
+  captain:        { offsetX: -0.01, offsetY: 0.28, width: 0.15, height: 0.15 },
+  lieutenant:     { offsetX: 0.00, offsetY: 0.27, width: 0.15, height: 0.15 },
+  girl:           { offsetX: 0.00, offsetY: 0.19, width: 0.14, height: 0.14 },
   drummer:        { offsetX: 0.00, offsetY: 0.19, width: 0.16, height: 0.16 },
   flag:           { offsetX: 0.00, offsetY: 0.28, width: 0.16, height: 0.16 },
   musketeer:      { offsetX: 0.00, offsetY: 0.18, width: 0.14, height: 0.14 },
@@ -291,6 +292,7 @@ function levelDimensions(level) {
 }
 
 function addTile(level, col, row, maskSpec = null) {
+  const generationAtRequest = tileGeneration;
   const maskKey = maskSpec
     ? `${maskSpec.centerX}_${maskSpec.centerY}_${maskSpec.width}_${maskSpec.height}`
     : 'none';
@@ -362,6 +364,8 @@ function addTile(level, col, row, maskSpec = null) {
   image.crossOrigin = 'anonymous';
 
   image.onload = () => {
+    if (generationAtRequest !== tileGeneration) return;
+
     const canvas = document.createElement('canvas');
     canvas.width = image.naturalWidth;
     canvas.height = image.naturalHeight;
@@ -437,6 +441,7 @@ function addTile(level, col, row, maskSpec = null) {
 }
 
 function clearHighResolutionTiles() {
+  tileGeneration += 1;
   tileLayer.innerHTML = '';
   loadedTileKeys.clear();
 }
@@ -532,6 +537,7 @@ function stopProgressiveAttention({ clearTiles = false } = {}) {
 }
 
 function startProgressiveAttention(hotspotId) {
+  console.log('[Attention] cue:', hotspotId);
   if (
     !pageReady ||
     focusedHotspotId ||
@@ -568,6 +574,7 @@ function startProgressiveAttention(hotspotId) {
 }
 
 function advanceProgressiveAttention() {
+  console.log('[Attention] advance from:', attentionTargetId);
   clearAttentionTimers();
 
   attentionIndex =
@@ -577,18 +584,22 @@ function advanceProgressiveAttention() {
 }
 
 function resumeProgressiveAttentionAfterFocus(previousId) {
-  const selectedIndex = attentionSequence.indexOf(previousId);
+  console.log('[Attention] resume after:', previousId);
+  clearAttentionTimers();
+  attentionRunning = false;
+  attentionTargetId = null;
 
-  if (selectedIndex >= 0) {
-    attentionIndex =
-      (selectedIndex + 1) % attentionSequence.length;
-  }
+  const selectedIndex = attentionSequence.indexOf(previousId);
+  attentionIndex =
+    selectedIndex >= 0
+      ? (selectedIndex + 1) % attentionSequence.length
+      : 0;
 
   setTimeout(() => {
     if (!focusedHotspotId && !focusTransitioning) {
       startProgressiveAttention(attentionSequence[attentionIndex]);
     }
-  }, 700);
+  }, 500);
 }
 
 function hidePrimaryHotspots() {
@@ -1017,10 +1028,6 @@ function addHotspot(id) {
 
     if (focusedHotspotId || focusTransitioning) return;
 
-    if (attentionRunning && attentionTargetId === id) {
-      clearTimeout(attentionAdvanceTimer);
-    }
-
     infoTimer = setTimeout(() => {
       zoomToHotspot(id);
     }, 2000);
@@ -1034,23 +1041,6 @@ function addHotspot(id) {
       return;
     }
 
-    if (
-      attentionRunning &&
-      attentionTargetId === id &&
-      !focusedHotspotId &&
-      !focusTransitioning
-    ) {
-      clearTimeout(attentionAdvanceTimer);
-      attentionAdvanceTimer = setTimeout(() => {
-        if (
-          attentionRunning &&
-          attentionTargetId === id &&
-          !focusedHotspotId
-        ) {
-          advanceProgressiveAttention();
-        }
-      }, 3500);
-    }
   });
 }
 
