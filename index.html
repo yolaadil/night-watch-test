@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Masked Progressive Attention</title>
+<title>The Night Watch — Cinematic Attention</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -249,18 +249,31 @@ const attentionSequence = [
   'backgroundArch'
 ];
 
-// Tighter visual-attention boxes in painting world units.
+// Attention and focus regions are independent from the invisible gaze planes.
 const attentionRegions = {
-  captain:        { width: 0.30, height: 0.56 },
-  lieutenant:     { width: 0.28, height: 0.56 },
-  girl:           { width: 0.24, height: 0.40 },
-  drummer:        { width: 0.30, height: 0.50 },
-  flag:           { width: 0.32, height: 0.60 },
-  musketeer:      { width: 0.24, height: 0.46 },
-  dog:            { width: 0.24, height: 0.14 },
-  leftGroup:      { width: 0.34, height: 0.52 },
-  rightGroup:     { width: 0.40, height: 0.56 },
-  backgroundArch: { width: 0.42, height: 0.28 }
+  captain:        { offsetX: 0.00, offsetY: 0.18, width: 0.16, height: 0.16 },
+  lieutenant:     { offsetX: 0.00, offsetY: 0.20, width: 0.16, height: 0.16 },
+  girl:           { offsetX: 0.00, offsetY: 0.15, width: 0.14, height: 0.14 },
+  drummer:        { offsetX: 0.00, offsetY: 0.19, width: 0.16, height: 0.16 },
+  flag:           { offsetX: 0.00, offsetY: 0.28, width: 0.16, height: 0.16 },
+  musketeer:      { offsetX: 0.00, offsetY: 0.18, width: 0.14, height: 0.14 },
+  dog:            { offsetX: 0.00, offsetY: 0.00, width: 0.14, height: 0.10 },
+  leftGroup:      { offsetX: 0.00, offsetY: 0.17, width: 0.18, height: 0.18 },
+  rightGroup:     { offsetX: 0.00, offsetY: 0.17, width: 0.18, height: 0.18 },
+  backgroundArch: { offsetX: 0.00, offsetY: 0.00, width: 0.18, height: 0.12 }
+};
+
+const focusRegions = {
+  captain:        { offsetX: 0.00, offsetY: 0.00, width: 0.52, height: 0.86 },
+  lieutenant:     { offsetX: 0.00, offsetY: 0.00, width: 0.50, height: 0.90 },
+  girl:           { offsetX: 0.00, offsetY: 0.00, width: 0.42, height: 0.68 },
+  drummer:        { offsetX: 0.00, offsetY: 0.00, width: 0.64, height: 0.96 },
+  flag:           { offsetX: 0.00, offsetY: 0.00, width: 0.70, height: 1.08 },
+  musketeer:      { offsetX: 0.00, offsetY: 0.00, width: 0.44, height: 0.74 },
+  dog:            { offsetX: 0.00, offsetY: 0.00, width: 0.52, height: 0.30 },
+  leftGroup:      { offsetX: 0.00, offsetY: 0.00, width: 0.72, height: 0.94 },
+  rightGroup:     { offsetX: 0.00, offsetY: 0.00, width: 0.82, height: 1.00 },
+  backgroundArch: { offsetX: 0.00, offsetY: 0.00, width: 0.94, height: 0.66 }
 };
 
 let attentionIndex = 0;
@@ -449,8 +462,10 @@ function loadTilesAroundHotspot(
     0.7;
 
   // Convert the hotspot's world position to paintingRoot-local coordinates.
-  const localCenterX = pos.x;
-  const localCenterY = pos.y - 1.6;
+  const localCenterX =
+    pos.x + ((sizeOverride && sizeOverride.offsetX) || 0);
+  const localCenterY =
+    pos.y - 1.6 + ((sizeOverride && sizeOverride.offsetY) || 0);
 
   const leftWorld = localCenterX - hotspotWidth / 2 - padding;
   const rightWorld = localCenterX + hotspotWidth / 2 + padding;
@@ -576,6 +591,24 @@ function resumeProgressiveAttentionAfterFocus(previousId) {
   }, 700);
 }
 
+function hidePrimaryHotspots() {
+  document.querySelectorAll('.hotspot').forEach(el => {
+    if (!el.classList.contains('captainDetail')) {
+      el.setAttribute('visible', false);
+    }
+  });
+}
+
+function showPrimaryHotspots() {
+  document.querySelectorAll('.hotspot').forEach(el => {
+    if (el.classList.contains('captainDetail')) {
+      el.setAttribute('visible', false);
+    } else {
+      el.setAttribute('visible', true);
+    }
+  });
+}
+
 function getZoomTargetForHotspot(hotspotId) {
   const hotspot = document.querySelector('#' + hotspotId);
   if (!hotspot) return null;
@@ -603,72 +636,80 @@ function showNestedDetailsFor(hotspotId) {
 function zoomToHotspot(hotspotId) {
   if (focusedHotspotId || focusTransitioning) return;
 
-  stopProgressiveAttention({ clearTiles: false });
-  clearHighResolutionTiles();
-
   const target = getZoomTargetForHotspot(hotspotId);
-  if (!target) return;
+  const hotspot = document.querySelector('#' + hotspotId);
+  const focusRegion = focusRegions[hotspotId];
 
+  if (!target || !hotspot || !focusRegion) return;
+
+  stopProgressiveAttention({ clearTiles: false });
   focusTransitioning = true;
   focusedHotspotId = hotspotId;
+  hidePrimaryHotspots();
 
-  loadTilesAroundHotspot(hotspotId, MAX_LEVEL, 0.26);
+  // Expand the already-visible sharp cue without removing it.
+  const mediumRegion = {
+    offsetX: focusRegion.offsetX,
+    offsetY: focusRegion.offsetY,
+    width: focusRegion.width * 0.58,
+    height: focusRegion.height * 0.58
+  };
 
-  // Allow tile loading to begin before the camera movement.
+  loadTilesAroundHotspot(
+    hotspotId,
+    MAX_LEVEL,
+    0,
+    mediumRegion,
+    true
+  );
+
+  setTimeout(() => {
+    loadTilesAroundHotspot(
+      hotspotId,
+      MAX_LEVEL,
+      0,
+      focusRegion,
+      true
+    );
+  }, 360);
+
+  // Camera begins while the masked detail is still expanding.
   setTimeout(() => {
     mainCamera.setAttribute(
       'animation__focusPosition',
-      `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 800; easing: easeInOutQuad`
+      `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 900; easing: easeInOutQuad`
     );
+  }, 620);
 
-    setTimeout(() => {
-      focusTransitioning = false;
-      showNestedDetailsFor(hotspotId);
-      backButton.style.display = 'block';
+  // Description appears halfway through the camera movement.
+  setTimeout(() => {
+    showInfo(
+      hotspotTexts[hotspotId][currentLanguage],
+      hotspot
+    );
+  }, 980);
 
-      const targetEl = document.querySelector('#' + hotspotId);
-      if (targetEl && hotspotTexts[hotspotId]) {
-        showInfo(hotspotTexts[hotspotId][currentLanguage], targetEl);
-      }
-    }, 820);
-  }, 250);
-}
-
-function switchFocusToHotspot(hotspotId, hotspotEl) {
-  if (!hotspotId || hotspotId === focusedHotspotId || focusTransitioning) return;
-
-  stopProgressiveAttention({ clearTiles: false });
-
-  clearTimeout(focusLeaveTimer);
-  focusTransitioning = true;
-  hideInfo();
-  hideCaptainDetails();
-  clearHighResolutionTiles();
-
-  const target = getZoomTargetForHotspot(hotspotId);
-  if (!target) {
-    focusTransitioning = false;
-    return;
-  }
-
-  focusedHotspotId = hotspotId;
-  loadTilesAroundHotspot(hotspotId, MAX_LEVEL, 0.26);
-
-  mainCamera.setAttribute(
-    'animation__focusPosition',
-    `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 650; easing: easeInOutQuad`
-  );
+  // Full, unmasked high-resolution tiles settle into the close view.
+  setTimeout(() => {
+    loadTilesAroundHotspot(
+      hotspotId,
+      MAX_LEVEL,
+      0.08,
+      focusRegion,
+      false
+    );
+  }, 1120);
 
   setTimeout(() => {
     focusTransitioning = false;
     showNestedDetailsFor(hotspotId);
     backButton.style.display = 'block';
+  }, 1550);
+}
 
-    const targetEl = hotspotEl || document.querySelector('#' + hotspotId);
-    if (targetEl && hotspotTexts[hotspotId]) {
-      showInfo(hotspotTexts[hotspotId][currentLanguage], targetEl);
-    }
-  }, 680);
+function switchFocusToHotspot(hotspotId, hotspotEl) {
+  // Deliberately disabled in the cinematic flow.
+  // The visitor returns with Back before selecting another subject.
 }
 
 function returnFromFocus() {
@@ -691,6 +732,7 @@ function returnFromFocus() {
     clearHighResolutionTiles();
     focusedHotspotId = null;
     focusTransitioning = false;
+    showPrimaryHotspots();
     resumeProgressiveAttentionAfterFocus(previousFocusId);
   }, 820);
 }
@@ -962,48 +1004,35 @@ function addHotspot(id) {
   el.addEventListener('mouseenter', () => {
     if (!pageReady || !currentLanguage) return;
 
-    clearTimeout(focusLeaveTimer);
     clearTimeout(infoTimer);
     clearTimeout(closeTimer);
+
+    // Nested Captain details show their descriptions but do not move the camera.
+    if (el.classList.contains('captainDetail')) {
+      infoTimer = setTimeout(() => {
+        showInfo(hotspotTexts[id][currentLanguage], el);
+      }, 2000);
+      return;
+    }
+
+    if (focusedHotspotId || focusTransitioning) return;
 
     if (attentionRunning && attentionTargetId === id) {
       clearTimeout(attentionAdvanceTimer);
     }
 
-    showHalo(id);
-
     infoTimer = setTimeout(() => {
-      const textEntry = hotspotTexts[id];
-
-      if (!textEntry || !textEntry[currentLanguage]) {
-        console.warn(`Missing hotspot text for: ${id}`);
-        return;
-      }
-
-      showInfo(textEntry[currentLanguage], el);
-
-      // Nested Captain details display descriptions only.
-      // They do not replace the Captain's high-resolution tile region.
-      if (el.classList.contains('captainDetail')) {
-        return;
-      }
-
-      if (focusedHotspotId && focusedHotspotId !== id && !focusTransitioning) {
-        switchFocusToHotspot(id, el);
-        return;
-      }
-
-      if (!focusedHotspotId && !focusTransitioning) {
-        setTimeout(() => {
-          zoomToHotspot(id);
-        }, 350);
-      }
+      zoomToHotspot(id);
     }, 2000);
   });
 
   el.addEventListener('mouseleave', () => {
     clearTimeout(infoTimer);
-    hideHalo(id);
+
+    if (el.classList.contains('captainDetail')) {
+      hideInfo();
+      return;
+    }
 
     if (
       attentionRunning &&
@@ -1022,23 +1051,6 @@ function addHotspot(id) {
         }
       }, 3500);
     }
-
-    // Leaving a nested detail only closes its text, not the parent Captain view.
-    if (el.classList.contains('captainDetail')) {
-      hideInfo();
-      return;
-    }
-
-    if (focusedHotspotId === id && !focusTransitioning) {
-      focusLeaveTimer = setTimeout(() => {
-        returnFromFocus();
-      }, 650);
-      return;
-    }
-
-    if (!(focusedHotspotId === id || focusTransitioning)) {
-      hideInfo();
-    }
   });
 }
 
@@ -1049,8 +1061,8 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'اتبع المنطقة الصغيرة التي تزداد وضوحًا تدريجيًا، ثم انظر إليها لمدة ثانيتين لفتح العرض القريب.'
-      : 'Follow the small area that gradually sharpens, then gaze at it for two seconds to open its close view.';
+      ? 'اتبع التفاصيل التي تظهر تدريجيًا، ثم انظر إليها لمدة ثانيتين لفتح العرض القريب.'
+      : 'Follow the detail that gradually comes into focus, then gaze at it for two seconds to open the close view.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
