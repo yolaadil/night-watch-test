@@ -1,1 +1,1023 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>The Night Watch — Progressive Attention Guidance</title>
+<script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: Arial, Tahoma, sans-serif;
+}
+
+#languageOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#languageBox {
+  width: min(520px, 90vw);
+  background: rgba(20,20,20,0.94);
+  color: white;
+  border-radius: 18px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+#languageBox h1 {
+  margin: 0 0 12px;
+  color: #ffe680;
+  font-size: 30px;
+}
+
+#languageBox p {
+  color: #ddd;
+  font-size: 17px;
+}
+
+.languageButton {
+  cursor: pointer;
+  border: none;
+  border-radius: 12px;
+  padding: 13px 22px;
+  margin: 8px;
+  font-size: 18px;
+  background: #333;
+  color: white;
+}
+
+.languageButton:hover {
+  background: #555;
+}
+
+.tourOption {
+  background: #2b2b2b;
+  border: 1px solid #444;
+  border-radius: 14px;
+  padding: 15px;
+  margin: 12px 0;
+  cursor: pointer;
+}
+
+.tourOption:hover {
+  background: #444;
+  border-color: #ffe680;
+}
+
+.tourOption h2 {
+  margin: 0 0 7px;
+  color: #ffe680;
+  font-size: 20px;
+}
+
+.tourOption p {
+  margin: 0;
+  font-size: 15px;
+  color: #ddd;
+}
+
+
+#tileControls {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 9998;
+  display: flex;
+  gap: 8px;
+}
+
+.tileButton {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: rgba(20,20,20,0.82);
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tileButton:hover {
+  background: rgba(60,60,60,0.92);
+}
+
+</style>
+</head>
+
+<body>
+<div id="tileControls">
+  <button
+    id="backButton"
+    class="tileButton"
+    onclick="returnFromFocus()"
+    style="display:none">
+    ← Back
+  </button>
+</div>
+
+
+<div id="languageOverlay">
+  <div id="languageBox">
+    <h1>The Night Watch</h1>
+    <p>Choose language / اختر اللغة</p>
+    <button class="languageButton" onclick="selectLanguage('en')">English</button>
+    <button class="languageButton" onclick="selectLanguage('ar')">العربية</button>
+  </div>
+</div>
+
+<a-scene>
+
+  <!-- Painting root: low-res base plus optional high-res tile overlay -->
+  <a-entity id="paintingRoot" position="0 1.6 -3">
+    <a-image
+      id="paintingLow"
+      src="painting_low.jpg"
+      width="4"
+      height="3.45"
+      position="0 0 0">
+    </a-image>
+
+    <!-- High-resolution tiles are added here during Phase 1 testing -->
+    <a-entity id="tileLayer" position="0 0 0.02"></a-entity>
+  </a-entity>
+
+  <!-- GLOWING HALOS: hidden until gaze enters -->
+  <a-circle id="captainHalo" position="-0.03 1.28 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="lieutenantHalo" position="0.48 1.25 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="girlHalo" position="-0.66 1.12 -2.94" radius="0.23" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="drummerHalo" position="1.60 1.15 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="flagHalo" position="-0.68 1.82 -2.94" radius="0.34" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="dogHalo" position="1.08 0.58 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="leftGroupHalo" position="-1.45 1.63 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="rightGroupHalo" position="1.42 1.55 -2.94" radius="0.38" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.35" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+
+  <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.36" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.40" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+  <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+
+  <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+  <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+
+  <!-- INVISIBLE HOTSPOTS -->
+  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.45" height="0.25" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
+
+  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+
+  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
+
+  <!-- Text panels -->
+  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
+  <a-plane id="welcomePanel" visible="false" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
+
+  <!-- Camera and gaze cursor -->
+  <a-camera id="mainCamera" position="0 1.6 0">
+    <a-cursor
+      id="gazeCursor"
+      visible="false"
+      fuse="true"
+      fuse-timeout="2000"
+      raycaster="objects: .hotspot, .navButton"
+      color="black">
+    </a-cursor>
+  </a-camera>
+
+</a-scene>
+
+<script>
+const infoPanel = document.querySelector('#infoPanel');
+const welcomePanel = document.querySelector('#welcomePanel');
+const gazeCursor = document.querySelector('#gazeCursor');
+const languageOverlay = document.querySelector('#languageOverlay');
+const languageBox = document.querySelector('#languageBox');
+const tileLayer = document.querySelector('#tileLayer');
+
+// Deep Zoom tile settings.
+const TILE_IMAGE_WIDTH = 15354;
+const TILE_IMAGE_HEIGHT = 13230;
+const TILE_WORLD_WIDTH = 4;
+const TILE_WORLD_HEIGHT = 3.45;
+const TILE_SIZE = 254;
+const TILE_OVERLAP = 1;
+const MAX_LEVEL = 14;
+const TILE_FOLDER = 'tiles';
+
+const mainCamera = document.querySelector('#mainCamera');
+const backButton = document.querySelector('#backButton');
+
+let loadedTileKeys = new Set();
+let focusedHotspotId = null;
+let focusTransitioning = false;
+let focusLeaveTimer = null;
+
+// Progressive attention guidance.
+const attentionSequence = [
+  'captain',
+  'lieutenant',
+  'girl',
+  'drummer',
+  'flag',
+  'musketeer',
+  'dog',
+  'leftGroup',
+  'rightGroup',
+  'backgroundArch'
+];
+
+// Tighter visual-attention boxes in painting world units.
+const attentionRegions = {
+  captain:        { width: 0.42, height: 0.72 },
+  lieutenant:     { width: 0.40, height: 0.72 },
+  girl:           { width: 0.34, height: 0.52 },
+  drummer:        { width: 0.42, height: 0.66 },
+  flag:           { width: 0.44, height: 0.78 },
+  musketeer:      { width: 0.34, height: 0.58 },
+  dog:            { width: 0.34, height: 0.20 },
+  leftGroup:      { width: 0.44, height: 0.66 },
+  rightGroup:     { width: 0.52, height: 0.72 },
+  backgroundArch: { width: 0.58, height: 0.38 }
+};
+
+let attentionIndex = 0;
+let attentionTargetId = null;
+let attentionLevelTimer = null;
+let attentionAdvanceTimer = null;
+let attentionRunning = false;
+
+function levelDimensions(level) {
+  const scale = Math.pow(2, level - MAX_LEVEL);
+  return {
+    width: Math.ceil(TILE_IMAGE_WIDTH * scale),
+    height: Math.ceil(TILE_IMAGE_HEIGHT * scale)
+  };
+}
+
+function addTile(level, col, row) {
+  const key = `${level}_${col}_${row}`;
+  if (loadedTileKeys.has(key)) return;
+  loadedTileKeys.add(key);
+
+  const dims = levelDimensions(level);
+  const levelWidth = dims.width;
+  const levelHeight = dims.height;
+
+  const coreX = col * TILE_SIZE;
+  const coreY = row * TILE_SIZE;
+
+  if (coreX >= levelWidth || coreY >= levelHeight) return;
+
+  const columns = Math.ceil(levelWidth / TILE_SIZE);
+  const rows = Math.ceil(levelHeight / TILE_SIZE);
+
+  const leftOverlap = col === 0 ? 0 : TILE_OVERLAP;
+  const topOverlap = row === 0 ? 0 : TILE_OVERLAP;
+  const rightOverlap = col === columns - 1 ? 0 : TILE_OVERLAP;
+  const bottomOverlap = row === rows - 1 ? 0 : TILE_OVERLAP;
+
+  const fileX = Math.max(0, coreX - leftOverlap);
+  const fileY = Math.max(0, coreY - topOverlap);
+
+  const fileWidth = Math.min(
+    TILE_SIZE + leftOverlap + rightOverlap,
+    levelWidth - fileX
+  );
+
+  const fileHeight = Math.min(
+    TILE_SIZE + topOverlap + bottomOverlap,
+    levelHeight - fileY
+  );
+
+  const worldWidth = fileWidth / levelWidth * TILE_WORLD_WIDTH;
+  const worldHeight = fileHeight / levelHeight * TILE_WORLD_HEIGHT;
+
+  const centerX =
+    ((fileX + fileWidth / 2) / levelWidth - 0.5) * TILE_WORLD_WIDTH;
+
+  const centerY =
+    (0.5 - (fileY + fileHeight / 2) / levelHeight) * TILE_WORLD_HEIGHT;
+
+  const tile = document.createElement('a-plane');
+
+  tile.setAttribute('data-tile-key', key);
+  tile.setAttribute('src', `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`);
+  tile.setAttribute('width', worldWidth);
+  tile.setAttribute('height', worldHeight);
+  const levelDepth = (level - MAX_LEVEL) * 0.0005;
+  tile.setAttribute('position', `${centerX} ${centerY} ${levelDepth}`);
+  tile.setAttribute(
+    'material',
+    'shader: flat; side: double; transparent: true; opacity: 0'
+  );
+  tile.setAttribute(
+    'animation__fade',
+    'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad'
+  );
+
+  tileLayer.appendChild(tile);
+}
+
+function clearHighResolutionTiles() {
+  tileLayer.innerHTML = '';
+  loadedTileKeys.clear();
+}
+
+function loadTilesAroundHotspot(
+  hotspotId,
+  level = MAX_LEVEL,
+  padding = 0.06,
+  sizeOverride = null
+) {
+  const hotspot = document.querySelector('#' + hotspotId);
+  if (!hotspot) return;
+
+  const pos = hotspot.getAttribute('position');
+  const hotspotWidth =
+    (sizeOverride && sizeOverride.width) ||
+    parseFloat(hotspot.getAttribute('width')) ||
+    0.4;
+  const hotspotHeight =
+    (sizeOverride && sizeOverride.height) ||
+    parseFloat(hotspot.getAttribute('height')) ||
+    0.7;
+
+  // Convert the hotspot's world position to paintingRoot-local coordinates.
+  const localCenterX = pos.x;
+  const localCenterY = pos.y - 1.6;
+
+  const leftWorld = localCenterX - hotspotWidth / 2 - padding;
+  const rightWorld = localCenterX + hotspotWidth / 2 + padding;
+  const topWorld = localCenterY + hotspotHeight / 2 + padding;
+  const bottomWorld = localCenterY - hotspotHeight / 2 - padding;
+
+  const dims = levelDimensions(level);
+
+  const leftPx = Math.max(
+    0,
+    ((leftWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
+  );
+
+  const rightPx = Math.min(
+    dims.width,
+    ((rightWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
+  );
+
+  const topPx = Math.max(
+    0,
+    (0.5 - topWorld / TILE_WORLD_HEIGHT) * dims.height
+  );
+
+  const bottomPx = Math.min(
+    dims.height,
+    (0.5 - bottomWorld / TILE_WORLD_HEIGHT) * dims.height
+  );
+
+  const startCol = Math.floor(leftPx / TILE_SIZE);
+  const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
+  const startRow = Math.floor(topPx / TILE_SIZE);
+  const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      addTile(level, col, row);
+    }
+  }
+}
+
+
+function clearAttentionTimers() {
+  clearTimeout(attentionLevelTimer);
+  clearTimeout(attentionAdvanceTimer);
+}
+
+function stopProgressiveAttention({ clearTiles = false } = {}) {
+  clearAttentionTimers();
+  attentionRunning = false;
+  attentionTargetId = null;
+
+  if (clearTiles && !focusedHotspotId && !focusTransitioning) {
+    clearHighResolutionTiles();
+  }
+}
+
+function startProgressiveAttention(hotspotId) {
+  if (
+    !pageReady ||
+    focusedHotspotId ||
+    focusTransitioning ||
+    !hotspotId
+  ) {
+    return;
+  }
+
+  clearAttentionTimers();
+  clearHighResolutionTiles();
+
+  attentionRunning = true;
+  attentionTargetId = hotspotId;
+
+  const cueSize = attentionRegions[hotspotId] || null;
+
+  // Start at level 12. Lower levels use tiles that are too large and
+  // create a distracting square around small figures.
+  loadTilesAroundHotspot(hotspotId, 12, 0.02, cueSize);
+
+  // Refine with level 13 while keeping the cue tightly centered.
+  // Level 14 remains reserved for confirmed gaze and close inspection.
+  attentionLevelTimer = setTimeout(() => {
+    if (
+      attentionRunning &&
+      attentionTargetId === hotspotId &&
+      !focusedHotspotId
+    ) {
+      loadTilesAroundHotspot(hotspotId, 13, 0.02, cueSize);
+    }
+  }, 650);
+
+  // If the visitor does not engage, guide attention to the next element.
+  attentionAdvanceTimer = setTimeout(() => {
+    if (
+      attentionRunning &&
+      attentionTargetId === hotspotId &&
+      !focusedHotspotId &&
+      !focusTransitioning
+    ) {
+      advanceProgressiveAttention();
+    }
+  }, 7000);
+}
+
+function advanceProgressiveAttention() {
+  clearAttentionTimers();
+
+  attentionIndex =
+    (attentionIndex + 1) % attentionSequence.length;
+
+  startProgressiveAttention(attentionSequence[attentionIndex]);
+}
+
+function resumeProgressiveAttentionAfterFocus(previousId) {
+  const selectedIndex = attentionSequence.indexOf(previousId);
+
+  if (selectedIndex >= 0) {
+    attentionIndex =
+      (selectedIndex + 1) % attentionSequence.length;
+  }
+
+  setTimeout(() => {
+    if (!focusedHotspotId && !focusTransitioning) {
+      startProgressiveAttention(attentionSequence[attentionIndex]);
+    }
+  }, 700);
+}
+
+function getZoomTargetForHotspot(hotspotId) {
+  const hotspot = document.querySelector('#' + hotspotId);
+  if (!hotspot) return null;
+
+  const pos = hotspot.getAttribute('position');
+
+  // Move the camera toward the selected hotspot while keeping a comfortable distance.
+  return {
+    x: pos.x,
+    y: pos.y,
+    z: -1.15
+  };
+}
+
+function showNestedDetailsFor(hotspotId) {
+  hideCaptainDetails();
+
+  if (hotspotId === 'captain') {
+    showCaptainDetails();
+  }
+
+  // Additional nested-detail groups can be added later using the same pattern.
+}
+
+function zoomToHotspot(hotspotId) {
+  if (focusedHotspotId || focusTransitioning) return;
+
+  stopProgressiveAttention({ clearTiles: false });
+
+  const target = getZoomTargetForHotspot(hotspotId);
+  if (!target) return;
+
+  focusTransitioning = true;
+  focusedHotspotId = hotspotId;
+
+  loadTilesAroundHotspot(hotspotId, MAX_LEVEL, 0.26);
+
+  // Allow tile loading to begin before the camera movement.
+  setTimeout(() => {
+    mainCamera.setAttribute(
+      'animation__focusPosition',
+      `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 800; easing: easeInOutQuad`
+    );
+
+    setTimeout(() => {
+      focusTransitioning = false;
+      showNestedDetailsFor(hotspotId);
+      backButton.style.display = 'block';
+
+      const targetEl = document.querySelector('#' + hotspotId);
+      if (targetEl && hotspotTexts[hotspotId]) {
+        showInfo(hotspotTexts[hotspotId][currentLanguage], targetEl);
+      }
+    }, 820);
+  }, 250);
+}
+
+function switchFocusToHotspot(hotspotId, hotspotEl) {
+  if (!hotspotId || hotspotId === focusedHotspotId || focusTransitioning) return;
+
+  stopProgressiveAttention({ clearTiles: false });
+
+  clearTimeout(focusLeaveTimer);
+  focusTransitioning = true;
+  hideInfo();
+  hideCaptainDetails();
+  clearHighResolutionTiles();
+
+  const target = getZoomTargetForHotspot(hotspotId);
+  if (!target) {
+    focusTransitioning = false;
+    return;
+  }
+
+  focusedHotspotId = hotspotId;
+  loadTilesAroundHotspot(hotspotId, MAX_LEVEL, 0.26);
+
+  mainCamera.setAttribute(
+    'animation__focusPosition',
+    `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 650; easing: easeInOutQuad`
+  );
+
+  setTimeout(() => {
+    focusTransitioning = false;
+    showNestedDetailsFor(hotspotId);
+    backButton.style.display = 'block';
+
+    const targetEl = hotspotEl || document.querySelector('#' + hotspotId);
+    if (targetEl && hotspotTexts[hotspotId]) {
+      showInfo(hotspotTexts[hotspotId][currentLanguage], targetEl);
+    }
+  }, 680);
+}
+
+function returnFromFocus() {
+  clearTimeout(focusLeaveTimer);
+  if (!focusedHotspotId && !focusTransitioning) return;
+
+  focusTransitioning = true;
+  hideInfo();
+  hideCaptainDetails();
+  backButton.style.display = 'none';
+
+  mainCamera.setAttribute(
+    'animation__focusPosition',
+    'property: position; to: 0 1.6 0; dur: 800; easing: easeInOutQuad'
+  );
+
+  const previousFocusId = focusedHotspotId;
+
+  setTimeout(() => {
+    clearHighResolutionTiles();
+    focusedHotspotId = null;
+    focusTransitioning = false;
+    resumeProgressiveAttentionAfterFocus(previousFocusId);
+  }, 820);
+}
+
+let pageReady = false;
+let currentLanguage = null;
+let tourMode = null;
+let closeTimer = null;
+let activeHotspot = null;
+let lastTextChangeTime = 0;
+let infoTimer = null;
+
+const galleryHotspots = [
+  'captain','lieutenant','girl','drummer','flag',
+  'musketeer','dog','leftGroup','rightGroup','backgroundArch'
+];
+
+const curatorHotspots = [
+  ...galleryHotspots,
+  'chickenClaws','drinkingHorn','weapons','spears',
+  'light','shield','captainHand','redSash'
+];
+
+const hotspotTexts = {
+  captain: {
+    en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. In Curator’s Tour, selecting him reveals smaller details such as his hand and red sash.',
+    ar: 'الكابتن فرانس بانينك كوك\n\nقائد فرقة الحرس المدني في أمستردام. في جولة القيّم الفني، يكشف اختياره عن تفاصيل أصغر مثل يده ووشاحه الأحمر.'
+  },
+  lieutenant: {
+    en: 'Lieutenant Willem van Ruytenburch\n\nThe lieutenant stands beside the captain in bright yellow clothing, helping draw the viewer’s eye to the center.',
+    ar: 'الملازم فيليم فان رويتنبرخ\n\nيقف بجانب القائد بملابس صفراء لامعة، مما يجذب نظر المشاهد نحو مركز اللوحة.'
+  },
+  girl: {
+    en: 'The Illuminated Girl\n\nShe is not a regular militia member. She works as a symbolic figure, carrying objects connected to the identity of the civic guard.',
+    ar: 'الفتاة المضيئة\n\nليست عضوة عادية في الحرس، بل تظهر كشخصية رمزية تحمل أشياء مرتبطة بهوية الفرقة.'
+  },
+  drummer: {
+    en: 'The Drummer\n\nThe drummer adds rhythm, sound, and movement, making the scene feel like a company about to march.',
+    ar: 'قارِع الطبل\n\nيضيف الإيقاع والصوت والحركة، فيجعل المشهد يبدو كفرقة تستعد للسير.'
+  },
+  flag: {
+    en: 'The Flag Bearer\n\nThe flag identifies the militia company and adds ceremony to the scene.',
+    ar: 'حامل الراية\n\nتُعرّف الراية بفرقة الحرس وتضيف طابعًا احتفاليًا إلى المشهد.'
+  },
+  musketeer: {
+    en: 'The Musketeer\n\nThe armed guards refer to the civic militia’s role and training.',
+    ar: 'حامل البندقية\n\nيشير الحراس المسلحون إلى دور وتدريب الميليشيا المدنية.'
+  },
+  dog: {
+    en: 'The Dog\n\nA small lively detail near the drummer. It adds spontaneity and everyday life to the crowded scene.',
+    ar: 'الكلب\n\nتفصيل صغير وحيوي قرب قارع الطبل، يضيف عفوية وإحساسًا بالحياة اليومية.'
+  },
+  leftGroup: {
+    en: 'Left Group of Guards\n\nThese overlapping figures create depth and help turn the group portrait into a busy, moving scene.',
+    ar: 'مجموعة الحراس اليسرى\n\nتخلق هذه الشخصيات المتداخلة عمقًا بصريًا وتحول الصورة الجماعية إلى مشهد متحرك.'
+  },
+  rightGroup: {
+    en: 'Right Group of Guards\n\nThe figures on the right balance the central pair and expand the sense of a large company gathering.',
+    ar: 'مجموعة الحراس اليمنى\n\nتوازن الشخصيات في اليمين الثنائي المركزي وتوسع الإحساس بتجمع فرقة كبيرة.'
+  },
+  backgroundArch: {
+    en: 'Background Architecture\n\nThe dark architectural space frames the action and strengthens Rembrandt’s dramatic use of light and shadow.',
+    ar: 'الخلفية المعمارية\n\nتؤطر المساحة المعمارية الداكنة المشهد وتعزز استخدام رامبرانت الدرامي للضوء والظل.'
+  },
+  captainHand: {
+    en: 'The Captain’s Hand\n\nHis outstretched hand is one of the painting’s famous details and helps guide the viewer’s attention toward the central action.',
+    ar: 'يد القائد\n\nتُعد يده الممدودة من التفاصيل الشهيرة في اللوحة وتساعد في توجيه نظر المشاهد نحو الحركة المركزية.'
+  },
+  redSash: {
+    en: 'The Red Sash\n\nThe captain’s red sash helps him stand out against the darker clothing and reinforces his leading role.',
+    ar: 'الوشاح الأحمر\n\nيساعد وشاح القائد الأحمر على تمييزه وسط الملابس الداكنة ويؤكد دوره القيادي.'
+  },
+  chickenClaws: {
+    en: 'Chicken Claws\n\nThe claws carried by the girl are linked to the emblem of the arquebusiers, helping identify the militia company.',
+    ar: 'مخالب الدجاجة\n\nترتبط المخالب التي تحملها الفتاة بشعار حملة البنادق، وتساعد في تحديد هوية الفرقة.'
+  },
+  drinkingHorn: {
+    en: 'Drinking Horn\n\nThe girl also carries a ceremonial object linked to militia tradition and group identity.',
+    ar: 'قرن الشرب\n\nتحمل الفتاة أيضًا غرضًا احتفاليًا مرتبطًا بتقاليد الميليشيا وهوية الجماعة.'
+  },
+  weapons: {
+    en: 'Weapons and Training\n\nThe weapons suggest the civic guard’s military role, but Rembrandt turns them into part of a theatrical composition.',
+    ar: 'الأسلحة والتدريب\n\nتشير الأسلحة إلى الدور العسكري للحرس المدني، لكن رامبرانت يجعلها جزءًا من تكوين مسرحي.'
+  },
+  spears: {
+    en: 'Spears and Lines\n\nThe long spears and poles create diagonal lines that guide the viewer’s eye through the painting.',
+    ar: 'الرماح والخطوط\n\nتخلق الرماح والعصي الطويلة خطوطًا قطرية تقود عين المشاهد عبر اللوحة.'
+  },
+  light: {
+    en: 'Light and Shadow\n\nRembrandt uses strong contrasts of light and darkness to guide attention and create drama.',
+    ar: 'الضوء والظل\n\nيستخدم رامبرانت تباينًا قويًا بين الضوء والظلام لتوجيه الانتباه وخلق الدراما.'
+  },
+  shield: {
+    en: 'Shield with Names\n\nA shield in the background records the names of members of the company, connecting the painting to its patrons.',
+    ar: 'درع الأسماء\n\nيسجل الدرع في الخلفية أسماء أعضاء الفرقة، ويربط اللوحة بمن كلفوا برسمها.'
+  }
+};
+
+function selectLanguage(language) {
+  currentLanguage = language;
+  tourMode = 'curator';
+  updateVisibleHotspots();
+  startExperience();
+}
+
+function updateVisibleHotspots() {
+  document.querySelectorAll('.hotspot').forEach(el => {
+    if (el.classList.contains('captainDetail')) {
+      el.setAttribute('visible', false);
+    } else {
+      el.setAttribute('visible', true);
+    }
+  });
+}
+
+function showCaptainDetails() {
+  if (tourMode !== 'curator') return;
+  document.querySelectorAll('.captainDetail').forEach(el => {
+    el.setAttribute('visible', true);
+  });
+}
+
+function hideCaptainDetails() {
+  document.querySelectorAll('.captainDetail').forEach(el => {
+    el.setAttribute('visible', false);
+  });
+}
+
+function getHaloForHotspot(id) {
+  return document.querySelector('#' + id + 'Halo');
+}
+
+function showHalo(id) {
+  const halo = getHaloForHotspot(id);
+  if (!halo) return;
+
+  halo.setAttribute('visible', true);
+  halo.setAttribute(
+    'animation',
+    'property: material.opacity; from:0.04; to:0.12; dur:2800; dir:alternate; loop:true'
+  );
+}
+
+function hideHalo(id) {
+  const halo = getHaloForHotspot(id);
+  if (!halo) return;
+
+  halo.removeAttribute('animation');
+  halo.setAttribute('visible', false);
+}
+
+function hideAllHalos() {
+  Object.keys(hotspotTexts).forEach(id => hideHalo(id));
+}
+
+function makeCanvasTexture(text, language, width = 650, height = 250) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = 'rgba(17, 17, 17, 0.68)';
+  roundRect(ctx, 0, 0, width, height, 34);
+  ctx.fill();
+
+  ctx.fillStyle = 'white';
+  ctx.textBaseline = 'top';
+
+  if (language === 'ar') {
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.font = '25px Tahoma, Arial, sans-serif';
+    drawWrappedText(ctx, text, width - 52, 38, width - 90, 46);
+  } else {
+    ctx.direction = 'ltr';
+    ctx.textAlign = 'left';
+    ctx.font = '24px Arial, sans-serif';
+    drawWrappedText(ctx, text, 52, 38, width - 90, 46);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+  const paragraphs = text.split('\n');
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      y += lineHeight * 0.65;
+      continue;
+    }
+
+    const words = paragraph.split(' ');
+    let line = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+      if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+        ctx.fillText(line.trim(), x, y);
+        line = words[i] + ' ';
+        y += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+
+    ctx.fillText(line.trim(), x, y);
+    y += lineHeight;
+  }
+}
+
+function setPanelText(panel, text, language) {
+  const texture = makeCanvasTexture(text, language);
+  const mesh = panel.getObject3D('mesh');
+  if (!mesh) return;
+
+  mesh.material.map = texture;
+  mesh.material.transparent = true;
+  mesh.material.needsUpdate = true;
+}
+
+function showInfo(text, hotspot) {
+  clearTimeout(closeTimer);
+
+  const now = Date.now();
+  if (now - lastTextChangeTime < 800 && activeHotspot !== hotspot) return;
+  lastTextChangeTime = now;
+
+  activeHotspot = hotspot;
+
+  const pos = hotspot.getAttribute('position');
+
+  let panelX = pos.x + 0.68;
+  if (pos.x > 0.8) panelX = pos.x - 0.68;
+
+  let panelY = pos.y + 0.25;
+  if (pos.y > 2.0) panelY = pos.y - 0.42;
+
+  infoPanel.setAttribute('position', `${panelX} ${panelY} -2.8`);
+  setPanelText(infoPanel, text, currentLanguage);
+  infoPanel.setAttribute('visible', true);
+}
+
+function hideInfo() {
+  infoPanel.setAttribute('visible', false);
+  activeHotspot = null;
+}
+
+function addHotspot(id) {
+  const el = document.querySelector('#' + id);
+  if (!el) return;
+
+  el.addEventListener('mouseenter', () => {
+    if (!pageReady || !currentLanguage) return;
+
+    clearTimeout(focusLeaveTimer);
+    clearTimeout(infoTimer);
+    clearTimeout(closeTimer);
+
+    if (attentionRunning && attentionTargetId === id) {
+      clearTimeout(attentionAdvanceTimer);
+    }
+
+    showHalo(id);
+
+    infoTimer = setTimeout(() => {
+      const textEntry = hotspotTexts[id];
+
+      if (!textEntry || !textEntry[currentLanguage]) {
+        console.warn(`Missing hotspot text for: ${id}`);
+        return;
+      }
+
+      showInfo(textEntry[currentLanguage], el);
+
+      // Nested Captain details display descriptions only.
+      // They do not replace the Captain's high-resolution tile region.
+      if (el.classList.contains('captainDetail')) {
+        return;
+      }
+
+      if (focusedHotspotId && focusedHotspotId !== id && !focusTransitioning) {
+        switchFocusToHotspot(id, el);
+        return;
+      }
+
+      if (!focusedHotspotId && !focusTransitioning) {
+        setTimeout(() => {
+          zoomToHotspot(id);
+        }, 350);
+      }
+    }, 2000);
+  });
+
+  el.addEventListener('mouseleave', () => {
+    clearTimeout(infoTimer);
+    hideHalo(id);
+
+    if (
+      attentionRunning &&
+      attentionTargetId === id &&
+      !focusedHotspotId &&
+      !focusTransitioning
+    ) {
+      clearTimeout(attentionAdvanceTimer);
+      attentionAdvanceTimer = setTimeout(() => {
+        if (
+          attentionRunning &&
+          attentionTargetId === id &&
+          !focusedHotspotId
+        ) {
+          advanceProgressiveAttention();
+        }
+      }, 3500);
+    }
+
+    // Leaving a nested detail only closes its text, not the parent Captain view.
+    if (el.classList.contains('captainDetail')) {
+      hideInfo();
+      return;
+    }
+
+    if (focusedHotspotId === id && !focusTransitioning) {
+      focusLeaveTimer = setTimeout(() => {
+        returnFromFocus();
+      }, 650);
+      return;
+    }
+
+    if (!(focusedHotspotId === id || focusTransitioning)) {
+      hideInfo();
+    }
+  });
+}
+
+function startExperience() {
+  pageReady = true;
+  languageOverlay.style.display = 'none';
+  gazeCursor.setAttribute('visible', true);
+
+  const welcomeText =
+    currentLanguage === 'ar'
+      ? 'اتبع المنطقة الصغيرة التي تصبح أكثر وضوحًا تدريجيًا، ثم انظر إليها لمدة ثانيتين لفتح العرض القريب عالي الدقة.'
+      : 'Follow the small area that gradually becomes sharper, then gaze at it for two seconds to open its high-resolution close view.';
+
+  setPanelText(welcomePanel, welcomeText, currentLanguage);
+  welcomePanel.setAttribute('visible', true);
+
+  setTimeout(() => {
+    welcomePanel.setAttribute('visible', false);
+    attentionIndex = 0;
+    startProgressiveAttention(attentionSequence[attentionIndex]);
+  }, 3500);
+}
+
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && (focusedHotspotId || focusTransitioning)) {
+    returnFromFocus();
+  }
+});
+
+
+function auditHotspotTexts() {
+  const hotspotIds = [...document.querySelectorAll('.hotspot')]
+    .map(el => el.id);
+
+  hotspotIds.forEach(id => {
+    if (
+      !hotspotTexts[id] ||
+      !hotspotTexts[id].en ||
+      !hotspotTexts[id].ar
+    ) {
+      console.warn(`Hotspot is missing English or Arabic text: ${id}`);
+    }
+  });
+}
+
+Object.keys(hotspotTexts).forEach(addHotspot);
+
+window.addEventListener('load', () => {
+  auditHotspotTexts();
+  hideInfo();
+  hideAllHalos();
+  pageReady = false;
+  currentLanguage = null;
+  tourMode = null;
+  gazeCursor.setAttribute('visible', false);
+
+  document.querySelectorAll('.hotspot').forEach(el => {
+    el.setAttribute('visible', false);
+  });
+});
+</script>
+
+</body>
+</html>
