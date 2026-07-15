@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Progressive Attention Guidance</title>
+<title>The Night Watch — Masked Progressive Attention</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -277,8 +277,12 @@ function levelDimensions(level) {
   };
 }
 
-function addTile(level, col, row) {
-  const key = `${level}_${col}_${row}`;
+function addTile(level, col, row, maskSpec = null) {
+  const maskKey = maskSpec
+    ? `${maskSpec.centerX}_${maskSpec.centerY}_${maskSpec.width}_${maskSpec.height}`
+    : 'none';
+
+  const key = `${level}_${col}_${row}_${maskKey}`;
   if (loadedTileKeys.has(key)) return;
   loadedTileKeys.add(key);
 
@@ -322,23 +326,101 @@ function addTile(level, col, row) {
     (0.5 - (fileY + fileHeight / 2) / levelHeight) * TILE_WORLD_HEIGHT;
 
   const tile = document.createElement('a-plane');
-
   tile.setAttribute('data-tile-key', key);
-  tile.setAttribute('src', `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`);
   tile.setAttribute('width', worldWidth);
   tile.setAttribute('height', worldHeight);
-  const levelDepth = (level - MAX_LEVEL) * 0.0005;
-  tile.setAttribute('position', `${centerX} ${centerY} ${levelDepth}`);
-  tile.setAttribute(
-    'material',
-    'shader: flat; side: double; transparent: true; opacity: 0'
-  );
-  tile.setAttribute(
-    'animation__fade',
-    'property: material.opacity; from: 0; to: 1; dur: 1400; easing: easeInOutQuad'
-  );
+  tile.setAttribute('position', `${centerX} ${centerY} 0`);
 
-  tileLayer.appendChild(tile);
+  if (!maskSpec) {
+    tile.setAttribute('src', `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`);
+    tile.setAttribute(
+      'material',
+      'shader: flat; side: double; transparent: true; opacity: 0'
+    );
+    tile.setAttribute(
+      'animation__fade',
+      'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad'
+    );
+    tileLayer.appendChild(tile);
+    return;
+  }
+
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0);
+
+    const tileLeft = centerX - worldWidth / 2;
+    const tileTop = centerY + worldHeight / 2;
+
+    const maskCenterX =
+      ((maskSpec.centerX - tileLeft) / worldWidth) * canvas.width;
+    const maskCenterY =
+      ((tileTop - maskSpec.centerY) / worldHeight) * canvas.height;
+
+    const radiusX =
+      (maskSpec.width / 2 / worldWidth) * canvas.width;
+    const radiusY =
+      (maskSpec.height / 2 / worldHeight) * canvas.height;
+
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.save();
+    ctx.translate(maskCenterX, maskCenterY);
+    ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
+
+    const gradient = ctx.createRadialGradient(
+      0, 0, radiusX * 0.45,
+      0, 0, radiusX
+    );
+    gradient.addColorStop(0, 'rgba(255,255,255,1)');
+    gradient.addColorStop(0.70, 'rgba(255,255,255,0.95)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+
+    tile.addEventListener('loaded', () => {
+      const mesh = tile.getObject3D('mesh');
+      if (!mesh) return;
+
+      mesh.material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+
+      const startTime = performance.now();
+      const duration = 1400;
+
+      function fade(now) {
+        const t = Math.min(1, (now - startTime) / duration);
+        mesh.material.opacity = t;
+        mesh.material.needsUpdate = true;
+        if (t < 1) requestAnimationFrame(fade);
+      }
+
+      requestAnimationFrame(fade);
+    });
+
+    tileLayer.appendChild(tile);
+  };
+
+  image.src = `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`;
 }
 
 function clearHighResolutionTiles() {
@@ -350,7 +432,8 @@ function loadTilesAroundHotspot(
   hotspotId,
   level = MAX_LEVEL,
   padding = 0.06,
-  sizeOverride = null
+  sizeOverride = null,
+  useSoftMask = false
 ) {
   const hotspot = document.querySelector('#' + hotspotId);
   if (!hotspot) return;
@@ -401,9 +484,18 @@ function loadTilesAroundHotspot(
   const startRow = Math.floor(topPx / TILE_SIZE);
   const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
 
+  const maskSpec = useSoftMask
+    ? {
+        centerX: localCenterX,
+        centerY: localCenterY,
+        width: hotspotWidth + padding * 2,
+        height: hotspotHeight + padding * 2
+      }
+    : null;
+
   for (let row = startRow; row <= endRow; row++) {
     for (let col = startCol; col <= endCol; col++) {
-      addTile(level, col, row);
+      addTile(level, col, row, maskSpec);
     }
   }
 }
@@ -445,7 +537,7 @@ function startProgressiveAttention(hotspotId) {
   // Use only the highest-resolution level for the attention cue.
   // At lower pyramid levels, each tile covers a large rectangular area,
   // which makes the cue look like a large square rather than a person.
-  loadTilesAroundHotspot(hotspotId, 14, 0.0, cueSize);
+  loadTilesAroundHotspot(hotspotId, 14, 0.0, cueSize, true);
 
   // If the visitor does not engage, guide attention to the next element.
   attentionAdvanceTimer = setTimeout(() => {
@@ -512,6 +604,7 @@ function zoomToHotspot(hotspotId) {
   if (focusedHotspotId || focusTransitioning) return;
 
   stopProgressiveAttention({ clearTiles: false });
+  clearHighResolutionTiles();
 
   const target = getZoomTargetForHotspot(hotspotId);
   if (!target) return;
