@@ -251,16 +251,16 @@ const attentionSequence = [
 
 // Tighter visual-attention boxes in painting world units.
 const attentionRegions = {
-  captain:        { width: 0.42, height: 0.72 },
-  lieutenant:     { width: 0.40, height: 0.72 },
-  girl:           { width: 0.34, height: 0.52 },
-  drummer:        { width: 0.42, height: 0.66 },
-  flag:           { width: 0.44, height: 0.78 },
-  musketeer:      { width: 0.34, height: 0.58 },
-  dog:            { width: 0.34, height: 0.20 },
-  leftGroup:      { width: 0.44, height: 0.66 },
-  rightGroup:     { width: 0.52, height: 0.72 },
-  backgroundArch: { width: 0.58, height: 0.38 }
+  captain:        { width: 0.30, height: 0.56 },
+  lieutenant:     { width: 0.28, height: 0.56 },
+  girl:           { width: 0.24, height: 0.40 },
+  drummer:        { width: 0.30, height: 0.50 },
+  flag:           { width: 0.32, height: 0.60 },
+  musketeer:      { width: 0.24, height: 0.46 },
+  dog:            { width: 0.24, height: 0.14 },
+  leftGroup:      { width: 0.34, height: 0.52 },
+  rightGroup:     { width: 0.40, height: 0.56 },
+  backgroundArch: { width: 0.42, height: 0.28 }
 };
 
 let attentionIndex = 0;
@@ -335,7 +335,7 @@ function addTile(level, col, row) {
   );
   tile.setAttribute(
     'animation__fade',
-    'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad'
+    'property: material.opacity; from: 0; to: 1; dur: 1400; easing: easeInOutQuad'
   );
 
   tileLayer.appendChild(tile);
@@ -442,21 +442,10 @@ function startProgressiveAttention(hotspotId) {
 
   const cueSize = attentionRegions[hotspotId] || null;
 
-  // Start at level 12. Lower levels use tiles that are too large and
-  // create a distracting square around small figures.
-  loadTilesAroundHotspot(hotspotId, 12, 0.02, cueSize);
-
-  // Refine with level 13 while keeping the cue tightly centered.
-  // Level 14 remains reserved for confirmed gaze and close inspection.
-  attentionLevelTimer = setTimeout(() => {
-    if (
-      attentionRunning &&
-      attentionTargetId === hotspotId &&
-      !focusedHotspotId
-    ) {
-      loadTilesAroundHotspot(hotspotId, 13, 0.02, cueSize);
-    }
-  }, 650);
+  // Use only the highest-resolution level for the attention cue.
+  // At lower pyramid levels, each tile covers a large rectangular area,
+  // which makes the cue look like a large square rather than a person.
+  loadTilesAroundHotspot(hotspotId, 14, 0.0, cueSize);
 
   // If the visitor does not engage, guide attention to the next element.
   attentionAdvanceTimer = setTimeout(() => {
@@ -967,8 +956,8 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'اتبع المنطقة الصغيرة التي تصبح أكثر وضوحًا تدريجيًا، ثم انظر إليها لمدة ثانيتين لفتح العرض القريب عالي الدقة.'
-      : 'Follow the small area that gradually becomes sharper, then gaze at it for two seconds to open its high-resolution close view.';
+      ? 'اتبع المنطقة الصغيرة التي تزداد وضوحًا تدريجيًا، ثم انظر إليها لمدة ثانيتين لفتح العرض القريب.'
+      : 'Follow the small area that gradually sharpens, then gaze at it for two seconds to open its close view.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
