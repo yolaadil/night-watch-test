@@ -5,115 +5,61 @@
 <title>The Night Watch — Audio and Focus Guided Story</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
-AFRAME.registerComponent('texture-blur', {
+AFRAME.registerComponent('blurred-copy', {
   schema: {
-    amount: { type: 'number', default: 0 }
+    source: { type: 'string' },
+    radius: { type: 'number', default: 3 }
   },
 
   init() {
-    this.originalMaterial = null;
-    this.shaderMaterial = null;
-    this.applyBlurMaterial = this.applyBlurMaterial.bind(this);
-
-    this.el.addEventListener('materialtextureloaded', this.applyBlurMaterial);
-    this.el.addEventListener('object3dset', this.applyBlurMaterial);
+    this.buildTexture = this.buildTexture.bind(this);
+    this.el.addEventListener('loaded', this.buildTexture);
+    this.buildTexture();
   },
 
-  update() {
-    if (this.shaderMaterial) {
-      this.shaderMaterial.uniforms.blurAmount.value = this.data.amount;
-    }
-  },
+  buildTexture() {
+    if (!this.data.source) return;
 
-  applyBlurMaterial() {
-    const mesh = this.el.getObject3D('mesh');
-    if (!mesh || !mesh.material || !mesh.material.map) return;
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
 
-    const texture = mesh.material.map;
-    const image = texture.image;
-    if (!image || !image.width || !image.height) return;
+    image.onload = () => {
+      const scale = 0.35;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
 
-    if (!this.originalMaterial) {
-      this.originalMaterial = mesh.material;
-    }
+      const ctx = canvas.getContext('2d');
+      ctx.filter = `blur(${this.data.radius}px)`;
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      ctx.filter = 'none';
 
-    if (this.shaderMaterial) {
-      this.shaderMaterial.uniforms.map.value = texture;
-      this.shaderMaterial.uniforms.resolution.value.set(
-        image.width,
-        image.height
-      );
-      mesh.material = this.shaderMaterial;
-      return;
-    }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
 
-    this.shaderMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        map: { value: texture },
-        blurAmount: { value: this.data.amount },
-        resolution: {
-          value: new THREE.Vector2(image.width, image.height)
-        }
-      },
+      const applyTexture = () => {
+        const mesh = this.el.getObject3D('mesh');
+        if (!mesh) return;
 
-      vertexShader: `
-        varying vec2 vUv;
+        mesh.material = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          toneMapped: false
+        });
+      };
 
-        void main() {
-          vUv = uv;
-          gl_Position =
-            projectionMatrix *
-            modelViewMatrix *
-            vec4(position, 1.0);
-        }
-      `,
+      if (this.el.getObject3D('mesh')) {
+        applyTexture();
+      } else {
+        this.el.addEventListener('object3dset', applyTexture, { once: true });
+      }
+    };
 
-      fragmentShader: `
-        uniform sampler2D map;
-        uniform float blurAmount;
-        uniform vec2 resolution;
-        varying vec2 vUv;
-
-        void main() {
-          vec2 px = blurAmount / resolution;
-          vec4 color = vec4(0.0);
-
-          color += texture2D(map, vUv + px * vec2(-1.0, -1.0)) * 0.0625;
-          color += texture2D(map, vUv + px * vec2( 0.0, -1.0)) * 0.1250;
-          color += texture2D(map, vUv + px * vec2( 1.0, -1.0)) * 0.0625;
-          color += texture2D(map, vUv + px * vec2(-1.0,  0.0)) * 0.1250;
-          color += texture2D(map, vUv)                            * 0.2500;
-          color += texture2D(map, vUv + px * vec2( 1.0,  0.0)) * 0.1250;
-          color += texture2D(map, vUv + px * vec2(-1.0,  1.0)) * 0.0625;
-          color += texture2D(map, vUv + px * vec2( 0.0,  1.0)) * 0.1250;
-          color += texture2D(map, vUv + px * vec2( 1.0,  1.0)) * 0.0625;
-
-          gl_FragColor = color;
-        }
-      `
-    });
-
-    mesh.material = this.shaderMaterial;
-  },
-
-  remove() {
-    this.el.removeEventListener(
-      'materialtextureloaded',
-      this.applyBlurMaterial
-    );
-    this.el.removeEventListener(
-      'object3dset',
-      this.applyBlurMaterial
-    );
-
-    const mesh = this.el.getObject3D('mesh');
-    if (mesh && this.originalMaterial) {
-      mesh.material = this.originalMaterial;
-    }
-
-    if (this.shaderMaterial) {
-      this.shaderMaterial.dispose();
-    }
+    image.src = this.data.source;
   }
 });
 </script>
@@ -255,10 +201,18 @@ body {
       width="4"
       height="3.45"
       position="0 0 0"
-      texture-blur="amount: 0">
+      material="shader: flat; toneMapped: false">
     </a-image>
 
-    <!-- High-resolution tiles are added here during Phase 1 testing -->
+    <a-plane
+      id="paintingBlur"
+      width="4"
+      height="3.45"
+      position="0 0 0.006"
+      material="transparent: true; opacity: 0; shader: flat"
+      blurred-copy="source: painting_low.jpg; radius: 4">
+    </a-plane>
+
     <a-entity id="tileLayer" position="0 0 0.02"></a-entity>
   </a-entity>
 
@@ -285,26 +239,26 @@ body {
   <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
   <!-- INVISIBLE HOTSPOTS -->
-  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.62" height="0.38" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.965" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.965" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.965" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.965" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.965" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.965" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.965" width="0.62" height="0.38" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.965" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.965" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.965" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.965" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.965" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.965" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.965" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.965" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.965" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.965" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.965" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
 
   <!-- Text panels -->
   <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
@@ -351,6 +305,7 @@ let storyNarrating = false;
 let storyAdvancePending = false;
 const GAZE_CONFIRM_MS = 2500;
 const paintingLow = document.querySelector('#paintingLow');
+const paintingBlur = document.querySelector('#paintingBlur');
 
 let guidedTourActive = true;
 let guidedTourComplete = false;
@@ -480,16 +435,16 @@ const attentionSequence = [
 
 // Attention and focus regions are independent from the invisible gaze planes.
 const attentionRegions = {
-  captain:        { offsetX: -0.01, offsetY: 0.28, width: 0.15, height: 0.15 },
-  lieutenant:     { offsetX: 0.00, offsetY: 0.27, width: 0.15, height: 0.15 },
-  girl:           { offsetX: 0.00, offsetY: 0.19, width: 0.14, height: 0.14 },
-  drummer:        { offsetX: 0.00, offsetY: 0.19, width: 0.16, height: 0.16 },
-  flag:           { offsetX: 0.00, offsetY: 0.28, width: 0.16, height: 0.16 },
-  musketeer:      { offsetX: 0.00, offsetY: 0.18, width: 0.14, height: 0.14 },
-  dog:            { offsetX: 0.00, offsetY: 0.00, width: 0.14, height: 0.10 },
-  leftGroup:      { offsetX: 0.00, offsetY: 0.17, width: 0.18, height: 0.18 },
-  rightGroup:     { offsetX: 0.00, offsetY: 0.17, width: 0.18, height: 0.18 },
-  backgroundArch: { offsetX: 0.00, offsetY: 0.00, width: 0.18, height: 0.12 }
+  captain:        { offsetX: 0.00, offsetY: 0.00, width: 0.24, height: 0.34 },
+  lieutenant:     { offsetX: 0.00, offsetY: 0.00, width: 0.24, height: 0.36 },
+  girl:           { offsetX: 0.00, offsetY: 0.00, width: 0.22, height: 0.30 },
+  drummer:        { offsetX: 0.00, offsetY: 0.00, width: 0.28, height: 0.38 },
+  flag:           { offsetX: 0.00, offsetY: 0.00, width: 0.28, height: 0.42 },
+  musketeer:      { offsetX: 0.00, offsetY: 0.00, width: 0.22, height: 0.32 },
+  dog:            { offsetX: 0.00, offsetY: 0.00, width: 0.26, height: 0.16 },
+  leftGroup:      { offsetX: 0.00, offsetY: 0.00, width: 0.30, height: 0.40 },
+  rightGroup:     { offsetX: 0.00, offsetY: 0.00, width: 0.34, height: 0.42 },
+  backgroundArch: { offsetX: 0.00, offsetY: 0.00, width: 0.34, height: 0.22 }
 };
 
 const focusRegions = {
@@ -620,12 +575,15 @@ function addTile(level, col, row, maskSpec = null) {
     ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
 
     const gradient = ctx.createRadialGradient(
-      0, 0, radiusX * 0.45,
+      0, 0, radiusX * 0.18,
       0, 0, radiusX
     );
-    gradient.addColorStop(0, 'rgba(255,255,255,1)');
-    gradient.addColorStop(0.70, 'rgba(255,255,255,0.95)');
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
+    gradient.addColorStop(0.35, 'rgba(255,255,255,0.98)');
+    gradient.addColorStop(0.58, 'rgba(255,255,255,0.82)');
+    gradient.addColorStop(0.76, 'rgba(255,255,255,0.48)');
+    gradient.addColorStop(0.90, 'rgba(255,255,255,0.16)');
+    gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -646,7 +604,9 @@ function addTile(level, col, row, maskSpec = null) {
         transparent: true,
         opacity: 0,
         side: THREE.DoubleSide,
-        depthWrite: false
+        depthWrite: false,
+        toneMapped: false,
+        premultipliedAlpha: true
       });
 
       const startTime = performance.now();
@@ -879,10 +839,17 @@ function speakTourClosing() {
 }
 
 function animateBaseBlur(targetAmount, duration = 750) {
-  const component = paintingLow.components['texture-blur'];
-  const startAmount = component
-    ? component.data.amount
-    : 0;
+  const mesh = paintingBlur.getObject3D('mesh');
+  const startOpacity =
+    mesh && mesh.material
+      ? mesh.material.opacity
+      : 0;
+
+  // Map the old blur amount scale to overlay opacity.
+  const targetOpacity = Math.max(
+    0,
+    Math.min(0.78, targetAmount / 3.2)
+  );
 
   const started = performance.now();
 
@@ -895,15 +862,15 @@ function animateBaseBlur(targetAmount, duration = 750) {
     const eased =
       progress * progress * (3 - 2 * progress);
 
-    const value =
-      startAmount +
-      (targetAmount - startAmount) * eased;
+    const opacity =
+      startOpacity +
+      (targetOpacity - startOpacity) * eased;
 
-    paintingLow.setAttribute(
-      'texture-blur',
-      'amount',
-      value
-    );
+    const currentMesh = paintingBlur.getObject3D('mesh');
+    if (currentMesh && currentMesh.material) {
+      currentMesh.material.opacity = opacity;
+      currentMesh.material.needsUpdate = true;
+    }
 
     if (progress < 1) {
       requestAnimationFrame(frame);
@@ -948,7 +915,7 @@ function startProgressiveAttention(hotspotId, speakNow = false) {
 
   const cueSize = attentionRegions[hotspotId] || null;
 
-  animateBaseBlur(2.2, 850);
+  animateBaseBlur(1.7, 850);
   loadTilesAroundHotspot(
     hotspotId,
     14,
@@ -1094,7 +1061,7 @@ function zoomToHotspot(hotspotId) {
 
   // Camera begins while the masked detail is still expanding.
   setTimeout(() => {
-    animateBaseBlur(0.9, 750);
+    animateBaseBlur(0.65, 750);
     mainCamera.setAttribute(
       'animation__focusPosition',
       `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 900; easing: easeInOutQuad`
