@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Narration Focus Blur</title>
+<title>The Night Watch — Visual Pulse Story</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -239,16 +239,16 @@ body {
   <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
   <!-- INVISIBLE HOTSPOTS -->
-  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.965" width="0.35" height="0.75" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.965" width="0.35" height="0.80" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.965" width="0.32" height="0.60" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.965" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.965" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.965" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.965" width="0.55" height="0.85" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.965" width="0.50" height="0.82" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.965" width="0.44" height="0.64" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.965" width="0.62" height="0.92" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.965" width="0.62" height="1.00" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.965" width="0.44" height="0.74" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.965" width="0.62" height="0.38" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.965" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.965" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.965" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.965" width="0.68" height="0.90" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.965" width="0.80" height="0.96" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.965" width="0.90" height="0.62" material="opacity:0; transparent:true"></a-plane>
 
   <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.965" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.965" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
@@ -319,101 +319,101 @@ let focusLeaveTimer = null;
 // Progressive attention guidance.
 const audioGuide = {
   captain: {
-    direct: {
-      en: 'Look toward the captain in black near the center.',
-      ar: 'انظر نحو القائد الذي يرتدي الأسود قرب مركز اللوحة.'
+    story: {
+      en: 'Our story begins with Captain Frans Banninck Cocq. His black costume, red sash, and outstretched hand establish leadership while setting the whole company in motion.',
+      ar: 'تبدأ قصتنا مع الكابتن فرانس بانينك كوك. تؤكد ملابسه السوداء ووشاحه الأحمر ويده الممدودة قيادته، وتضع الفرقة كلها في حالة حركة.'
     },
-    narrate: {
+    standard: {
       en: 'Captain Frans Banninck Cocq leads the civic guard. His dark clothing, red sash, and outstretched hand establish authority and movement.',
       ar: 'يقود الكابتن فرانس بانينك كوك فرقة الحرس المدني، وتبرز ملابسه الداكنة ووشاحه الأحمر ويده الممدودة سلطته وحركة المشهد.'
     }
   },
   lieutenant: {
-    direct: {
-      en: 'Now look to the lieutenant in bright yellow beside him.',
-      ar: 'والآن انظر إلى الملازم ذي الملابس الصفراء اللامعة بجانبه.'
+    story: {
+      en: 'Beside the captain stands Lieutenant Willem van Ruytenburch. His brilliant yellow clothing catches the light and carries our attention across the center of the painting.',
+      ar: 'وبجوار القائد يقف الملازم فيليم فان رويتنبرخ. تلتقط ملابسه الصفراء اللامعة الضوء، وتنقل انتباهنا عبر مركز اللوحة.'
     },
-    narrate: {
+    standard: {
       en: 'Lieutenant Willem van Ruytenburch creates a luminous contrast beside the captain and draws the eye across the center.',
       ar: 'يخلق الملازم فيليم فان رويتنبرخ تباينًا مضيئًا بجانب القائد ويوجه النظر عبر مركز اللوحة.'
     }
   },
   girl: {
-    direct: {
-      en: 'Next, find the illuminated girl to the left.',
-      ar: 'بعد ذلك، ابحث عن الفتاة المضيئة إلى اليسار.'
+    story: {
+      en: 'Behind the central pair, a mysterious illuminated girl appears. She is not an ordinary member of the company, but a symbolic figure carrying signs of the guard’s identity.',
+      ar: 'وخلف الثنائي المركزي تظهر فتاة مضيئة غامضة. ليست عضوة عادية في الفرقة، بل شخصية رمزية تحمل إشارات إلى هوية الحرس.'
     },
-    narrate: {
+    standard: {
       en: 'The illuminated girl is a symbolic figure carrying objects linked to the identity and traditions of the civic guard.',
       ar: 'الفتاة المضيئة شخصية رمزية تحمل أشياء مرتبطة بهوية الحرس المدني وتقاليده.'
     }
   },
   drummer: {
-    direct: {
-      en: 'Now look to the drummer on the far right.',
-      ar: 'والآن انظر إلى قارع الطبل في أقصى اليمين.'
+    story: {
+      en: 'The scene then seems to gain sound. On the right, the drummer introduces rhythm and makes the company feel ready to move beyond the frame.',
+      ar: 'ثم يبدو المشهد وكأنه يكتسب صوتًا. في اليمين، يضيف قارع الطبل الإيقاع، ويجعل الفرقة تبدو مستعدة للتحرك خارج إطار اللوحة.'
     },
-    narrate: {
+    standard: {
       en: 'The drummer adds imagined sound and rhythm, making the company feel ready to move.',
       ar: 'يضيف قارع الطبل صوتًا وإيقاعًا متخيلين ويجعل الفرقة تبدو مستعدة للتحرك.'
     }
   },
   flag: {
-    direct: {
-      en: 'Look upward and left for the flag bearer.',
-      ar: 'انظر إلى الأعلى واليسار بحثًا عن حامل الراية.'
+    story: {
+      en: 'Above the crowd, the raised flag gives the company its identity. Its sweeping diagonal continues the movement already begun by the captain and drummer.',
+      ar: 'وفوق الحشد تمنح الراية المرفوعة الفرقة هويتها. ويواصل خطها القطري الواسع الحركة التي بدأها القائد وقارع الطبل.'
     },
-    narrate: {
+    standard: {
       en: 'The flag identifies the company and adds ceremony and strong diagonal movement.',
       ar: 'تُعرّف الراية بالفرقة وتضيف طابعًا احتفاليًا وحركة قطرية قوية.'
     }
   },
   musketeer: {
-    direct: {
-      en: 'Now find the musketeer on the left.',
-      ar: 'والآن ابحث عن حامل البندقية في اليسار.'
+    story: {
+      en: 'The musketeer reminds us that this is a civic guard company. Yet Rembrandt turns military equipment into theatrical lines that animate the gathering.',
+      ar: 'يذكرنا حامل البندقية بأن هذه فرقة حرس مدني. ومع ذلك، يحول رامبرانت المعدات العسكرية إلى خطوط مسرحية تحرك التجمع.'
     },
-    narrate: {
+    standard: {
       en: 'The musketeer recalls the guard’s military role while his weapon becomes part of the composition’s theatrical lines.',
       ar: 'يشير حامل البندقية إلى الدور العسكري للحرس، بينما يصبح سلاحه جزءًا من الخطوط المسرحية في التكوين.'
     }
   },
   dog: {
-    direct: {
-      en: 'Look down near the drummer for the small dog.',
-      ar: 'انظر إلى الأسفل قرب قارع الطبل بحثًا عن الكلب الصغير.'
+    story: {
+      en: 'Near the drummer, a small dog adds an unexpected moment of everyday life. This lively detail keeps the grand scene spontaneous and human.',
+      ar: 'وبالقرب من قارع الطبل يضيف كلب صغير لحظة غير متوقعة من الحياة اليومية. ويحافظ هذا التفصيل الحيوي على عفوية المشهد وإنسانيته.'
     },
-    narrate: {
+    standard: {
       en: 'The dog adds spontaneity and everyday life to the crowded scene.',
       ar: 'يضيف الكلب العفوية وإحساس الحياة اليومية إلى المشهد المزدحم.'
     }
   },
   leftGroup: {
-    direct: {
-      en: 'Now look across the group of guards on the left.',
-      ar: 'والآن انظر إلى مجموعة الحراس في اليسار.'
+    story: {
+      en: 'As our eyes move left, the guards overlap and recede into space. Their gestures transform a formal commission into a layered dramatic event.',
+      ar: 'ومع انتقال نظرنا إلى اليسار، تتداخل شخصيات الحراس وتتراجع في العمق. وتحول إيماءاتهم التكليف الرسمي إلى حدث درامي متعدد الطبقات.'
     },
-    narrate: {
+    standard: {
       en: 'The overlapping figures create depth and turn a formal portrait into a dramatic scene.',
       ar: 'تخلق الشخصيات المتداخلة عمقًا وتحول الصورة الرسمية إلى مشهد درامي.'
     }
   },
   rightGroup: {
-    direct: {
-      en: 'Shift your attention to the group on the right.',
-      ar: 'حوّل انتباهك إلى المجموعة في اليمين.'
+    story: {
+      en: 'Across the painting, the group on the right balances the central action and suggests that the company extends beyond the figures we first noticed.',
+      ar: 'وعبر اللوحة توازن المجموعة في اليمين الحركة المركزية، وتوحي بأن الفرقة تمتد إلى ما وراء الشخصيات التي لاحظناها أولًا.'
     },
-    narrate: {
+    standard: {
       en: 'The figures on the right balance the central pair and expand the sense of a large gathering.',
       ar: 'توازن الشخصيات في اليمين الثنائي المركزي وتوسع الإحساس بتجمع كبير.'
     }
   },
   backgroundArch: {
-    direct: {
-      en: 'Finally, look toward the dark architecture in the background.',
-      ar: 'وأخيرًا، انظر نحو العمارة الداكنة في الخلفية.'
+    story: {
+      en: 'Finally, the dark architecture gathers the entire story together. It frames the figures and intensifies the light that has guided us from one character to the next.',
+      ar: 'وأخيرًا، تجمع العمارة الداكنة القصة كلها. فهي تؤطر الشخصيات وتكثف الضوء الذي قادنا من شخصية إلى أخرى.'
     },
-    narrate: {
+    standard: {
       en: 'The architecture frames the action and intensifies Rembrandt’s dramatic use of light and shadow.',
       ar: 'تؤطر العمارة الخلفية الحركة وتكثف استخدام رامبرانت الدرامي للضوء والظل.'
     }
@@ -575,14 +575,15 @@ function addTile(level, col, row, maskSpec = null) {
     ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
 
     const gradient = ctx.createRadialGradient(
-      0, 0, radiusX * 0.18,
+      0, 0, radiusX * 0.08,
       0, 0, radiusX
     );
     gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
-    gradient.addColorStop(0.35, 'rgba(255,255,255,0.98)');
-    gradient.addColorStop(0.58, 'rgba(255,255,255,0.82)');
-    gradient.addColorStop(0.76, 'rgba(255,255,255,0.48)');
-    gradient.addColorStop(0.90, 'rgba(255,255,255,0.16)');
+    gradient.addColorStop(0.28, 'rgba(255,255,255,0.98)');
+    gradient.addColorStop(0.48, 'rgba(255,255,255,0.84)');
+    gradient.addColorStop(0.64, 'rgba(255,255,255,0.58)');
+    gradient.addColorStop(0.78, 'rgba(255,255,255,0.32)');
+    gradient.addColorStop(0.90, 'rgba(255,255,255,0.12)');
     gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
 
     ctx.fillStyle = gradient;
@@ -800,33 +801,15 @@ function speakText(value, onEnd = null) {
   window.speechSynthesis.speak(utterance);
 }
 
-function speakDirection(id, includeWelcome = false) {
-  const entry = audioGuide[id];
-  if (!entry) return;
-
-  let textValue = entry.direct[currentLanguage];
-
-  if (includeWelcome) {
-    const welcome =
-      currentLanguage === 'ar'
-        ? 'مرحبًا بك في الحراسة الليلية.'
-        : 'Welcome to The Night Watch.';
-
-    textValue = `${welcome} ${textValue}`;
-  }
-
-  speakText(textValue);
-}
-
-function speakNarration(id, onEnd = null) {
+function speakNarration(id, variant = 'standard', onEnd = null) {
   const entry = audioGuide[id];
 
-  if (!entry) {
+  if (!entry || !entry[variant]) {
     if (onEnd) onEnd();
     return;
   }
 
-  speakText(entry.narrate[currentLanguage], onEnd);
+  speakText(entry[variant][currentLanguage], onEnd);
 }
 
 function speakTourClosing() {
@@ -880,6 +863,80 @@ function animateBaseBlur(targetAmount, duration = 750) {
   requestAnimationFrame(frame);
 }
 
+function pulseAttentionCue(cycles = 4) {
+  const blurMesh = paintingBlur.getObject3D('mesh');
+
+  if (!blurMesh || !blurMesh.material) {
+    setTimeout(() => animateBaseBlur(0, 200), 50);
+    return;
+  }
+
+  let cycle = 0;
+  const highOpacity = 0.54;
+  const lowOpacity = 0.0;
+  const halfDuration = 520;
+
+  function animateTo(target, onComplete) {
+    const mesh = paintingBlur.getObject3D('mesh');
+    if (!mesh || !mesh.material) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const start = mesh.material.opacity;
+    const started = performance.now();
+
+    function frame(now) {
+      const progress = Math.min(
+        1,
+        (now - started) / halfDuration
+      );
+
+      const eased =
+        progress * progress * (3 - 2 * progress);
+
+      mesh.material.opacity =
+        start + (target - start) * eased;
+
+      mesh.material.needsUpdate = true;
+
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else if (onComplete) {
+        onComplete();
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  function runCycle() {
+    if (
+      focusedHotspotId ||
+      focusTransitioning ||
+      !attentionRunning
+    ) {
+      animateTo(0);
+      return;
+    }
+
+    animateTo(highOpacity, () => {
+      animateTo(lowOpacity, () => {
+        cycle += 1;
+
+        if (cycle < cycles) {
+          setTimeout(runCycle, 170);
+        } else {
+          // Settle with a clear painting and the small sharp cue remaining.
+          animateTo(0);
+        }
+      });
+    });
+  }
+
+  animateTo(0, runCycle);
+}
+
 function clearAttentionTimers() {
   clearTimeout(attentionLevelTimer);
   clearTimeout(attentionAdvanceTimer);
@@ -895,7 +952,7 @@ function stopProgressiveAttention({ clearTiles = false } = {}) {
   }
 }
 
-function startProgressiveAttention(hotspotId, speakNow = false) {
+function startProgressiveAttention(hotspotId) {
   console.log('[Attention] cue:', hotspotId);
 
   if (
@@ -909,13 +966,13 @@ function startProgressiveAttention(hotspotId, speakNow = false) {
 
   clearAttentionTimers();
   clearHighResolutionTiles();
+  animateBaseBlur(0, 150);
 
   attentionRunning = true;
   attentionTargetId = hotspotId;
 
   const cueSize = attentionRegions[hotspotId] || null;
 
-  animateBaseBlur(0, 250);
   loadTilesAroundHotspot(
     hotspotId,
     14,
@@ -924,14 +981,16 @@ function startProgressiveAttention(hotspotId, speakNow = false) {
     true
   );
 
-  if (speakNow) {
-    speakDirection(
-      hotspotId,
-      !initialWelcomeSpoken
-    );
-
-    initialWelcomeSpoken = true;
-  }
+  // Allow the tile to begin fading in, then pulse the surrounding painting.
+  setTimeout(() => {
+    if (
+      attentionRunning &&
+      attentionTargetId === hotspotId &&
+      !focusedHotspotId
+    ) {
+      pulseAttentionCue(4);
+    }
+  }, 380);
 }
 
 function advanceProgressiveAttention() {
@@ -951,8 +1010,7 @@ function advanceProgressiveAttention() {
   }
 
   startProgressiveAttention(
-    attentionSequence[attentionIndex],
-    true
+    attentionSequence[attentionIndex]
   );
 }
 
@@ -1061,6 +1119,7 @@ function zoomToHotspot(hotspotId) {
 
   // Camera begins while the masked detail is still expanding.
   setTimeout(() => {
+    animateBaseBlur(0, 300);
     mainCamera.setAttribute(
       'animation__focusPosition',
       `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 900; easing: easeInOutQuad`
@@ -1068,37 +1127,47 @@ function zoomToHotspot(hotspotId) {
   }, 620);
 
   // Description and narration begin during the camera movement.
-  // The base painting blurs only while the narration is playing.
   setTimeout(() => {
     showInfo(
       hotspotTexts[hotspotId][currentLanguage],
       hotspot
     );
 
-    animateBaseBlur(1.7, 600);
+    const isOrderedStoryVisit =
+      guidedTourActive &&
+      !guidedTourComplete &&
+      attentionTargetId === hotspotId &&
+      attentionSequence[attentionIndex] === hotspotId;
 
-    speakNarration(hotspotId, () => {
-      animateBaseBlur(0, 600);
-      if (!guidedTourActive || guidedTourComplete) {
-        return;
-      }
+    const narrationVariant =
+      isOrderedStoryVisit ? 'story' : 'standard';
 
-      storyAdvancePending = true;
-
-      setTimeout(() => {
-        if (
-          storyAdvancePending &&
-          focusedHotspotId === hotspotId &&
-          !focusTransitioning
-        ) {
-          returnFromFocus(true);
+    speakNarration(
+      hotspotId,
+      narrationVariant,
+      () => {
+        if (!isOrderedStoryVisit) {
+          return;
         }
-      }, 1800);
-    });
+
+        storyAdvancePending = true;
+
+        setTimeout(() => {
+          if (
+            storyAdvancePending &&
+            focusedHotspotId === hotspotId &&
+            !focusTransitioning
+          ) {
+            returnFromFocus(true);
+          }
+        }, 1800);
+      }
+    );
   }, 980);
 
   // Full, unmasked high-resolution tiles settle into the close view.
   setTimeout(() => {
+    animateBaseBlur(0, 300);
     loadTilesAroundHotspot(
       hotspotId,
       MAX_LEVEL,
@@ -1121,7 +1190,6 @@ function switchFocusToHotspot(hotspotId, hotspotEl) {
 }
 
 function returnFromFocus(autoAdvance = false) {
-  animateBaseBlur(0, 450);
   clearTimeout(focusLeaveTimer);
   storyAdvancePending = false;
   if (!autoAdvance) stopSpeech();
@@ -1426,7 +1494,7 @@ function addHotspot(id) {
           hotspotTexts[id][currentLanguage],
           el
         );
-        speakNarration(id);
+        speakNarration(id, 'standard');
       }, 2000);
       return;
     }
@@ -1461,7 +1529,6 @@ function startExperience() {
   pageReady = true;
   guidedTourActive = true;
   guidedTourComplete = false;
-  initialWelcomeSpoken = false;
   attentionIndex = 0;
 
   languageOverlay.style.display = 'none';
@@ -1471,25 +1538,39 @@ function startExperience() {
   refreshVoices();
   animateBaseBlur(0, 0);
 
-  const welcomeText =
+  const welcomePanelText =
     currentLanguage === 'ar'
-      ? 'مرحبًا بك. استمع إلى المرشد، ثم انظر إلى العنصر المطلوب لمدة ثانيتين ونصف.'
-      : 'Welcome. Listen to the guide, then gaze at the requested element for about two and a half seconds.';
+      ? 'مرحبًا بك. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
+      : 'Welcome. The painting will guide your attention from one detail to the next.';
+
+  const welcomeAudio =
+    currentLanguage === 'ar'
+      ? 'مرحبًا بك في الحراسة الليلية. راقب اللوحة، ودع التغيرات البصرية تقود انتباهك.'
+      : 'Welcome to The Night Watch. Observe the painting and allow its visual changes to guide your attention.';
 
   setPanelText(
     welcomePanel,
-    welcomeText,
+    welcomePanelText,
     currentLanguage
   );
   welcomePanel.setAttribute('visible', true);
 
-  setTimeout(() => {
+  speakText(welcomeAudio, () => {
     welcomePanel.setAttribute('visible', false);
     startProgressiveAttention(
-      attentionSequence[0],
-      true
+      attentionSequence[attentionIndex]
     );
-  }, 2200);
+  });
+
+  // Fallback in case speech synthesis does not fire an end event.
+  setTimeout(() => {
+    if (!attentionRunning && !focusedHotspotId) {
+      welcomePanel.setAttribute('visible', false);
+      startProgressiveAttention(
+        attentionSequence[attentionIndex]
+      );
+    }
+  }, 6500);
 }
 
 window.addEventListener('keydown', event => {
@@ -1518,7 +1599,6 @@ Object.keys(hotspotTexts).forEach(addHotspot);
 
 window.addEventListener('load', () => {
   auditHotspotTexts();
-  animateBaseBlur(0, 0);
   hideInfo();
   hideAllHalos();
   pageReady = false;
