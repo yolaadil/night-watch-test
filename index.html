@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Refined Captain Cue</title>
+<title>The Night Watch — Aligned Captain Cue</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -424,7 +424,7 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.22, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.20, focusW: 0.56, focusH: 0.90 },
+  captain:        { cueW: 0.18, cueH: 0.18, cueOffsetX: 0.00, cueOffsetY: 0.10, focusW: 0.56, focusH: 0.90 },
   lieutenant:     { cueW: 0.24, cueH: 0.36, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
   girl:           { cueW: 0.22, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
   drummer:        { cueW: 0.28, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
@@ -1105,20 +1105,20 @@ const TourEngine = {
     for (let cycle = 0; cycle < 3; cycle++) {
       if (token !== this.pulseToken || this.state === State.ZOOMING) return;
 
-      await this.wait(90);
-      setBlurOpacity(0.38, 380);
-      animateOpacity(entry.entity.object3D, 0.82, 380);
-      await this.wait(430);
+      await this.wait(220);
+      setBlurOpacity(0.34, 700);
+      animateOpacity(entry.entity.object3D, 0.66, 700);
+      await this.wait(950);
 
-      setBlurOpacity(0, 380);
-      animateOpacity(entry.entity.object3D, 0.34, 380);
-      await this.wait(430);
+      setBlurOpacity(0, 700);
+      animateOpacity(entry.entity.object3D, 0.28, 700);
+      await this.wait(950);
     }
 
     if (token !== this.pulseToken) return;
 
     setBlurOpacity(0, 250);
-    animateOpacity(entry.entity.object3D, 0.42, 250);
+    animateOpacity(entry.entity.object3D, 0.34, 350);
     this.setState(State.WAIT_GAZE);
 
     const nextId = STORY_ORDER[this.index + 1];
