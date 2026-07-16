@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Aligned Captain Cue</title>
+<title>The Night Watch — Large Semantic Gaze Regions</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -232,7 +232,7 @@ body {
   <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
   <!-- INVISIBLE HOTSPOTS -->
-  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.42 -2.95" width="0.62" height="0.92" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.42 -2.95" width="0.56" height="0.90" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.54" height="0.86" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.46" height="0.68" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.66" height="0.96" material="opacity:0; transparent:true"></a-plane>
@@ -1301,6 +1301,17 @@ function selectLanguage(language) {
   }, 3200);
 }
 
+
+function syncPrimaryHotspotsToFocusRegions() {
+  Object.entries(REGION).forEach(([id, config]) => {
+    const hotspot = document.querySelector('#' + id);
+    if (!hotspot) return;
+
+    hotspot.setAttribute('width', config.focusW);
+    hotspot.setAttribute('height', config.focusH);
+  });
+}
+
 Object.keys(hotspotTexts).forEach(addHotspot);
 
 window.addEventListener('keydown', event => {
@@ -1310,6 +1321,7 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
+  syncPrimaryHotspotsToFocusRegions();
   pageReady = false;
   gazeCursor.setAttribute('visible', false);
   infoPanel.setAttribute('visible', false);
