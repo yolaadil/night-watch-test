@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Captain Face Cue</title>
+<title>The Night Watch — Refined Captain Cue</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -254,8 +254,8 @@ body {
   <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
 
   <!-- Text panels -->
-  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.05" height="0.36" material="transparent:true; opacity:1"></a-plane>
-  <a-plane id="welcomePanel" visible="false" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
+  <a-plane id="infoPanel" visible="false" scale="0 0 0" position="0 0 -2.8" width="1.05" height="0.36" material="transparent:true; opacity:1"></a-plane>
+  <a-plane id="welcomePanel" visible="false" scale="0 0 0" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
 
   <!-- Camera and gaze cursor -->
   <a-camera id="mainCamera" position="0 1.6 0">
@@ -424,7 +424,7 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.22, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.34, focusW: 0.56, focusH: 0.90 },
+  captain:        { cueW: 0.22, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.20, focusW: 0.56, focusH: 0.90 },
   lieutenant:     { cueW: 0.24, cueH: 0.36, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
   girl:           { cueW: 0.22, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
   drummer:        { cueW: 0.28, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
@@ -1054,28 +1054,9 @@ function setPanelText(panel, text, language) {
   mesh.material.needsUpdate = true;
 }
 
-function showInfo(id) {
-  const hotspot = document.querySelector('#' + id);
-  const pos = hotspot.getAttribute('position');
+function showInfo(id) { /* descriptions removed */ }
 
-  let panelX = pos.x + 0.52;
-  if (pos.x > 0.8) panelX = pos.x - 0.52;
-
-  let panelY = pos.y + 0.20;
-  if (pos.y > 2.0) panelY = pos.y - 0.32;
-
-  infoPanel.setAttribute('position', `${panelX} ${panelY} -2.8`);
-  setPanelText(
-    infoPanel,
-    hotspotTexts[id][currentLanguage],
-    currentLanguage
-  );
-  infoPanel.setAttribute('visible', true);
-}
-
-function hideInfo() {
-  infoPanel.setAttribute('visible', false);
-}
+function hideInfo() { }
 
 function showPrimaryHotspots(show) {
   document.querySelectorAll('.hotspot').forEach(el => {
@@ -1121,17 +1102,17 @@ const TourEngine = {
     entry.entity.setAttribute('visible', true);
     animateOpacity(entry.entity.object3D, 0.38, 300);
 
-    for (let cycle = 0; cycle < 4; cycle++) {
+    for (let cycle = 0; cycle < 3; cycle++) {
       if (token !== this.pulseToken || this.state === State.ZOOMING) return;
 
-      await this.wait(140);
-      setBlurOpacity(0.38, 500);
-      animateOpacity(entry.entity.object3D, 0.82, 500);
-      await this.wait(560);
+      await this.wait(90);
+      setBlurOpacity(0.38, 380);
+      animateOpacity(entry.entity.object3D, 0.82, 380);
+      await this.wait(430);
 
-      setBlurOpacity(0, 500);
-      animateOpacity(entry.entity.object3D, 0.34, 500);
-      await this.wait(560);
+      setBlurOpacity(0, 380);
+      animateOpacity(entry.entity.object3D, 0.34, 380);
+      await this.wait(430);
     }
 
     if (token !== this.pulseToken) return;
@@ -1181,7 +1162,7 @@ const TourEngine = {
 
     setTimeout(() => {
       this.setState(State.STORY);
-      showInfo(id);
+      
       showNestedDetails(id);
       backButton.style.display = 'block';
 
@@ -1213,7 +1194,7 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     stopSpeech();
     this.setState(State.RETURNING);
-    hideInfo();
+    
     showNestedDetails(null);
     backButton.style.display = 'none';
 
@@ -1240,12 +1221,10 @@ const TourEngine = {
               ? 'انتهت القصة الموجهة. يمكنك الآن استكشاف أي عنصر بحرية.'
               : 'The guided story is complete. You can now explore any element freely.';
 
-          setPanelText(welcomePanel, ending, currentLanguage);
-          welcomePanel.setAttribute('visible', true);
           speak(ending);
 
           setTimeout(() => {
-            welcomePanel.setAttribute('visible', false);
+            
           }, 4500);
         } else {
           this.startCue(STORY_ORDER[this.index]);
@@ -1277,7 +1256,7 @@ function addHotspot(id) {
 
     gazeTimer = setTimeout(() => {
       if (el.classList.contains('captainDetail')) {
-        showInfo(id);
+        
         speak(standardNarration(id));
         return;
       }
@@ -1290,7 +1269,7 @@ function addHotspot(id) {
     clearTimeout(gazeTimer);
 
     if (el.classList.contains('captainDetail')) {
-      hideInfo();
+      
     }
   });
 }
@@ -1303,24 +1282,23 @@ function selectLanguage(language) {
   showPrimaryHotspots(true);
   refreshVoices();
 
+  
+
   const welcome =
     language === 'ar'
       ? 'مرحبًا بك في الحراسة الليلية. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
       : 'Welcome to The Night Watch. The painting will guide your attention from one detail to the next.';
 
-  setPanelText(welcomePanel, welcome, language);
-  welcomePanel.setAttribute('visible', true);
   speak(welcome);
 
   setTimeout(() => {
-    welcomePanel.setAttribute('visible', false);
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
 
     setTimeout(() => {
       CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
     }, 900);
-  }, 4200);
+  }, 3200);
 }
 
 Object.keys(hotspotTexts).forEach(addHotspot);
@@ -1335,7 +1313,7 @@ window.addEventListener('load', () => {
   pageReady = false;
   gazeCursor.setAttribute('visible', false);
   infoPanel.setAttribute('visible', false);
-  welcomePanel.setAttribute('visible', false);
+  
   showPrimaryHotspots(false);
   setBlurOpacity(0, 0);
 });
