@@ -2,8 +2,122 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Audio Guided Story</title>
+<title>The Night Watch — Audio and Focus Guided Story</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+<script>
+AFRAME.registerComponent('texture-blur', {
+  schema: {
+    amount: { type: 'number', default: 0 }
+  },
+
+  init() {
+    this.originalMaterial = null;
+    this.shaderMaterial = null;
+    this.applyBlurMaterial = this.applyBlurMaterial.bind(this);
+
+    this.el.addEventListener('materialtextureloaded', this.applyBlurMaterial);
+    this.el.addEventListener('object3dset', this.applyBlurMaterial);
+  },
+
+  update() {
+    if (this.shaderMaterial) {
+      this.shaderMaterial.uniforms.blurAmount.value = this.data.amount;
+    }
+  },
+
+  applyBlurMaterial() {
+    const mesh = this.el.getObject3D('mesh');
+    if (!mesh || !mesh.material || !mesh.material.map) return;
+
+    const texture = mesh.material.map;
+    const image = texture.image;
+    if (!image || !image.width || !image.height) return;
+
+    if (!this.originalMaterial) {
+      this.originalMaterial = mesh.material;
+    }
+
+    if (this.shaderMaterial) {
+      this.shaderMaterial.uniforms.map.value = texture;
+      this.shaderMaterial.uniforms.resolution.value.set(
+        image.width,
+        image.height
+      );
+      mesh.material = this.shaderMaterial;
+      return;
+    }
+
+    this.shaderMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        map: { value: texture },
+        blurAmount: { value: this.data.amount },
+        resolution: {
+          value: new THREE.Vector2(image.width, image.height)
+        }
+      },
+
+      vertexShader: `
+        varying vec2 vUv;
+
+        void main() {
+          vUv = uv;
+          gl_Position =
+            projectionMatrix *
+            modelViewMatrix *
+            vec4(position, 1.0);
+        }
+      `,
+
+      fragmentShader: `
+        uniform sampler2D map;
+        uniform float blurAmount;
+        uniform vec2 resolution;
+        varying vec2 vUv;
+
+        void main() {
+          vec2 px = blurAmount / resolution;
+          vec4 color = vec4(0.0);
+
+          color += texture2D(map, vUv + px * vec2(-1.0, -1.0)) * 0.0625;
+          color += texture2D(map, vUv + px * vec2( 0.0, -1.0)) * 0.1250;
+          color += texture2D(map, vUv + px * vec2( 1.0, -1.0)) * 0.0625;
+          color += texture2D(map, vUv + px * vec2(-1.0,  0.0)) * 0.1250;
+          color += texture2D(map, vUv)                            * 0.2500;
+          color += texture2D(map, vUv + px * vec2( 1.0,  0.0)) * 0.1250;
+          color += texture2D(map, vUv + px * vec2(-1.0,  1.0)) * 0.0625;
+          color += texture2D(map, vUv + px * vec2( 0.0,  1.0)) * 0.1250;
+          color += texture2D(map, vUv + px * vec2( 1.0,  1.0)) * 0.0625;
+
+          gl_FragColor = color;
+        }
+      `
+    });
+
+    mesh.material = this.shaderMaterial;
+  },
+
+  remove() {
+    this.el.removeEventListener(
+      'materialtextureloaded',
+      this.applyBlurMaterial
+    );
+    this.el.removeEventListener(
+      'object3dset',
+      this.applyBlurMaterial
+    );
+
+    const mesh = this.el.getObject3D('mesh');
+    if (mesh && this.originalMaterial) {
+      mesh.material = this.originalMaterial;
+    }
+
+    if (this.shaderMaterial) {
+      this.shaderMaterial.dispose();
+    }
+  }
+});
+</script>
+
 
 <style>
 body {
@@ -140,7 +254,8 @@ body {
       src="painting_low.jpg"
       width="4"
       height="3.45"
-      position="0 0 0">
+      position="0 0 0"
+      texture-blur="amount: 0">
     </a-image>
 
     <!-- High-resolution tiles are added here during Phase 1 testing -->
@@ -176,7 +291,7 @@ body {
   <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.55" height="0.88" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.58" height="0.95" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.35" height="0.65" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.45" height="0.25" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.62" height="0.38" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.55" height="0.80" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.70" height="0.88" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.80" height="0.55" material="opacity:0; transparent:true"></a-plane>
@@ -235,6 +350,13 @@ let tileGeneration = 0;
 let storyNarrating = false;
 let storyAdvancePending = false;
 const GAZE_CONFIRM_MS = 2500;
+const paintingLow = document.querySelector('#paintingLow');
+
+let guidedTourActive = true;
+let guidedTourComplete = false;
+let initialWelcomeSpoken = false;
+let preferredVoice = null;
+let availableVoices = [];
 let focusedHotspotId = null;
 let focusTransitioning = false;
 let focusLeaveTimer = null;
@@ -627,6 +749,54 @@ function loadTilesAroundHotspot(
 }
 
 
+function refreshVoices() {
+  if (!('speechSynthesis' in window)) return;
+
+  availableVoices = window.speechSynthesis.getVoices();
+
+  const languagePrefix =
+    currentLanguage === 'ar' ? 'ar' : 'en';
+
+  const preferredNames =
+    currentLanguage === 'ar'
+      ? [
+          'Microsoft Salma',
+          'Microsoft Hamed',
+          'Google العربية',
+          'Maged',
+          'Tarik'
+        ]
+      : [
+          'Microsoft Aria Online',
+          'Microsoft Jenny Online',
+          'Microsoft Guy Online',
+          'Google UK English Female',
+          'Google US English',
+          'Samantha',
+          'Daniel'
+        ];
+
+  preferredVoice =
+    preferredNames
+      .map(name =>
+        availableVoices.find(voice =>
+          voice.name.toLowerCase().includes(name.toLowerCase())
+        )
+      )
+      .find(Boolean) ||
+    availableVoices.find(voice =>
+      voice.lang.toLowerCase().startsWith(languagePrefix)
+    ) ||
+    null;
+}
+
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.addEventListener(
+    'voiceschanged',
+    refreshVoices
+  );
+}
+
 function stopSpeech() {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
@@ -642,11 +812,19 @@ function speakText(value, onEnd = null) {
     return;
   }
 
+  refreshVoices();
+
   const utterance = new SpeechSynthesisUtterance(value);
-  utterance.lang = currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
-  utterance.rate = 0.94;
-  utterance.pitch = 1;
-  utterance.volume = 1;
+  utterance.lang =
+    currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
+
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+  }
+
+  utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.90;
+  utterance.pitch = 0.96;
+  utterance.volume = 1.0;
 
   utterance.onend = () => {
     storyNarrating = false;
@@ -662,18 +840,77 @@ function speakText(value, onEnd = null) {
   window.speechSynthesis.speak(utterance);
 }
 
-function speakDirection(id) {
+function speakDirection(id, includeWelcome = false) {
   const entry = audioGuide[id];
-  if (entry) speakText(entry.direct[currentLanguage]);
+  if (!entry) return;
+
+  let textValue = entry.direct[currentLanguage];
+
+  if (includeWelcome) {
+    const welcome =
+      currentLanguage === 'ar'
+        ? 'مرحبًا بك في الحراسة الليلية.'
+        : 'Welcome to The Night Watch.';
+
+    textValue = `${welcome} ${textValue}`;
+  }
+
+  speakText(textValue);
 }
 
 function speakNarration(id, onEnd = null) {
   const entry = audioGuide[id];
+
   if (!entry) {
     if (onEnd) onEnd();
     return;
   }
+
   speakText(entry.narrate[currentLanguage], onEnd);
+}
+
+function speakTourClosing() {
+  const closing =
+    currentLanguage === 'ar'
+      ? 'انتهت الجولة الموجهة. يمكنك الآن استكشاف أي عنصر بحرية، وسأتحدث فقط عندما تنظر إليه.'
+      : 'The guided tour is complete. You may now explore freely, and I will speak only when you gaze at an element.';
+
+  speakText(closing);
+}
+
+function animateBaseBlur(targetAmount, duration = 750) {
+  const component = paintingLow.components['texture-blur'];
+  const startAmount = component
+    ? component.data.amount
+    : 0;
+
+  const started = performance.now();
+
+  function frame(now) {
+    const progress = Math.min(
+      1,
+      (now - started) / duration
+    );
+
+    const eased =
+      progress * progress * (3 - 2 * progress);
+
+    const value =
+      startAmount +
+      (targetAmount - startAmount) * eased;
+
+    paintingLow.setAttribute(
+      'texture-blur',
+      'amount',
+      value
+    );
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+    }
+  }
+
+  requestAnimationFrame(frame);
 }
 
 function clearAttentionTimers() {
@@ -691,8 +928,9 @@ function stopProgressiveAttention({ clearTiles = false } = {}) {
   }
 }
 
-function startProgressiveAttention(hotspotId) {
+function startProgressiveAttention(hotspotId, speakNow = false) {
   console.log('[Attention] cue:', hotspotId);
+
   if (
     !pageReady ||
     focusedHotspotId ||
@@ -710,52 +948,66 @@ function startProgressiveAttention(hotspotId) {
 
   const cueSize = attentionRegions[hotspotId] || null;
 
-  // Use only the highest-resolution level for the attention cue.
-  // At lower pyramid levels, each tile covers a large rectangular area,
-  // which makes the cue look like a large square rather than a person.
-  loadTilesAroundHotspot(hotspotId, 14, 0.0, cueSize, true);
-  speakDirection(hotspotId);
+  animateBaseBlur(2.2, 850);
+  loadTilesAroundHotspot(
+    hotspotId,
+    14,
+    0.0,
+    cueSize,
+    true
+  );
 
-  // If the visitor does not engage, guide attention to the next element.
-  attentionAdvanceTimer = setTimeout(() => {
-    if (
-      attentionRunning &&
-      attentionTargetId === hotspotId &&
-      !focusedHotspotId &&
-      !focusTransitioning
-    ) {
-      advanceProgressiveAttention();
-    }
-  }, 7000);
+  if (speakNow) {
+    speakDirection(
+      hotspotId,
+      !initialWelcomeSpoken
+    );
+
+    initialWelcomeSpoken = true;
+  }
 }
 
 function advanceProgressiveAttention() {
-  console.log('[Attention] advance from:', attentionTargetId);
-  clearAttentionTimers();
+  if (!guidedTourActive || guidedTourComplete) return;
 
-  attentionIndex =
-    (attentionIndex + 1) % attentionSequence.length;
+  attentionIndex += 1;
 
-  startProgressiveAttention(attentionSequence[attentionIndex]);
+  if (attentionIndex >= attentionSequence.length) {
+    guidedTourActive = false;
+    guidedTourComplete = true;
+    attentionRunning = false;
+    attentionTargetId = null;
+    clearHighResolutionTiles();
+    animateBaseBlur(0, 600);
+    speakTourClosing();
+    return;
+  }
+
+  startProgressiveAttention(
+    attentionSequence[attentionIndex],
+    true
+  );
 }
 
 function resumeProgressiveAttentionAfterFocus(previousId) {
-  console.log('[Attention] resume after:', previousId);
   clearAttentionTimers();
   attentionRunning = false;
   attentionTargetId = null;
 
-  const selectedIndex = attentionSequence.indexOf(previousId);
-  attentionIndex =
-    selectedIndex >= 0
-      ? (selectedIndex + 1) % attentionSequence.length
-      : 0;
+  if (!guidedTourActive || guidedTourComplete) {
+    animateBaseBlur(0, 500);
+    return;
+  }
 
-  setTimeout(() => {
-    if (!focusedHotspotId && !focusTransitioning) {
-      startProgressiveAttention(attentionSequence[attentionIndex]);
-    }
-  }, 500);
+  const currentIndex =
+    attentionSequence.indexOf(previousId);
+
+  attentionIndex =
+    currentIndex >= 0
+      ? currentIndex
+      : attentionIndex;
+
+  advanceProgressiveAttention();
 }
 
 function hidePrimaryHotspots() {
@@ -842,6 +1094,7 @@ function zoomToHotspot(hotspotId) {
 
   // Camera begins while the masked detail is still expanding.
   setTimeout(() => {
+    animateBaseBlur(0.9, 750);
     mainCamera.setAttribute(
       'animation__focusPosition',
       `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 900; easing: easeInOutQuad`
@@ -856,6 +1109,10 @@ function zoomToHotspot(hotspotId) {
     );
 
     speakNarration(hotspotId, () => {
+      if (!guidedTourActive || guidedTourComplete) {
+        return;
+      }
+
       storyAdvancePending = true;
 
       setTimeout(() => {
@@ -872,6 +1129,7 @@ function zoomToHotspot(hotspotId) {
 
   // Full, unmasked high-resolution tiles settle into the close view.
   setTimeout(() => {
+    animateBaseBlur(0, 550);
     loadTilesAroundHotspot(
       hotspotId,
       MAX_LEVEL,
@@ -903,6 +1161,8 @@ function returnFromFocus(autoAdvance = false) {
   hideInfo();
   hideCaptainDetails();
   backButton.style.display = 'none';
+
+  animateBaseBlur(0, 500);
 
   mainCamera.setAttribute(
     'animation__focusPosition',
@@ -1190,15 +1450,28 @@ function addHotspot(id) {
     clearTimeout(infoTimer);
     clearTimeout(closeTimer);
 
-    // Nested Captain details show their descriptions but do not move the camera.
     if (el.classList.contains('captainDetail')) {
       infoTimer = setTimeout(() => {
-        showInfo(hotspotTexts[id][currentLanguage], el);
+        showInfo(
+          hotspotTexts[id][currentLanguage],
+          el
+        );
+        speakNarration(id);
       }, 2000);
       return;
     }
 
     if (focusedHotspotId || focusTransitioning) return;
+
+    // During the guided tour, only the currently directed target
+    // can advance the story. After completion, any hotspot works.
+    if (
+      guidedTourActive &&
+      !guidedTourComplete &&
+      attentionTargetId !== id
+    ) {
+      return;
+    }
 
     infoTimer = setTimeout(() => {
       zoomToHotspot(id);
@@ -1210,30 +1483,42 @@ function addHotspot(id) {
 
     if (el.classList.contains('captainDetail')) {
       hideInfo();
-      return;
     }
-
   });
 }
 
 function startExperience() {
   pageReady = true;
+  guidedTourActive = true;
+  guidedTourComplete = false;
+  initialWelcomeSpoken = false;
+  attentionIndex = 0;
+
   languageOverlay.style.display = 'none';
   gazeCursor.setAttribute('visible', true);
+  showPrimaryHotspots();
+  hideAllHalos();
+  refreshVoices();
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'استمع إلى المرشد، واتبع التفاصيل التي تظهر تدريجيًا، ثم انظر إليها لمدة ثانيتين ونصف تقريبًا.'
-      : 'Listen to the guide, follow the detail that comes into focus, and gaze at it for about two and a half seconds.';
+      ? 'مرحبًا بك. استمع إلى المرشد، ثم انظر إلى العنصر المطلوب لمدة ثانيتين ونصف.'
+      : 'Welcome. Listen to the guide, then gaze at the requested element for about two and a half seconds.';
 
-  setPanelText(welcomePanel, welcomeText, currentLanguage);
+  setPanelText(
+    welcomePanel,
+    welcomeText,
+    currentLanguage
+  );
   welcomePanel.setAttribute('visible', true);
 
   setTimeout(() => {
     welcomePanel.setAttribute('visible', false);
-    attentionIndex = 0;
-    startProgressiveAttention(attentionSequence[attentionIndex]);
-  }, 3500);
+    startProgressiveAttention(
+      attentionSequence[0],
+      true
+    );
+  }, 2200);
 }
 
 window.addEventListener('keydown', event => {
