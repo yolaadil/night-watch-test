@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Aligned Cue Engine</title>
+<title>The Night Watch — Seamless Focus Engine</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -200,13 +200,13 @@ body {
       id="paintingBlur"
       width="4"
       height="3.45"
-      position="0 0 0.006"
+      position="0 0 0.0002"
       material="transparent: true; opacity: 0; shader: flat"
       blurred-copy="source: painting_low.jpg; radius: 4">
     </a-plane>
 
-    <a-entity id="cueLayer" position="0 0 0.012"></a-entity>
-    <a-entity id="focusLayer" position="0 0 0.020"></a-entity>
+    <a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
+    <a-entity id="focusLayer" position="0 0 0.0008"></a-entity>
   </a-entity>
 
   <!-- GLOWING HALOS: hidden until gaze enters -->
@@ -254,7 +254,7 @@ body {
   <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
 
   <!-- Text panels -->
-  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
+  <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.05" height="0.36" material="transparent:true; opacity:1"></a-plane>
   <a-plane id="welcomePanel" visible="false" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
 
   <!-- Camera and gaze cursor -->
@@ -767,44 +767,204 @@ const CueCache = {
   }
 };
 
+let activeFocusTexture = null;
+
 function clearFocusTiles() {
   focusLayer.innerHTML = '';
+
+  if (activeFocusTexture) {
+    activeFocusTexture.dispose();
+    activeFocusTexture = null;
+  }
 }
 
-function loadFocusTiles(id) {
+async function loadFocusTiles(id) {
   clearFocusTiles();
 
   const cfg = REGION[id];
   const range = tileRangeFor(id, cfg.focusW, cfg.focusH);
+  const geometries = [];
 
   for (let row = range.startRow; row <= range.endRow; row++) {
     for (let col = range.startCol; col <= range.endCol; col++) {
       const geometry = tileGeometry(MAX_LEVEL, col, row);
-      if (!geometry) continue;
 
-      const plane = document.createElement('a-plane');
-      plane.setAttribute(
-        'src',
-        `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`
-      );
-      plane.setAttribute('width', geometry.worldW);
-      plane.setAttribute('height', geometry.worldH);
-      plane.setAttribute(
-        'position',
-        `${geometry.centerX} ${geometry.centerY} 0`
-      );
-      plane.setAttribute(
-        'material',
-        'shader: flat; side: double; transparent: true; opacity: 0; toneMapped: false'
-      );
-      plane.setAttribute(
-        'animation__fade',
-        'property: material.opacity; from: 0; to: 1; dur: 500; easing: easeOutQuad'
-      );
-
-      focusLayer.appendChild(plane);
+      if (geometry) {
+        geometries.push({ col, row, geometry });
+      }
     }
   }
+
+  if (!geometries.length) return;
+
+  const unionLeft = Math.min(
+    ...geometries.map(item => item.geometry.fileX)
+  );
+  const unionTop = Math.min(
+    ...geometries.map(item => item.geometry.fileY)
+  );
+  const unionRight = Math.max(
+    ...geometries.map(
+      item => item.geometry.fileX + item.geometry.fileW
+    )
+  );
+  const unionBottom = Math.max(
+    ...geometries.map(
+      item => item.geometry.fileY + item.geometry.fileH
+    )
+  );
+
+  const unionWidth = unionRight - unionLeft;
+  const unionHeight = unionBottom - unionTop;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = unionWidth;
+  canvas.height = unionHeight;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, unionWidth, unionHeight);
+
+  await Promise.all(
+    geometries.map(({ col, row, geometry }) =>
+      new Promise(resolve => {
+        const image = new Image();
+        image.crossOrigin = 'anonymous';
+
+        image.onload = () => {
+          ctx.drawImage(
+            image,
+            geometry.fileX - unionLeft,
+            geometry.fileY - unionTop,
+            geometry.fileW,
+            geometry.fileH
+          );
+          resolve();
+        };
+
+        image.onerror = resolve;
+        image.src =
+          `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
+      })
+    )
+  );
+
+  /*
+    Feather only the outer boundary of the complete stitched region.
+    The central area remains fully sharp while the rectangle disappears
+    gradually into the base painting.
+  */
+  const edgeCanvas = document.createElement('canvas');
+  edgeCanvas.width = unionWidth;
+  edgeCanvas.height = unionHeight;
+  const edgeCtx = edgeCanvas.getContext('2d');
+
+  const featherX = Math.max(26, Math.round(unionWidth * 0.16));
+  const featherY = Math.max(26, Math.round(unionHeight * 0.16));
+
+  const horizontal = edgeCtx.createLinearGradient(
+    0, 0, unionWidth, 0
+  );
+  horizontal.addColorStop(0.00, 'rgba(255,255,255,0)');
+  horizontal.addColorStop(
+    Math.min(0.45, featherX / unionWidth),
+    'rgba(255,255,255,1)'
+  );
+  horizontal.addColorStop(
+    Math.max(0.55, 1 - featherX / unionWidth),
+    'rgba(255,255,255,1)'
+  );
+  horizontal.addColorStop(1.00, 'rgba(255,255,255,0)');
+  edgeCtx.fillStyle = horizontal;
+  edgeCtx.fillRect(0, 0, unionWidth, unionHeight);
+
+  edgeCtx.globalCompositeOperation = 'destination-in';
+
+  const vertical = edgeCtx.createLinearGradient(
+    0, 0, 0, unionHeight
+  );
+  vertical.addColorStop(0.00, 'rgba(255,255,255,0)');
+  vertical.addColorStop(
+    Math.min(0.45, featherY / unionHeight),
+    'rgba(255,255,255,1)'
+  );
+  vertical.addColorStop(
+    Math.max(0.55, 1 - featherY / unionHeight),
+    'rgba(255,255,255,1)'
+  );
+  vertical.addColorStop(1.00, 'rgba(255,255,255,0)');
+  edgeCtx.fillStyle = vertical;
+  edgeCtx.fillRect(0, 0, unionWidth, unionHeight);
+
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(edgeCanvas, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  activeFocusTexture = texture;
+
+  const dims = levelDimensions(MAX_LEVEL);
+  const worldWidth =
+    unionWidth / dims.width * WORLD_WIDTH;
+  const worldHeight =
+    unionHeight / dims.height * WORLD_HEIGHT;
+  const centerX =
+    ((unionLeft + unionWidth / 2) / dims.width - 0.5) *
+    WORLD_WIDTH;
+  const centerY =
+    (0.5 - (unionTop + unionHeight / 2) / dims.height) *
+    WORLD_HEIGHT;
+
+  const plane = document.createElement('a-plane');
+  plane.setAttribute('width', worldWidth);
+  plane.setAttribute('height', worldHeight);
+  plane.setAttribute('position', `${centerX} ${centerY} 0`);
+
+  plane.addEventListener(
+    'loaded',
+    () => {
+      const mesh = plane.getObject3D('mesh');
+
+      if (!mesh) return;
+
+      mesh.material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        depthTest: true,
+        toneMapped: false,
+        premultipliedAlpha: true
+      });
+
+      const started = performance.now();
+
+      function fade(now) {
+        const progress = Math.min(
+          1,
+          (now - started) / 500
+        );
+        const eased =
+          progress * progress * (3 - 2 * progress);
+
+        mesh.material.opacity = eased;
+        mesh.material.needsUpdate = true;
+
+        if (progress < 1) {
+          requestAnimationFrame(fade);
+        }
+      }
+
+      requestAnimationFrame(fade);
+    },
+    { once: true }
+  );
+
+  focusLayer.appendChild(plane);
 }
 
 function refreshVoices() {
@@ -850,14 +1010,14 @@ function standardNarration(id) {
   return raw.replace(/\n+/g, ' ');
 }
 
-function makeCanvasTexture(text, language, width = 650, height = 250) {
+function makeCanvasTexture(text, language, width = 520, height = 190) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = 'rgba(17,17,17,0.72)';
-  roundRect(ctx, 0, 0, width, height, 34);
+  roundRect(ctx, 0, 0, width, height, 26);
   ctx.fill();
 
   ctx.fillStyle = 'white';
@@ -866,13 +1026,13 @@ function makeCanvasTexture(text, language, width = 650, height = 250) {
   if (language === 'ar') {
     ctx.direction = 'rtl';
     ctx.textAlign = 'right';
-    ctx.font = '25px Tahoma, Arial, sans-serif';
-    drawWrappedText(ctx, text, width - 52, 38, width - 90, 46);
+    ctx.font = '22px Tahoma, Arial, sans-serif';
+    drawWrappedText(ctx, text, width - 38, 26, width - 68, 36);
   } else {
     ctx.direction = 'ltr';
     ctx.textAlign = 'left';
-    ctx.font = '24px Arial, sans-serif';
-    drawWrappedText(ctx, text, 52, 38, width - 90, 46);
+    ctx.font = '21px Arial, sans-serif';
+    drawWrappedText(ctx, text, 38, 26, width - 68, 36);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -936,11 +1096,11 @@ function showInfo(id) {
   const hotspot = document.querySelector('#' + id);
   const pos = hotspot.getAttribute('position');
 
-  let panelX = pos.x + 0.68;
-  if (pos.x > 0.8) panelX = pos.x - 0.68;
+  let panelX = pos.x + 0.52;
+  if (pos.x > 0.8) panelX = pos.x - 0.52;
 
-  let panelY = pos.y + 0.25;
-  if (pos.y > 2.0) panelY = pos.y - 0.42;
+  let panelY = pos.y + 0.20;
+  if (pos.y > 2.0) panelY = pos.y - 0.32;
 
   infoPanel.setAttribute('position', `${panelX} ${panelY} -2.8`);
   setPanelText(
@@ -1038,14 +1198,14 @@ const TourEngine = {
     }
   },
 
-  openTarget(id, orderedStory) {
+  async openTarget(id, orderedStory) {
     this.pulseToken += 1;
     this.setState(State.ZOOMING);
     clearTimeout(this.autoTimer);
     setBlurOpacity(0, 250);
     CueCache.hideAll();
     showPrimaryHotspots(false);
-    loadFocusTiles(id);
+    await loadFocusTiles(id);
 
     const hotspot = document.querySelector('#' + id);
     const pos = hotspot.getAttribute('position');
