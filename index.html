@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Seamless Focus Engine</title>
+<title>The Night Watch — Captain Face Cue</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -232,7 +232,7 @@ body {
   <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
   <!-- INVISIBLE HOTSPOTS -->
-  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.58" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.42 -2.95" width="0.62" height="0.92" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.54" height="0.86" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.46" height="0.68" material="opacity:0; transparent:true"></a-plane>
   <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.66" height="0.96" material="opacity:0; transparent:true"></a-plane>
@@ -424,16 +424,16 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.24, cueH: 0.34, focusW: 0.56, focusH: 0.90 },
-  lieutenant:     { cueW: 0.24, cueH: 0.36, focusW: 0.54, focusH: 0.90 },
-  girl:           { cueW: 0.22, cueH: 0.30, focusW: 0.46, focusH: 0.70 },
-  drummer:        { cueW: 0.28, cueH: 0.38, focusW: 0.66, focusH: 0.98 },
-  flag:           { cueW: 0.28, cueH: 0.42, focusW: 0.70, focusH: 1.08 },
-  musketeer:      { cueW: 0.22, cueH: 0.32, focusW: 0.48, focusH: 0.78 },
-  dog:            { cueW: 0.26, cueH: 0.16, focusW: 0.66, focusH: 0.40 },
-  leftGroup:      { cueW: 0.30, cueH: 0.40, focusW: 0.74, focusH: 0.96 },
-  rightGroup:     { cueW: 0.34, cueH: 0.42, focusW: 0.86, focusH: 1.02 },
-  backgroundArch: { cueW: 0.34, cueH: 0.22, focusW: 0.96, focusH: 0.68 }
+  captain:        { cueW: 0.22, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.34, focusW: 0.56, focusH: 0.90 },
+  lieutenant:     { cueW: 0.24, cueH: 0.36, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
+  girl:           { cueW: 0.22, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
+  drummer:        { cueW: 0.28, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
+  flag:           { cueW: 0.28, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.70, focusH: 1.08 },
+  musketeer:      { cueW: 0.22, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.48, focusH: 0.78 },
+  dog:            { cueW: 0.26, cueH: 0.16, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40 },
+  leftGroup:      { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.74, focusH: 0.96 },
+  rightGroup:     { cueW: 0.34, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.86, focusH: 1.02 },
+  backgroundArch: { cueW: 0.34, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68 }
 };
 
 const State = Object.freeze({
@@ -505,8 +505,12 @@ function hotspotCenter(id) {
   return { x: pos.x, y: pos.y - 1.6 };
 }
 
-function tileRangeFor(id, width, height) {
-  const center = hotspotCenter(id);
+function tileRangeFor(id, width, height, offsetX = 0, offsetY = 0) {
+  const baseCenter = hotspotCenter(id);
+  const center = {
+    x: baseCenter.x + offsetX,
+    y: baseCenter.y + offsetY
+  };
   const dims = levelDimensions(MAX_LEVEL);
 
   const leftPx = Math.max(
@@ -594,7 +598,13 @@ const CueCache = {
     }
 
     const cfg = REGION[id];
-    const range = tileRangeFor(id, cfg.cueW, cfg.cueH);
+    const range = tileRangeFor(
+      id,
+      cfg.cueW,
+      cfg.cueH,
+      cfg.cueOffsetX || 0,
+      cfg.cueOffsetY || 0
+    );
     const geometries = [];
 
     for (let row = range.startRow; row <= range.endRow; row++) {
@@ -848,57 +858,9 @@ async function loadFocusTiles(id) {
     )
   );
 
-  /*
-    Feather only the outer boundary of the complete stitched region.
-    The central area remains fully sharp while the rectangle disappears
-    gradually into the base painting.
-  */
-  const edgeCanvas = document.createElement('canvas');
-  edgeCanvas.width = unionWidth;
-  edgeCanvas.height = unionHeight;
-  const edgeCtx = edgeCanvas.getContext('2d');
-
-  const featherX = Math.max(26, Math.round(unionWidth * 0.16));
-  const featherY = Math.max(26, Math.round(unionHeight * 0.16));
-
-  const horizontal = edgeCtx.createLinearGradient(
-    0, 0, unionWidth, 0
-  );
-  horizontal.addColorStop(0.00, 'rgba(255,255,255,0)');
-  horizontal.addColorStop(
-    Math.min(0.45, featherX / unionWidth),
-    'rgba(255,255,255,1)'
-  );
-  horizontal.addColorStop(
-    Math.max(0.55, 1 - featherX / unionWidth),
-    'rgba(255,255,255,1)'
-  );
-  horizontal.addColorStop(1.00, 'rgba(255,255,255,0)');
-  edgeCtx.fillStyle = horizontal;
-  edgeCtx.fillRect(0, 0, unionWidth, unionHeight);
-
-  edgeCtx.globalCompositeOperation = 'destination-in';
-
-  const vertical = edgeCtx.createLinearGradient(
-    0, 0, 0, unionHeight
-  );
-  vertical.addColorStop(0.00, 'rgba(255,255,255,0)');
-  vertical.addColorStop(
-    Math.min(0.45, featherY / unionHeight),
-    'rgba(255,255,255,1)'
-  );
-  vertical.addColorStop(
-    Math.max(0.55, 1 - featherY / unionHeight),
-    'rgba(255,255,255,1)'
-  );
-  vertical.addColorStop(1.00, 'rgba(255,255,255,0)');
-  edgeCtx.fillStyle = vertical;
-  edgeCtx.fillRect(0, 0, unionWidth, unionHeight);
-
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.drawImage(edgeCanvas, 0, 0);
-
-  const texture = new THREE.CanvasTexture(canvas);
+  /* Removed rectangular edge mask so no visible boxes remain.
+     The stitched focus image is shown directly. */
+const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
