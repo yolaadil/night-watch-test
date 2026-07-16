@@ -2,29 +2,21 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Visual Pulse Story</title>
+<title>The Night Watch — State Machine V2</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
   schema: {
     source: { type: 'string' },
-    radius: { type: 'number', default: 3 }
+    radius: { type: 'number', default: 4 }
   },
 
   init() {
-    this.buildTexture = this.buildTexture.bind(this);
-    this.el.addEventListener('loaded', this.buildTexture);
-    this.buildTexture();
-  },
-
-  buildTexture() {
-    if (!this.data.source) return;
-
     const image = new Image();
     image.crossOrigin = 'anonymous';
 
     image.onload = () => {
-      const scale = 0.35;
+      const scale = 0.32;
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -38,7 +30,7 @@ AFRAME.registerComponent('blurred-copy', {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.needsUpdate = true;
 
-      const applyTexture = () => {
+      const apply = () => {
         const mesh = this.el.getObject3D('mesh');
         if (!mesh) return;
 
@@ -53,9 +45,9 @@ AFRAME.registerComponent('blurred-copy', {
       };
 
       if (this.el.getObject3D('mesh')) {
-        applyTexture();
+        apply();
       } else {
-        this.el.addEventListener('object3dset', applyTexture, { once: true });
+        this.el.addEventListener('object3dset', apply, { once: true });
       }
     };
 
@@ -175,7 +167,7 @@ body {
   <button
     id="backButton"
     class="tileButton"
-    onclick="returnFromFocus(false)"
+    onclick="TourEngine.manualBack()"
     style="display:none">
     ← Back
   </button>
@@ -213,7 +205,8 @@ body {
       blurred-copy="source: painting_low.jpg; radius: 4">
     </a-plane>
 
-    <a-entity id="tileLayer" position="0 0 0.02"></a-entity>
+    <a-entity id="cueLayer" position="0 0 0.012"></a-entity>
+    <a-entity id="focusLayer" position="0 0 0.020"></a-entity>
   </a-entity>
 
   <!-- GLOWING HALOS: hidden until gaze enters -->
@@ -239,26 +232,26 @@ body {
   <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
   <!-- INVISIBLE HOTSPOTS -->
-  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.965" width="0.55" height="0.85" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.965" width="0.50" height="0.82" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.965" width="0.44" height="0.64" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.965" width="0.62" height="0.92" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.965" width="0.62" height="1.00" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.965" width="0.44" height="0.74" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.965" width="0.62" height="0.38" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.965" width="0.68" height="0.90" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.965" width="0.80" height="0.96" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.965" width="0.90" height="0.62" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.28 -2.95" width="0.58" height="0.88" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.54" height="0.86" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.46" height="0.68" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.66" height="0.96" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.66" height="1.02" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.48" height="0.78" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.66" height="0.40" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.72" height="0.94" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.84" height="1.00" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.94" height="0.66" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.965" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.965" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.965" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.965" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.965" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.965" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.965" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.965" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
+  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
 
   <!-- Text panels -->
   <a-plane id="infoPanel" visible="false" position="0 0 -2.8" width="1.35" height="0.5" material="transparent:true; opacity:1"></a-plane>
@@ -283,959 +276,21 @@ const infoPanel = document.querySelector('#infoPanel');
 const welcomePanel = document.querySelector('#welcomePanel');
 const gazeCursor = document.querySelector('#gazeCursor');
 const languageOverlay = document.querySelector('#languageOverlay');
-const languageBox = document.querySelector('#languageBox');
-const tileLayer = document.querySelector('#tileLayer');
-
-// Deep Zoom tile settings.
-const TILE_IMAGE_WIDTH = 15354;
-const TILE_IMAGE_HEIGHT = 13230;
-const TILE_WORLD_WIDTH = 4;
-const TILE_WORLD_HEIGHT = 3.45;
-const TILE_SIZE = 254;
-const TILE_OVERLAP = 1;
-const MAX_LEVEL = 14;
-const TILE_FOLDER = 'tiles';
-
+const cueLayer = document.querySelector('#cueLayer');
+const focusLayer = document.querySelector('#focusLayer');
+const paintingBlur = document.querySelector('#paintingBlur');
 const mainCamera = document.querySelector('#mainCamera');
 const backButton = document.querySelector('#backButton');
 
-let loadedTileKeys = new Set();
-let tileGeneration = 0;
-let storyNarrating = false;
-let storyAdvancePending = false;
-const GAZE_CONFIRM_MS = 2500;
-const paintingLow = document.querySelector('#paintingLow');
-const paintingBlur = document.querySelector('#paintingBlur');
-
-let guidedTourActive = true;
-let guidedTourComplete = false;
-let initialWelcomeSpoken = false;
-let preferredVoice = null;
-let availableVoices = [];
-let focusedHotspotId = null;
-let focusTransitioning = false;
-let focusLeaveTimer = null;
-
-// Progressive attention guidance.
-const audioGuide = {
-  captain: {
-    story: {
-      en: 'Our story begins with Captain Frans Banninck Cocq. His black costume, red sash, and outstretched hand establish leadership while setting the whole company in motion.',
-      ar: 'تبدأ قصتنا مع الكابتن فرانس بانينك كوك. تؤكد ملابسه السوداء ووشاحه الأحمر ويده الممدودة قيادته، وتضع الفرقة كلها في حالة حركة.'
-    },
-    standard: {
-      en: 'Captain Frans Banninck Cocq leads the civic guard. His dark clothing, red sash, and outstretched hand establish authority and movement.',
-      ar: 'يقود الكابتن فرانس بانينك كوك فرقة الحرس المدني، وتبرز ملابسه الداكنة ووشاحه الأحمر ويده الممدودة سلطته وحركة المشهد.'
-    }
-  },
-  lieutenant: {
-    story: {
-      en: 'Beside the captain stands Lieutenant Willem van Ruytenburch. His brilliant yellow clothing catches the light and carries our attention across the center of the painting.',
-      ar: 'وبجوار القائد يقف الملازم فيليم فان رويتنبرخ. تلتقط ملابسه الصفراء اللامعة الضوء، وتنقل انتباهنا عبر مركز اللوحة.'
-    },
-    standard: {
-      en: 'Lieutenant Willem van Ruytenburch creates a luminous contrast beside the captain and draws the eye across the center.',
-      ar: 'يخلق الملازم فيليم فان رويتنبرخ تباينًا مضيئًا بجانب القائد ويوجه النظر عبر مركز اللوحة.'
-    }
-  },
-  girl: {
-    story: {
-      en: 'Behind the central pair, a mysterious illuminated girl appears. She is not an ordinary member of the company, but a symbolic figure carrying signs of the guard’s identity.',
-      ar: 'وخلف الثنائي المركزي تظهر فتاة مضيئة غامضة. ليست عضوة عادية في الفرقة، بل شخصية رمزية تحمل إشارات إلى هوية الحرس.'
-    },
-    standard: {
-      en: 'The illuminated girl is a symbolic figure carrying objects linked to the identity and traditions of the civic guard.',
-      ar: 'الفتاة المضيئة شخصية رمزية تحمل أشياء مرتبطة بهوية الحرس المدني وتقاليده.'
-    }
-  },
-  drummer: {
-    story: {
-      en: 'The scene then seems to gain sound. On the right, the drummer introduces rhythm and makes the company feel ready to move beyond the frame.',
-      ar: 'ثم يبدو المشهد وكأنه يكتسب صوتًا. في اليمين، يضيف قارع الطبل الإيقاع، ويجعل الفرقة تبدو مستعدة للتحرك خارج إطار اللوحة.'
-    },
-    standard: {
-      en: 'The drummer adds imagined sound and rhythm, making the company feel ready to move.',
-      ar: 'يضيف قارع الطبل صوتًا وإيقاعًا متخيلين ويجعل الفرقة تبدو مستعدة للتحرك.'
-    }
-  },
-  flag: {
-    story: {
-      en: 'Above the crowd, the raised flag gives the company its identity. Its sweeping diagonal continues the movement already begun by the captain and drummer.',
-      ar: 'وفوق الحشد تمنح الراية المرفوعة الفرقة هويتها. ويواصل خطها القطري الواسع الحركة التي بدأها القائد وقارع الطبل.'
-    },
-    standard: {
-      en: 'The flag identifies the company and adds ceremony and strong diagonal movement.',
-      ar: 'تُعرّف الراية بالفرقة وتضيف طابعًا احتفاليًا وحركة قطرية قوية.'
-    }
-  },
-  musketeer: {
-    story: {
-      en: 'The musketeer reminds us that this is a civic guard company. Yet Rembrandt turns military equipment into theatrical lines that animate the gathering.',
-      ar: 'يذكرنا حامل البندقية بأن هذه فرقة حرس مدني. ومع ذلك، يحول رامبرانت المعدات العسكرية إلى خطوط مسرحية تحرك التجمع.'
-    },
-    standard: {
-      en: 'The musketeer recalls the guard’s military role while his weapon becomes part of the composition’s theatrical lines.',
-      ar: 'يشير حامل البندقية إلى الدور العسكري للحرس، بينما يصبح سلاحه جزءًا من الخطوط المسرحية في التكوين.'
-    }
-  },
-  dog: {
-    story: {
-      en: 'Near the drummer, a small dog adds an unexpected moment of everyday life. This lively detail keeps the grand scene spontaneous and human.',
-      ar: 'وبالقرب من قارع الطبل يضيف كلب صغير لحظة غير متوقعة من الحياة اليومية. ويحافظ هذا التفصيل الحيوي على عفوية المشهد وإنسانيته.'
-    },
-    standard: {
-      en: 'The dog adds spontaneity and everyday life to the crowded scene.',
-      ar: 'يضيف الكلب العفوية وإحساس الحياة اليومية إلى المشهد المزدحم.'
-    }
-  },
-  leftGroup: {
-    story: {
-      en: 'As our eyes move left, the guards overlap and recede into space. Their gestures transform a formal commission into a layered dramatic event.',
-      ar: 'ومع انتقال نظرنا إلى اليسار، تتداخل شخصيات الحراس وتتراجع في العمق. وتحول إيماءاتهم التكليف الرسمي إلى حدث درامي متعدد الطبقات.'
-    },
-    standard: {
-      en: 'The overlapping figures create depth and turn a formal portrait into a dramatic scene.',
-      ar: 'تخلق الشخصيات المتداخلة عمقًا وتحول الصورة الرسمية إلى مشهد درامي.'
-    }
-  },
-  rightGroup: {
-    story: {
-      en: 'Across the painting, the group on the right balances the central action and suggests that the company extends beyond the figures we first noticed.',
-      ar: 'وعبر اللوحة توازن المجموعة في اليمين الحركة المركزية، وتوحي بأن الفرقة تمتد إلى ما وراء الشخصيات التي لاحظناها أولًا.'
-    },
-    standard: {
-      en: 'The figures on the right balance the central pair and expand the sense of a large gathering.',
-      ar: 'توازن الشخصيات في اليمين الثنائي المركزي وتوسع الإحساس بتجمع كبير.'
-    }
-  },
-  backgroundArch: {
-    story: {
-      en: 'Finally, the dark architecture gathers the entire story together. It frames the figures and intensifies the light that has guided us from one character to the next.',
-      ar: 'وأخيرًا، تجمع العمارة الداكنة القصة كلها. فهي تؤطر الشخصيات وتكثف الضوء الذي قادنا من شخصية إلى أخرى.'
-    },
-    standard: {
-      en: 'The architecture frames the action and intensifies Rembrandt’s dramatic use of light and shadow.',
-      ar: 'تؤطر العمارة الخلفية الحركة وتكثف استخدام رامبرانت الدرامي للضوء والظل.'
-    }
-  }
-};
-
-const attentionSequence = [
-  'captain',
-  'lieutenant',
-  'girl',
-  'drummer',
-  'flag',
-  'musketeer',
-  'dog',
-  'leftGroup',
-  'rightGroup',
-  'backgroundArch'
-];
-
-// Attention and focus regions are independent from the invisible gaze planes.
-const attentionRegions = {
-  captain:        { offsetX: 0.00, offsetY: 0.00, width: 0.24, height: 0.34 },
-  lieutenant:     { offsetX: 0.00, offsetY: 0.00, width: 0.24, height: 0.36 },
-  girl:           { offsetX: 0.00, offsetY: 0.00, width: 0.22, height: 0.30 },
-  drummer:        { offsetX: 0.00, offsetY: 0.00, width: 0.28, height: 0.38 },
-  flag:           { offsetX: 0.00, offsetY: 0.00, width: 0.28, height: 0.42 },
-  musketeer:      { offsetX: 0.00, offsetY: 0.00, width: 0.22, height: 0.32 },
-  dog:            { offsetX: 0.00, offsetY: 0.00, width: 0.26, height: 0.16 },
-  leftGroup:      { offsetX: 0.00, offsetY: 0.00, width: 0.30, height: 0.40 },
-  rightGroup:     { offsetX: 0.00, offsetY: 0.00, width: 0.34, height: 0.42 },
-  backgroundArch: { offsetX: 0.00, offsetY: 0.00, width: 0.34, height: 0.22 }
-};
-
-const focusRegions = {
-  captain:        { offsetX: 0.00, offsetY: 0.00, width: 0.52, height: 0.86 },
-  lieutenant:     { offsetX: 0.00, offsetY: 0.00, width: 0.50, height: 0.90 },
-  girl:           { offsetX: 0.00, offsetY: 0.00, width: 0.42, height: 0.68 },
-  drummer:        { offsetX: 0.00, offsetY: 0.00, width: 0.64, height: 0.96 },
-  flag:           { offsetX: 0.00, offsetY: 0.00, width: 0.70, height: 1.08 },
-  musketeer:      { offsetX: 0.00, offsetY: 0.00, width: 0.44, height: 0.74 },
-  dog:            { offsetX: 0.00, offsetY: 0.00, width: 0.52, height: 0.30 },
-  leftGroup:      { offsetX: 0.00, offsetY: 0.00, width: 0.72, height: 0.94 },
-  rightGroup:     { offsetX: 0.00, offsetY: 0.00, width: 0.82, height: 1.00 },
-  backgroundArch: { offsetX: 0.00, offsetY: 0.00, width: 0.94, height: 0.66 }
-};
-
-let attentionIndex = 0;
-let attentionTargetId = null;
-let attentionLevelTimer = null;
-let attentionAdvanceTimer = null;
-let attentionRunning = false;
-
-function levelDimensions(level) {
-  const scale = Math.pow(2, level - MAX_LEVEL);
-  return {
-    width: Math.ceil(TILE_IMAGE_WIDTH * scale),
-    height: Math.ceil(TILE_IMAGE_HEIGHT * scale)
-  };
-}
-
-function addTile(level, col, row, maskSpec = null) {
-  const generationAtRequest = tileGeneration;
-  const maskKey = maskSpec
-    ? `${maskSpec.centerX}_${maskSpec.centerY}_${maskSpec.width}_${maskSpec.height}`
-    : 'none';
-
-  const key = `${level}_${col}_${row}_${maskKey}`;
-  if (loadedTileKeys.has(key)) return;
-  loadedTileKeys.add(key);
-
-  const dims = levelDimensions(level);
-  const levelWidth = dims.width;
-  const levelHeight = dims.height;
-
-  const coreX = col * TILE_SIZE;
-  const coreY = row * TILE_SIZE;
-
-  if (coreX >= levelWidth || coreY >= levelHeight) return;
-
-  const columns = Math.ceil(levelWidth / TILE_SIZE);
-  const rows = Math.ceil(levelHeight / TILE_SIZE);
-
-  const leftOverlap = col === 0 ? 0 : TILE_OVERLAP;
-  const topOverlap = row === 0 ? 0 : TILE_OVERLAP;
-  const rightOverlap = col === columns - 1 ? 0 : TILE_OVERLAP;
-  const bottomOverlap = row === rows - 1 ? 0 : TILE_OVERLAP;
-
-  const fileX = Math.max(0, coreX - leftOverlap);
-  const fileY = Math.max(0, coreY - topOverlap);
-
-  const fileWidth = Math.min(
-    TILE_SIZE + leftOverlap + rightOverlap,
-    levelWidth - fileX
-  );
-
-  const fileHeight = Math.min(
-    TILE_SIZE + topOverlap + bottomOverlap,
-    levelHeight - fileY
-  );
-
-  const worldWidth = fileWidth / levelWidth * TILE_WORLD_WIDTH;
-  const worldHeight = fileHeight / levelHeight * TILE_WORLD_HEIGHT;
-
-  const centerX =
-    ((fileX + fileWidth / 2) / levelWidth - 0.5) * TILE_WORLD_WIDTH;
-
-  const centerY =
-    (0.5 - (fileY + fileHeight / 2) / levelHeight) * TILE_WORLD_HEIGHT;
-
-  const tile = document.createElement('a-plane');
-  tile.setAttribute('data-tile-key', key);
-  tile.setAttribute('width', worldWidth);
-  tile.setAttribute('height', worldHeight);
-  tile.setAttribute('position', `${centerX} ${centerY} 0`);
-
-  if (!maskSpec) {
-    tile.setAttribute('src', `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`);
-    tile.setAttribute(
-      'material',
-      'shader: flat; side: double; transparent: true; opacity: 0'
-    );
-    tile.setAttribute(
-      'animation__fade',
-      'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad'
-    );
-    tileLayer.appendChild(tile);
-    return;
-  }
-
-  const image = new Image();
-  image.crossOrigin = 'anonymous';
-
-  image.onload = () => {
-    if (generationAtRequest !== tileGeneration) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(image, 0, 0);
-
-    const tileLeft = centerX - worldWidth / 2;
-    const tileTop = centerY + worldHeight / 2;
-
-    const maskCenterX =
-      ((maskSpec.centerX - tileLeft) / worldWidth) * canvas.width;
-    const maskCenterY =
-      ((tileTop - maskSpec.centerY) / worldHeight) * canvas.height;
-
-    const radiusX =
-      (maskSpec.width / 2 / worldWidth) * canvas.width;
-    const radiusY =
-      (maskSpec.height / 2 / worldHeight) * canvas.height;
-
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.save();
-    ctx.translate(maskCenterX, maskCenterY);
-    ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
-
-    const gradient = ctx.createRadialGradient(
-      0, 0, radiusX * 0.08,
-      0, 0, radiusX
-    );
-    gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
-    gradient.addColorStop(0.28, 'rgba(255,255,255,0.98)');
-    gradient.addColorStop(0.48, 'rgba(255,255,255,0.84)');
-    gradient.addColorStop(0.64, 'rgba(255,255,255,0.58)');
-    gradient.addColorStop(0.78, 'rgba(255,255,255,0.32)');
-    gradient.addColorStop(0.90, 'rgba(255,255,255,0.12)');
-    gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.needsUpdate = true;
-
-    tile.addEventListener('loaded', () => {
-      const mesh = tile.getObject3D('mesh');
-      if (!mesh) return;
-
-      mesh.material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        opacity: 0,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        toneMapped: false,
-        premultipliedAlpha: true
-      });
-
-      const startTime = performance.now();
-      const duration = 1400;
-
-      function fade(now) {
-        const t = Math.min(1, (now - startTime) / duration);
-        mesh.material.opacity = t;
-        mesh.material.needsUpdate = true;
-        if (t < 1) requestAnimationFrame(fade);
-      }
-
-      requestAnimationFrame(fade);
-    });
-
-    tileLayer.appendChild(tile);
-  };
-
-  image.src = `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`;
-}
-
-function clearHighResolutionTiles() {
-  tileGeneration += 1;
-  tileLayer.innerHTML = '';
-  loadedTileKeys.clear();
-}
-
-function loadTilesAroundHotspot(
-  hotspotId,
-  level = MAX_LEVEL,
-  padding = 0.06,
-  sizeOverride = null,
-  useSoftMask = false
-) {
-  const hotspot = document.querySelector('#' + hotspotId);
-  if (!hotspot) return;
-
-  const pos = hotspot.getAttribute('position');
-  const hotspotWidth =
-    (sizeOverride && sizeOverride.width) ||
-    parseFloat(hotspot.getAttribute('width')) ||
-    0.4;
-  const hotspotHeight =
-    (sizeOverride && sizeOverride.height) ||
-    parseFloat(hotspot.getAttribute('height')) ||
-    0.7;
-
-  // Convert the hotspot's world position to paintingRoot-local coordinates.
-  const localCenterX =
-    pos.x + ((sizeOverride && sizeOverride.offsetX) || 0);
-  const localCenterY =
-    pos.y - 1.6 + ((sizeOverride && sizeOverride.offsetY) || 0);
-
-  const leftWorld = localCenterX - hotspotWidth / 2 - padding;
-  const rightWorld = localCenterX + hotspotWidth / 2 + padding;
-  const topWorld = localCenterY + hotspotHeight / 2 + padding;
-  const bottomWorld = localCenterY - hotspotHeight / 2 - padding;
-
-  const dims = levelDimensions(level);
-
-  const leftPx = Math.max(
-    0,
-    ((leftWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
-  );
-
-  const rightPx = Math.min(
-    dims.width,
-    ((rightWorld / TILE_WORLD_WIDTH) + 0.5) * dims.width
-  );
-
-  const topPx = Math.max(
-    0,
-    (0.5 - topWorld / TILE_WORLD_HEIGHT) * dims.height
-  );
-
-  const bottomPx = Math.min(
-    dims.height,
-    (0.5 - bottomWorld / TILE_WORLD_HEIGHT) * dims.height
-  );
-
-  const startCol = Math.floor(leftPx / TILE_SIZE);
-  const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
-  const startRow = Math.floor(topPx / TILE_SIZE);
-  const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
-
-  const maskSpec = useSoftMask
-    ? {
-        centerX: localCenterX,
-        centerY: localCenterY,
-        width: hotspotWidth + padding * 2,
-        height: hotspotHeight + padding * 2
-      }
-    : null;
-
-  for (let row = startRow; row <= endRow; row++) {
-    for (let col = startCol; col <= endCol; col++) {
-      addTile(level, col, row, maskSpec);
-    }
-  }
-}
-
-
-function refreshVoices() {
-  if (!('speechSynthesis' in window)) return;
-
-  availableVoices = window.speechSynthesis.getVoices();
-
-  const languagePrefix =
-    currentLanguage === 'ar' ? 'ar' : 'en';
-
-  const preferredNames =
-    currentLanguage === 'ar'
-      ? [
-          'Microsoft Salma',
-          'Microsoft Hamed',
-          'Google العربية',
-          'Maged',
-          'Tarik'
-        ]
-      : [
-          'Microsoft Aria Online',
-          'Microsoft Jenny Online',
-          'Microsoft Guy Online',
-          'Google UK English Female',
-          'Google US English',
-          'Samantha',
-          'Daniel'
-        ];
-
-  preferredVoice =
-    preferredNames
-      .map(name =>
-        availableVoices.find(voice =>
-          voice.name.toLowerCase().includes(name.toLowerCase())
-        )
-      )
-      .find(Boolean) ||
-    availableVoices.find(voice =>
-      voice.lang.toLowerCase().startsWith(languagePrefix)
-    ) ||
-    null;
-}
-
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.addEventListener(
-    'voiceschanged',
-    refreshVoices
-  );
-}
-
-function stopSpeech() {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
-  storyNarrating = false;
-}
-
-function speakText(value, onEnd = null) {
-  stopSpeech();
-
-  if (!('speechSynthesis' in window) || !value) {
-    if (onEnd) setTimeout(onEnd, 250);
-    return;
-  }
-
-  refreshVoices();
-
-  const utterance = new SpeechSynthesisUtterance(value);
-  utterance.lang =
-    currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
-
-  if (preferredVoice) {
-    utterance.voice = preferredVoice;
-  }
-
-  utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.90;
-  utterance.pitch = 0.96;
-  utterance.volume = 1.0;
-
-  utterance.onend = () => {
-    storyNarrating = false;
-    if (onEnd) onEnd();
-  };
-
-  utterance.onerror = () => {
-    storyNarrating = false;
-    if (onEnd) onEnd();
-  };
-
-  storyNarrating = true;
-  window.speechSynthesis.speak(utterance);
-}
-
-function speakNarration(id, variant = 'standard', onEnd = null) {
-  const entry = audioGuide[id];
-
-  if (!entry || !entry[variant]) {
-    if (onEnd) onEnd();
-    return;
-  }
-
-  speakText(entry[variant][currentLanguage], onEnd);
-}
-
-function speakTourClosing() {
-  const closing =
-    currentLanguage === 'ar'
-      ? 'انتهت الجولة الموجهة. يمكنك الآن استكشاف أي عنصر بحرية، وسأتحدث فقط عندما تنظر إليه.'
-      : 'The guided tour is complete. You may now explore freely, and I will speak only when you gaze at an element.';
-
-  speakText(closing);
-}
-
-function animateBaseBlur(targetAmount, duration = 750) {
-  const mesh = paintingBlur.getObject3D('mesh');
-  const startOpacity =
-    mesh && mesh.material
-      ? mesh.material.opacity
-      : 0;
-
-  // Map the old blur amount scale to overlay opacity.
-  const targetOpacity = Math.max(
-    0,
-    Math.min(0.78, targetAmount / 3.2)
-  );
-
-  const started = performance.now();
-
-  function frame(now) {
-    const progress = Math.min(
-      1,
-      (now - started) / duration
-    );
-
-    const eased =
-      progress * progress * (3 - 2 * progress);
-
-    const opacity =
-      startOpacity +
-      (targetOpacity - startOpacity) * eased;
-
-    const currentMesh = paintingBlur.getObject3D('mesh');
-    if (currentMesh && currentMesh.material) {
-      currentMesh.material.opacity = opacity;
-      currentMesh.material.needsUpdate = true;
-    }
-
-    if (progress < 1) {
-      requestAnimationFrame(frame);
-    }
-  }
-
-  requestAnimationFrame(frame);
-}
-
-function pulseAttentionCue(cycles = 4) {
-  const blurMesh = paintingBlur.getObject3D('mesh');
-
-  if (!blurMesh || !blurMesh.material) {
-    setTimeout(() => animateBaseBlur(0, 200), 50);
-    return;
-  }
-
-  let cycle = 0;
-  const highOpacity = 0.54;
-  const lowOpacity = 0.0;
-  const halfDuration = 520;
-
-  function animateTo(target, onComplete) {
-    const mesh = paintingBlur.getObject3D('mesh');
-    if (!mesh || !mesh.material) {
-      if (onComplete) onComplete();
-      return;
-    }
-
-    const start = mesh.material.opacity;
-    const started = performance.now();
-
-    function frame(now) {
-      const progress = Math.min(
-        1,
-        (now - started) / halfDuration
-      );
-
-      const eased =
-        progress * progress * (3 - 2 * progress);
-
-      mesh.material.opacity =
-        start + (target - start) * eased;
-
-      mesh.material.needsUpdate = true;
-
-      if (progress < 1) {
-        requestAnimationFrame(frame);
-      } else if (onComplete) {
-        onComplete();
-      }
-    }
-
-    requestAnimationFrame(frame);
-  }
-
-  function runCycle() {
-    if (
-      focusedHotspotId ||
-      focusTransitioning ||
-      !attentionRunning
-    ) {
-      animateTo(0);
-      return;
-    }
-
-    animateTo(highOpacity, () => {
-      animateTo(lowOpacity, () => {
-        cycle += 1;
-
-        if (cycle < cycles) {
-          setTimeout(runCycle, 170);
-        } else {
-          // Settle with a clear painting and the small sharp cue remaining.
-          animateTo(0);
-        }
-      });
-    });
-  }
-
-  animateTo(0, runCycle);
-}
-
-function clearAttentionTimers() {
-  clearTimeout(attentionLevelTimer);
-  clearTimeout(attentionAdvanceTimer);
-}
-
-function stopProgressiveAttention({ clearTiles = false } = {}) {
-  clearAttentionTimers();
-  attentionRunning = false;
-  attentionTargetId = null;
-
-  if (clearTiles && !focusedHotspotId && !focusTransitioning) {
-    clearHighResolutionTiles();
-  }
-}
-
-function startProgressiveAttention(hotspotId) {
-  console.log('[Attention] cue:', hotspotId);
-
-  if (
-    !pageReady ||
-    focusedHotspotId ||
-    focusTransitioning ||
-    !hotspotId
-  ) {
-    return;
-  }
-
-  clearAttentionTimers();
-  clearHighResolutionTiles();
-  animateBaseBlur(0, 150);
-
-  attentionRunning = true;
-  attentionTargetId = hotspotId;
-
-  const cueSize = attentionRegions[hotspotId] || null;
-
-  loadTilesAroundHotspot(
-    hotspotId,
-    14,
-    0.0,
-    cueSize,
-    true
-  );
-
-  // Allow the tile to begin fading in, then pulse the surrounding painting.
-  setTimeout(() => {
-    if (
-      attentionRunning &&
-      attentionTargetId === hotspotId &&
-      !focusedHotspotId
-    ) {
-      pulseAttentionCue(4);
-    }
-  }, 380);
-}
-
-function advanceProgressiveAttention() {
-  if (!guidedTourActive || guidedTourComplete) return;
-
-  attentionIndex += 1;
-
-  if (attentionIndex >= attentionSequence.length) {
-    guidedTourActive = false;
-    guidedTourComplete = true;
-    attentionRunning = false;
-    attentionTargetId = null;
-    clearHighResolutionTiles();
-    animateBaseBlur(0, 600);
-    speakTourClosing();
-    return;
-  }
-
-  startProgressiveAttention(
-    attentionSequence[attentionIndex]
-  );
-}
-
-function resumeProgressiveAttentionAfterFocus(previousId) {
-  clearAttentionTimers();
-  attentionRunning = false;
-  attentionTargetId = null;
-
-  if (!guidedTourActive || guidedTourComplete) {
-    animateBaseBlur(0, 500);
-    return;
-  }
-
-  const currentIndex =
-    attentionSequence.indexOf(previousId);
-
-  attentionIndex =
-    currentIndex >= 0
-      ? currentIndex
-      : attentionIndex;
-
-  advanceProgressiveAttention();
-}
-
-function hidePrimaryHotspots() {
-  document.querySelectorAll('.hotspot').forEach(el => {
-    if (!el.classList.contains('captainDetail')) {
-      el.setAttribute('visible', false);
-    }
-  });
-}
-
-function showPrimaryHotspots() {
-  document.querySelectorAll('.hotspot').forEach(el => {
-    if (el.classList.contains('captainDetail')) {
-      el.setAttribute('visible', false);
-    } else {
-      el.setAttribute('visible', true);
-    }
-  });
-}
-
-function getZoomTargetForHotspot(hotspotId) {
-  const hotspot = document.querySelector('#' + hotspotId);
-  if (!hotspot) return null;
-
-  const pos = hotspot.getAttribute('position');
-
-  // Move the camera toward the selected hotspot while keeping a comfortable distance.
-  return {
-    x: pos.x,
-    y: pos.y,
-    z: -1.15
-  };
-}
-
-function showNestedDetailsFor(hotspotId) {
-  hideCaptainDetails();
-
-  if (hotspotId === 'captain') {
-    showCaptainDetails();
-  }
-
-  // Additional nested-detail groups can be added later using the same pattern.
-}
-
-function zoomToHotspot(hotspotId) {
-  if (focusedHotspotId || focusTransitioning) return;
-
-  const target = getZoomTargetForHotspot(hotspotId);
-  const hotspot = document.querySelector('#' + hotspotId);
-  const focusRegion = focusRegions[hotspotId];
-
-  if (!target || !hotspot || !focusRegion) return;
-
-  stopProgressiveAttention({ clearTiles: false });
-  focusTransitioning = true;
-  focusedHotspotId = hotspotId;
-  hidePrimaryHotspots();
-
-  // Expand the already-visible sharp cue without removing it.
-  const mediumRegion = {
-    offsetX: focusRegion.offsetX,
-    offsetY: focusRegion.offsetY,
-    width: focusRegion.width * 0.58,
-    height: focusRegion.height * 0.58
-  };
-
-  loadTilesAroundHotspot(
-    hotspotId,
-    MAX_LEVEL,
-    0,
-    mediumRegion,
-    true
-  );
-
-  setTimeout(() => {
-    loadTilesAroundHotspot(
-      hotspotId,
-      MAX_LEVEL,
-      0,
-      focusRegion,
-      true
-    );
-  }, 360);
-
-  // Camera begins while the masked detail is still expanding.
-  setTimeout(() => {
-    animateBaseBlur(0, 300);
-    mainCamera.setAttribute(
-      'animation__focusPosition',
-      `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 900; easing: easeInOutQuad`
-    );
-  }, 620);
-
-  // Description and narration begin during the camera movement.
-  setTimeout(() => {
-    showInfo(
-      hotspotTexts[hotspotId][currentLanguage],
-      hotspot
-    );
-
-    const isOrderedStoryVisit =
-      guidedTourActive &&
-      !guidedTourComplete &&
-      attentionTargetId === hotspotId &&
-      attentionSequence[attentionIndex] === hotspotId;
-
-    const narrationVariant =
-      isOrderedStoryVisit ? 'story' : 'standard';
-
-    speakNarration(
-      hotspotId,
-      narrationVariant,
-      () => {
-        if (!isOrderedStoryVisit) {
-          return;
-        }
-
-        storyAdvancePending = true;
-
-        setTimeout(() => {
-          if (
-            storyAdvancePending &&
-            focusedHotspotId === hotspotId &&
-            !focusTransitioning
-          ) {
-            returnFromFocus(true);
-          }
-        }, 1800);
-      }
-    );
-  }, 980);
-
-  // Full, unmasked high-resolution tiles settle into the close view.
-  setTimeout(() => {
-    animateBaseBlur(0, 300);
-    loadTilesAroundHotspot(
-      hotspotId,
-      MAX_LEVEL,
-      0.08,
-      focusRegion,
-      false
-    );
-  }, 1120);
-
-  setTimeout(() => {
-    focusTransitioning = false;
-    showNestedDetailsFor(hotspotId);
-    backButton.style.display = 'block';
-  }, 1550);
-}
-
-function switchFocusToHotspot(hotspotId, hotspotEl) {
-  // Deliberately disabled in the cinematic flow.
-  // The visitor returns with Back before selecting another subject.
-}
-
-function returnFromFocus(autoAdvance = false) {
-  clearTimeout(focusLeaveTimer);
-  storyAdvancePending = false;
-  if (!autoAdvance) stopSpeech();
-  if (!focusedHotspotId && !focusTransitioning) return;
-
-  focusTransitioning = true;
-  hideInfo();
-  hideCaptainDetails();
-  backButton.style.display = 'none';
-
-  animateBaseBlur(0, 500);
-
-  mainCamera.setAttribute(
-    'animation__focusPosition',
-    'property: position; to: 0 1.6 0; dur: 800; easing: easeInOutQuad'
-  );
-
-  const previousFocusId = focusedHotspotId;
-
-  setTimeout(() => {
-    clearHighResolutionTiles();
-    focusedHotspotId = null;
-    focusTransitioning = false;
-    showPrimaryHotspots();
-    resumeProgressiveAttentionAfterFocus(previousFocusId);
-  }, 820);
-}
-
-let pageReady = false;
-let currentLanguage = null;
-let tourMode = null;
-let closeTimer = null;
-let activeHotspot = null;
-let lastTextChangeTime = 0;
-let infoTimer = null;
-
-const galleryHotspots = [
-  'captain','lieutenant','girl','drummer','flag',
-  'musketeer','dog','leftGroup','rightGroup','backgroundArch'
-];
-
-const curatorHotspots = [
-  ...galleryHotspots,
-  'chickenClaws','drinkingHorn','weapons','spears',
-  'light','shield','captainHand','redSash'
-];
+const IMAGE_WIDTH = 15354;
+const IMAGE_HEIGHT = 13230;
+const WORLD_WIDTH = 4;
+const WORLD_HEIGHT = 3.45;
+const TILE_SIZE = 254;
+const TILE_OVERLAP = 1;
+const TILE_FOLDER = 'tiles';
+const MAX_LEVEL = 14;
+const GAZE_MS = 2500;
 
 const hotspotTexts = {
   captain: {
@@ -1312,61 +367,429 @@ const hotspotTexts = {
   }
 };
 
-function selectLanguage(language) {
-  currentLanguage = language;
-  tourMode = 'curator';
-  updateVisibleHotspots();
-  startExperience();
+const STORY_ORDER = [
+  'captain',
+  'lieutenant',
+  'girl',
+  'drummer',
+  'flag',
+  'musketeer',
+  'dog',
+  'leftGroup',
+  'rightGroup',
+  'backgroundArch'
+];
+
+const STORY_TEXT = {
+  captain: {
+    en: 'Our story begins with Captain Frans Banninck Cocq. His black costume, red sash, and outstretched hand establish leadership while setting the whole company in motion.',
+    ar: 'تبدأ قصتنا مع الكابتن فرانس بانينك كوك. تؤكد ملابسه السوداء ووشاحه الأحمر ويده الممدودة قيادته، وتضع الفرقة كلها في حالة حركة.'
+  },
+  lieutenant: {
+    en: 'Beside the captain stands Lieutenant Willem van Ruytenburch. His brilliant yellow clothing catches the light and carries our attention across the center of the painting.',
+    ar: 'وبجوار القائد يقف الملازم فيليم فان رويتنبرخ. تلتقط ملابسه الصفراء اللامعة الضوء، وتنقل انتباهنا عبر مركز اللوحة.'
+  },
+  girl: {
+    en: 'Behind the central pair, a mysterious illuminated girl appears. She is a symbolic figure carrying signs connected to the identity of the guard.',
+    ar: 'وخلف الثنائي المركزي تظهر فتاة مضيئة غامضة. إنها شخصية رمزية تحمل إشارات مرتبطة بهوية الحرس.'
+  },
+  drummer: {
+    en: 'The scene then seems to gain sound. On the right, the drummer introduces rhythm and makes the company feel ready to move beyond the frame.',
+    ar: 'ثم يبدو المشهد وكأنه يكتسب صوتًا. في اليمين، يضيف قارع الطبل الإيقاع، ويجعل الفرقة تبدو مستعدة للتحرك خارج الإطار.'
+  },
+  flag: {
+    en: 'Above the crowd, the raised flag gives the company its identity. Its sweeping diagonal continues the movement already begun below.',
+    ar: 'وفوق الحشد تمنح الراية المرفوعة الفرقة هويتها، ويواصل خطها القطري الحركة التي بدأت في الأسفل.'
+  },
+  musketeer: {
+    en: 'The musketeer reminds us that this is a civic guard company, while his weapon becomes one of the theatrical lines animating the scene.',
+    ar: 'يذكرنا حامل البندقية بأن هذه فرقة حرس مدني، بينما يصبح سلاحه أحد الخطوط المسرحية التي تحرك المشهد.'
+  },
+  dog: {
+    en: 'Near the drummer, a small dog adds an unexpected moment of everyday life, keeping the grand scene spontaneous and human.',
+    ar: 'وبالقرب من قارع الطبل يضيف كلب صغير لحظة غير متوقعة من الحياة اليومية، ويحافظ على عفوية المشهد وإنسانيته.'
+  },
+  leftGroup: {
+    en: 'As our eyes move left, overlapping guards create depth and transform a formal commission into a layered dramatic event.',
+    ar: 'ومع انتقال نظرنا إلى اليسار، تخلق شخصيات الحراس المتداخلة عمقًا وتحول التكليف الرسمي إلى حدث درامي متعدد الطبقات.'
+  },
+  rightGroup: {
+    en: 'Across the painting, the group on the right balances the central action and expands the sense of a much larger gathering.',
+    ar: 'وعبر اللوحة توازن المجموعة في اليمين الحركة المركزية، وتوسع الإحساس بتجمع أكبر بكثير.'
+  },
+  backgroundArch: {
+    en: 'Finally, the dark architecture gathers the story together. It frames the figures and intensifies the light that has guided us from one character to the next.',
+    ar: 'وأخيرًا، تجمع العمارة الداكنة القصة كلها، فتؤطر الشخصيات وتكثف الضوء الذي قادنا من شخصية إلى أخرى.'
+  }
+};
+
+const REGION = {
+  captain:        { cueW: 0.24, cueH: 0.34, focusW: 0.56, focusH: 0.90 },
+  lieutenant:     { cueW: 0.24, cueH: 0.36, focusW: 0.54, focusH: 0.90 },
+  girl:           { cueW: 0.22, cueH: 0.30, focusW: 0.46, focusH: 0.70 },
+  drummer:        { cueW: 0.28, cueH: 0.38, focusW: 0.66, focusH: 0.98 },
+  flag:           { cueW: 0.28, cueH: 0.42, focusW: 0.70, focusH: 1.08 },
+  musketeer:      { cueW: 0.22, cueH: 0.32, focusW: 0.48, focusH: 0.78 },
+  dog:            { cueW: 0.26, cueH: 0.16, focusW: 0.66, focusH: 0.40 },
+  leftGroup:      { cueW: 0.30, cueH: 0.40, focusW: 0.74, focusH: 0.96 },
+  rightGroup:     { cueW: 0.34, cueH: 0.42, focusW: 0.86, focusH: 1.02 },
+  backgroundArch: { cueW: 0.34, cueH: 0.22, focusW: 0.96, focusH: 0.68 }
+};
+
+const State = Object.freeze({
+  IDLE: 'IDLE',
+  CUE: 'CUE',
+  WAIT_GAZE: 'WAIT_GAZE',
+  ZOOMING: 'ZOOMING',
+  STORY: 'STORY',
+  RETURNING: 'RETURNING',
+  FREE: 'FREE'
+});
+
+let currentLanguage = null;
+let pageReady = false;
+let gazeTimer = null;
+let speechUtterance = null;
+let voices = [];
+
+function levelDimensions(level) {
+  const scale = Math.pow(2, level - MAX_LEVEL);
+  return {
+    width: Math.ceil(IMAGE_WIDTH * scale),
+    height: Math.ceil(IMAGE_HEIGHT * scale)
+  };
 }
 
-function updateVisibleHotspots() {
-  document.querySelectorAll('.hotspot').forEach(el => {
-    if (el.classList.contains('captainDetail')) {
-      el.setAttribute('visible', false);
-    } else {
-      el.setAttribute('visible', true);
-    }
-  });
-}
+function tileGeometry(level, col, row) {
+  const dims = levelDimensions(level);
+  const coreX = col * TILE_SIZE;
+  const coreY = row * TILE_SIZE;
 
-function showCaptainDetails() {
-  if (tourMode !== 'curator') return;
-  document.querySelectorAll('.captainDetail').forEach(el => {
-    el.setAttribute('visible', true);
-  });
-}
+  if (coreX >= dims.width || coreY >= dims.height) return null;
 
-function hideCaptainDetails() {
-  document.querySelectorAll('.captainDetail').forEach(el => {
-    el.setAttribute('visible', false);
-  });
-}
+  const columns = Math.ceil(dims.width / TILE_SIZE);
+  const rows = Math.ceil(dims.height / TILE_SIZE);
 
-function getHaloForHotspot(id) {
-  return document.querySelector('#' + id + 'Halo');
-}
+  const leftOverlap = col === 0 ? 0 : TILE_OVERLAP;
+  const topOverlap = row === 0 ? 0 : TILE_OVERLAP;
+  const rightOverlap = col === columns - 1 ? 0 : TILE_OVERLAP;
+  const bottomOverlap = row === rows - 1 ? 0 : TILE_OVERLAP;
 
-function showHalo(id) {
-  const halo = getHaloForHotspot(id);
-  if (!halo) return;
-
-  halo.setAttribute('visible', true);
-  halo.setAttribute(
-    'animation',
-    'property: material.opacity; from:0.04; to:0.12; dur:2800; dir:alternate; loop:true'
+  const fileX = Math.max(0, coreX - leftOverlap);
+  const fileY = Math.max(0, coreY - topOverlap);
+  const fileW = Math.min(
+    TILE_SIZE + leftOverlap + rightOverlap,
+    dims.width - fileX
   );
+  const fileH = Math.min(
+    TILE_SIZE + topOverlap + bottomOverlap,
+    dims.height - fileY
+  );
+
+  return {
+    worldW: fileW / dims.width * WORLD_WIDTH,
+    worldH: fileH / dims.height * WORLD_HEIGHT,
+    centerX: ((fileX + fileW / 2) / dims.width - 0.5) * WORLD_WIDTH,
+    centerY: (0.5 - (fileY + fileH / 2) / dims.height) * WORLD_HEIGHT
+  };
 }
 
-function hideHalo(id) {
-  const halo = getHaloForHotspot(id);
-  if (!halo) return;
-
-  halo.removeAttribute('animation');
-  halo.setAttribute('visible', false);
+function hotspotCenter(id) {
+  const hotspot = document.querySelector('#' + id);
+  const pos = hotspot.getAttribute('position');
+  return { x: pos.x, y: pos.y - 1.6 };
 }
 
-function hideAllHalos() {
-  Object.keys(hotspotTexts).forEach(id => hideHalo(id));
+function tileRangeFor(id, width, height) {
+  const center = hotspotCenter(id);
+  const dims = levelDimensions(MAX_LEVEL);
+
+  const leftPx = Math.max(
+    0,
+    ((center.x - width / 2) / WORLD_WIDTH + 0.5) * dims.width
+  );
+  const rightPx = Math.min(
+    dims.width,
+    ((center.x + width / 2) / WORLD_WIDTH + 0.5) * dims.width
+  );
+  const topPx = Math.max(
+    0,
+    (0.5 - (center.y + height / 2) / WORLD_HEIGHT) * dims.height
+  );
+  const bottomPx = Math.min(
+    dims.height,
+    (0.5 - (center.y - height / 2) / WORLD_HEIGHT) * dims.height
+  );
+
+  return {
+    center,
+    startCol: Math.floor(leftPx / TILE_SIZE),
+    endCol: Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE),
+    startRow: Math.floor(topPx / TILE_SIZE),
+    endRow: Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE)
+  };
+}
+
+function animateOpacity(object3D, target, duration = 450) {
+  if (!object3D) return;
+
+  const materials = [];
+  object3D.traverse(node => {
+    if (node.material) materials.push(node.material);
+  });
+
+  const startValues = materials.map(material => material.opacity || 0);
+  const started = performance.now();
+
+  function frame(now) {
+    const progress = Math.min(1, (now - started) / duration);
+    const eased = progress * progress * (3 - 2 * progress);
+
+    materials.forEach((material, index) => {
+      material.transparent = true;
+      material.opacity =
+        startValues[index] +
+        (target - startValues[index]) * eased;
+      material.needsUpdate = true;
+    });
+
+    if (progress < 1) requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+function setBlurOpacity(target, duration = 450) {
+  const mesh = paintingBlur.getObject3D('mesh');
+  if (!mesh || !mesh.material) return;
+
+  const start = mesh.material.opacity || 0;
+  const started = performance.now();
+
+  function frame(now) {
+    const progress = Math.min(1, (now - started) / duration);
+    const eased = progress * progress * (3 - 2 * progress);
+
+    mesh.material.opacity =
+      start + (target - start) * eased;
+    mesh.material.needsUpdate = true;
+
+    if (progress < 1) requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+const CueCache = {
+  entries: new Map(),
+
+  async ensure(id) {
+    if (this.entries.has(id)) return this.entries.get(id);
+
+    const cfg = REGION[id];
+    const range = tileRangeFor(id, cfg.cueW, cfg.cueH);
+    const entity = document.createElement('a-entity');
+    entity.setAttribute('visible', false);
+    entity.dataset.target = id;
+    cueLayer.appendChild(entity);
+
+    const jobs = [];
+
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      for (let col = range.startCol; col <= range.endCol; col++) {
+        jobs.push(
+          this.createMaskedTile(
+            entity,
+            id,
+            col,
+            row,
+            range.center,
+            cfg.cueW,
+            cfg.cueH
+          )
+        );
+      }
+    }
+
+    await Promise.allSettled(jobs);
+
+    const entry = { entity };
+    this.entries.set(id, entry);
+    return entry;
+  },
+
+  createMaskedTile(parent, id, col, row, center, maskW, maskH) {
+    return new Promise(resolve => {
+      const geometry = tileGeometry(MAX_LEVEL, col, row);
+      if (!geometry) {
+        resolve();
+        return;
+      }
+
+      const image = new Image();
+      image.crossOrigin = 'anonymous';
+
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+
+        const tileLeft = geometry.centerX - geometry.worldW / 2;
+        const tileTop = geometry.centerY + geometry.worldH / 2;
+        const cx = ((center.x - tileLeft) / geometry.worldW) * canvas.width;
+        const cy = ((tileTop - center.y) / geometry.worldH) * canvas.height;
+        const rx = (maskW / 2 / geometry.worldW) * canvas.width;
+        const ry = (maskH / 2 / geometry.worldH) * canvas.height;
+
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(1, ry / Math.max(rx, 0.0001));
+
+        const gradient = ctx.createRadialGradient(
+          0, 0, rx * 0.05,
+          0, 0, rx
+        );
+        gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
+        gradient.addColorStop(0.30, 'rgba(255,255,255,0.98)');
+        gradient.addColorStop(0.52, 'rgba(255,255,255,0.80)');
+        gradient.addColorStop(0.70, 'rgba(255,255,255,0.48)');
+        gradient.addColorStop(0.86, 'rgba(255,255,255,0.18)');
+        gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, rx, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.needsUpdate = true;
+
+        const plane = document.createElement('a-plane');
+        plane.setAttribute('width', geometry.worldW);
+        plane.setAttribute('height', geometry.worldH);
+        plane.setAttribute(
+          'position',
+          `${geometry.centerX} ${geometry.centerY} 0`
+        );
+
+        plane.addEventListener('loaded', () => {
+          const mesh = plane.getObject3D('mesh');
+          if (mesh) {
+            mesh.material = new THREE.MeshBasicMaterial({
+              map: texture,
+              transparent: true,
+              opacity: 0,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+              toneMapped: false,
+              premultipliedAlpha: true
+            });
+          }
+          resolve();
+        }, { once: true });
+
+        parent.appendChild(plane);
+      };
+
+      image.onerror = resolve;
+      image.src = `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
+    });
+  },
+
+  hideAll() {
+    this.entries.forEach(entry => {
+      entry.entity.setAttribute('visible', false);
+    });
+  }
+};
+
+function clearFocusTiles() {
+  focusLayer.innerHTML = '';
+}
+
+function loadFocusTiles(id) {
+  clearFocusTiles();
+
+  const cfg = REGION[id];
+  const range = tileRangeFor(id, cfg.focusW, cfg.focusH);
+
+  for (let row = range.startRow; row <= range.endRow; row++) {
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      const geometry = tileGeometry(MAX_LEVEL, col, row);
+      if (!geometry) continue;
+
+      const plane = document.createElement('a-plane');
+      plane.setAttribute(
+        'src',
+        `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`
+      );
+      plane.setAttribute('width', geometry.worldW);
+      plane.setAttribute('height', geometry.worldH);
+      plane.setAttribute(
+        'position',
+        `${geometry.centerX} ${geometry.centerY} 0`
+      );
+      plane.setAttribute(
+        'material',
+        'shader: flat; side: double; transparent: true; opacity: 0; toneMapped: false'
+      );
+      plane.setAttribute(
+        'animation__fade',
+        'property: material.opacity; from: 0; to: 1; dur: 500; easing: easeOutQuad'
+      );
+
+      focusLayer.appendChild(plane);
+    }
+  }
+}
+
+function refreshVoices() {
+  if (!('speechSynthesis' in window)) return;
+  voices = window.speechSynthesis.getVoices();
+}
+
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
+}
+
+function stopSpeech() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  speechUtterance = null;
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window) || !text) return;
+
+  stopSpeech();
+  refreshVoices();
+
+  const prefix = currentLanguage === 'ar' ? 'ar' : 'en';
+  const preferred = voices.find(v =>
+    v.lang.toLowerCase().startsWith(prefix) &&
+    /aria|jenny|samantha|daniel|salma|hamed|google/i.test(v.name)
+  ) || voices.find(v => v.lang.toLowerCase().startsWith(prefix));
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
+  utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.92;
+  utterance.pitch = 0.97;
+  if (preferred) utterance.voice = preferred;
+
+  speechUtterance = utterance;
+  window.speechSynthesis.speak(utterance);
+}
+
+function standardNarration(id) {
+  const raw = hotspotTexts[id][currentLanguage];
+  return raw.replace(/\n+/g, ' ');
 }
 
 function makeCanvasTexture(text, language, width = 650, height = 250) {
@@ -1375,7 +798,7 @@ function makeCanvasTexture(text, language, width = 650, height = 250) {
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = 'rgba(17, 17, 17, 0.68)';
+  ctx.fillStyle = 'rgba(17,17,17,0.72)';
   roundRect(ctx, 0, 0, width, height, 34);
   ctx.fill();
 
@@ -1427,6 +850,7 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
 
     for (let i = 0; i < words.length; i++) {
       const testLine = line + words[i] + ' ';
+
       if (ctx.measureText(testLine).width > maxWidth && i > 0) {
         ctx.fillText(line.trim(), x, y);
         line = words[i] + ' ';
@@ -1442,24 +866,16 @@ function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
 }
 
 function setPanelText(panel, text, language) {
-  const texture = makeCanvasTexture(text, language);
   const mesh = panel.getObject3D('mesh');
   if (!mesh) return;
 
-  mesh.material.map = texture;
+  mesh.material.map = makeCanvasTexture(text, language);
   mesh.material.transparent = true;
   mesh.material.needsUpdate = true;
 }
 
-function showInfo(text, hotspot) {
-  clearTimeout(closeTimer);
-
-  const now = Date.now();
-  if (now - lastTextChangeTime < 800 && activeHotspot !== hotspot) return;
-  lastTextChangeTime = now;
-
-  activeHotspot = hotspot;
-
+function showInfo(id) {
+  const hotspot = document.querySelector('#' + id);
   const pos = hotspot.getAttribute('position');
 
   let panelX = pos.x + 0.68;
@@ -1469,14 +885,201 @@ function showInfo(text, hotspot) {
   if (pos.y > 2.0) panelY = pos.y - 0.42;
 
   infoPanel.setAttribute('position', `${panelX} ${panelY} -2.8`);
-  setPanelText(infoPanel, text, currentLanguage);
+  setPanelText(
+    infoPanel,
+    hotspotTexts[id][currentLanguage],
+    currentLanguage
+  );
   infoPanel.setAttribute('visible', true);
 }
 
 function hideInfo() {
   infoPanel.setAttribute('visible', false);
-  activeHotspot = null;
 }
+
+function showPrimaryHotspots(show) {
+  document.querySelectorAll('.hotspot').forEach(el => {
+    if (el.classList.contains('captainDetail')) {
+      el.setAttribute('visible', false);
+    } else {
+      el.setAttribute('visible', show);
+    }
+  });
+}
+
+function showNestedDetails(id) {
+  document.querySelectorAll('.captainDetail').forEach(el => {
+    el.setAttribute('visible', id === 'captain');
+  });
+}
+
+const TourEngine = {
+  state: State.IDLE,
+  index: 0,
+  target: null,
+  pulseToken: 0,
+  autoTimer: null,
+
+  setState(next) {
+    this.state = next;
+    console.log('[Tour state]', next);
+  },
+
+  async startCue(id) {
+    clearTimeout(this.autoTimer);
+    this.pulseToken += 1;
+    const token = this.pulseToken;
+
+    this.target = id;
+    this.setState(State.CUE);
+    CueCache.hideAll();
+    setBlurOpacity(0, 150);
+
+    const entry = await CueCache.ensure(id);
+    if (token !== this.pulseToken) return;
+
+    entry.entity.setAttribute('visible', true);
+    animateOpacity(entry.entity.object3D, 0.38, 300);
+
+    for (let cycle = 0; cycle < 4; cycle++) {
+      if (token !== this.pulseToken || this.state === State.ZOOMING) return;
+
+      await this.wait(140);
+      setBlurOpacity(0.52, 500);
+      animateOpacity(entry.entity.object3D, 1.0, 500);
+      await this.wait(560);
+
+      setBlurOpacity(0, 500);
+      animateOpacity(entry.entity.object3D, 0.42, 500);
+      await this.wait(560);
+    }
+
+    if (token !== this.pulseToken) return;
+
+    setBlurOpacity(0, 250);
+    animateOpacity(entry.entity.object3D, 0.52, 250);
+    this.setState(State.WAIT_GAZE);
+  },
+
+  confirmGaze(id) {
+    if (this.state === State.FREE) {
+      this.openTarget(id, false);
+      return;
+    }
+
+    if (
+      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
+      id === this.target
+    ) {
+      this.openTarget(id, true);
+    }
+  },
+
+  openTarget(id, orderedStory) {
+    this.pulseToken += 1;
+    this.setState(State.ZOOMING);
+    clearTimeout(this.autoTimer);
+    setBlurOpacity(0, 250);
+    CueCache.hideAll();
+    showPrimaryHotspots(false);
+    loadFocusTiles(id);
+
+    const hotspot = document.querySelector('#' + id);
+    const pos = hotspot.getAttribute('position');
+
+    setTimeout(() => {
+      mainCamera.setAttribute(
+        'animation__focus',
+        `property: position; to: ${pos.x} ${pos.y} -1.15; dur: 850; easing: easeInOutQuad`
+      );
+    }, 220);
+
+    setTimeout(() => {
+      this.setState(State.STORY);
+      showInfo(id);
+      showNestedDetails(id);
+      backButton.style.display = 'block';
+
+      const narration = orderedStory
+        ? STORY_TEXT[id][currentLanguage]
+        : standardNarration(id);
+
+      speak(narration);
+
+      if (orderedStory) {
+        const words = narration.trim().split(/\s+/).length;
+        const narrationMs = Math.max(7000, words * 430);
+
+        this.autoTimer = setTimeout(() => {
+          if (this.state === State.STORY && this.target === id) {
+            this.returnFromTarget(true);
+          }
+        }, narrationMs + 1200);
+      }
+    }, 850);
+  },
+
+  returnFromTarget(advanceStory) {
+    if (
+      this.state !== State.STORY &&
+      this.state !== State.ZOOMING
+    ) return;
+
+    clearTimeout(this.autoTimer);
+    stopSpeech();
+    this.setState(State.RETURNING);
+    hideInfo();
+    showNestedDetails(null);
+    backButton.style.display = 'none';
+
+    mainCamera.setAttribute(
+      'animation__focus',
+      'property: position; to: 0 1.6 0; dur: 800; easing: easeInOutQuad'
+    );
+
+    setTimeout(() => {
+      clearFocusTiles();
+      showPrimaryHotspots(true);
+
+      if (advanceStory) {
+        this.index += 1;
+
+        if (this.index >= STORY_ORDER.length) {
+          this.target = null;
+          this.setState(State.FREE);
+          CueCache.hideAll();
+          setBlurOpacity(0, 250);
+
+          const ending =
+            currentLanguage === 'ar'
+              ? 'انتهت القصة الموجهة. يمكنك الآن استكشاف أي عنصر بحرية.'
+              : 'The guided story is complete. You can now explore any element freely.';
+
+          setPanelText(welcomePanel, ending, currentLanguage);
+          welcomePanel.setAttribute('visible', true);
+          speak(ending);
+
+          setTimeout(() => {
+            welcomePanel.setAttribute('visible', false);
+          }, 4500);
+        } else {
+          this.startCue(STORY_ORDER[this.index]);
+        }
+      } else {
+        this.setState(State.FREE);
+        this.target = null;
+      }
+    }, 830);
+  },
+
+  manualBack() {
+    this.returnFromTarget(false);
+  },
+
+  wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+};
 
 function addHotspot(id) {
   const el = document.querySelector('#' + id);
@@ -1485,39 +1088,21 @@ function addHotspot(id) {
   el.addEventListener('mouseenter', () => {
     if (!pageReady || !currentLanguage) return;
 
-    clearTimeout(infoTimer);
-    clearTimeout(closeTimer);
+    clearTimeout(gazeTimer);
 
-    if (el.classList.contains('captainDetail')) {
-      infoTimer = setTimeout(() => {
-        showInfo(
-          hotspotTexts[id][currentLanguage],
-          el
-        );
-        speakNarration(id, 'standard');
-      }, 2000);
-      return;
-    }
+    gazeTimer = setTimeout(() => {
+      if (el.classList.contains('captainDetail')) {
+        showInfo(id);
+        speak(standardNarration(id));
+        return;
+      }
 
-    if (focusedHotspotId || focusTransitioning) return;
-
-    // During the guided tour, only the currently directed target
-    // can advance the story. After completion, any hotspot works.
-    if (
-      guidedTourActive &&
-      !guidedTourComplete &&
-      attentionTargetId !== id
-    ) {
-      return;
-    }
-
-    infoTimer = setTimeout(() => {
-      zoomToHotspot(id);
-    }, GAZE_CONFIRM_MS);
+      TourEngine.confirmGaze(id);
+    }, el.classList.contains('captainDetail') ? 2000 : GAZE_MS);
   });
 
   el.addEventListener('mouseleave', () => {
-    clearTimeout(infoTimer);
+    clearTimeout(gazeTimer);
 
     if (el.classList.contains('captainDetail')) {
       hideInfo();
@@ -1525,90 +1110,45 @@ function addHotspot(id) {
   });
 }
 
-function startExperience() {
+function selectLanguage(language) {
+  currentLanguage = language;
   pageReady = true;
-  guidedTourActive = true;
-  guidedTourComplete = false;
-  attentionIndex = 0;
-
   languageOverlay.style.display = 'none';
   gazeCursor.setAttribute('visible', true);
-  showPrimaryHotspots();
-  hideAllHalos();
+  showPrimaryHotspots(true);
   refreshVoices();
-  animateBaseBlur(0, 0);
 
-  const welcomePanelText =
-    currentLanguage === 'ar'
-      ? 'مرحبًا بك. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
-      : 'Welcome. The painting will guide your attention from one detail to the next.';
+  const welcome =
+    language === 'ar'
+      ? 'مرحبًا بك في الحراسة الليلية. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
+      : 'Welcome to The Night Watch. The painting will guide your attention from one detail to the next.';
 
-  const welcomeAudio =
-    currentLanguage === 'ar'
-      ? 'مرحبًا بك في الحراسة الليلية. راقب اللوحة، ودع التغيرات البصرية تقود انتباهك.'
-      : 'Welcome to The Night Watch. Observe the painting and allow its visual changes to guide your attention.';
-
-  setPanelText(
-    welcomePanel,
-    welcomePanelText,
-    currentLanguage
-  );
+  setPanelText(welcomePanel, welcome, language);
   welcomePanel.setAttribute('visible', true);
+  speak(welcome);
 
-  speakText(welcomeAudio, () => {
-    welcomePanel.setAttribute('visible', false);
-    startProgressiveAttention(
-      attentionSequence[attentionIndex]
-    );
-  });
-
-  // Fallback in case speech synthesis does not fire an end event.
   setTimeout(() => {
-    if (!attentionRunning && !focusedHotspotId) {
-      welcomePanel.setAttribute('visible', false);
-      startProgressiveAttention(
-        attentionSequence[attentionIndex]
-      );
-    }
-  }, 6500);
-}
-
-window.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && (focusedHotspotId || focusTransitioning)) {
-    returnFromFocus(false);
-  }
-});
-
-
-function auditHotspotTexts() {
-  const hotspotIds = [...document.querySelectorAll('.hotspot')]
-    .map(el => el.id);
-
-  hotspotIds.forEach(id => {
-    if (
-      !hotspotTexts[id] ||
-      !hotspotTexts[id].en ||
-      !hotspotTexts[id].ar
-    ) {
-      console.warn(`Hotspot is missing English or Arabic text: ${id}`);
-    }
-  });
+    welcomePanel.setAttribute('visible', false);
+    TourEngine.index = 0;
+    TourEngine.startCue(STORY_ORDER[0]);
+  }, 4200);
 }
 
 Object.keys(hotspotTexts).forEach(addHotspot);
 
-window.addEventListener('load', () => {
-  auditHotspotTexts();
-  hideInfo();
-  hideAllHalos();
-  pageReady = false;
-  currentLanguage = null;
-  tourMode = null;
-  gazeCursor.setAttribute('visible', false);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    TourEngine.manualBack();
+  }
+});
 
-  document.querySelectorAll('.hotspot').forEach(el => {
-    el.setAttribute('visible', false);
-  });
+window.addEventListener('load', () => {
+  pageReady = false;
+  gazeCursor.setAttribute('visible', false);
+  infoPanel.setAttribute('visible', false);
+  welcomePanel.setAttribute('visible', false);
+  showPrimaryHotspots(false);
+  setBlurOpacity(0, 0);
 });
 </script>
 
