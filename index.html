@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Audio and Focus Guided Story</title>
+<title>The Night Watch — Narration Focus Blur</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -915,7 +915,7 @@ function startProgressiveAttention(hotspotId, speakNow = false) {
 
   const cueSize = attentionRegions[hotspotId] || null;
 
-  animateBaseBlur(1.7, 850);
+  animateBaseBlur(0, 250);
   loadTilesAroundHotspot(
     hotspotId,
     14,
@@ -1061,7 +1061,6 @@ function zoomToHotspot(hotspotId) {
 
   // Camera begins while the masked detail is still expanding.
   setTimeout(() => {
-    animateBaseBlur(0.65, 750);
     mainCamera.setAttribute(
       'animation__focusPosition',
       `property: position; to: ${target.x} ${target.y} ${target.z}; dur: 900; easing: easeInOutQuad`
@@ -1069,13 +1068,17 @@ function zoomToHotspot(hotspotId) {
   }, 620);
 
   // Description and narration begin during the camera movement.
+  // The base painting blurs only while the narration is playing.
   setTimeout(() => {
     showInfo(
       hotspotTexts[hotspotId][currentLanguage],
       hotspot
     );
 
+    animateBaseBlur(1.7, 600);
+
     speakNarration(hotspotId, () => {
+      animateBaseBlur(0, 600);
       if (!guidedTourActive || guidedTourComplete) {
         return;
       }
@@ -1096,7 +1099,6 @@ function zoomToHotspot(hotspotId) {
 
   // Full, unmasked high-resolution tiles settle into the close view.
   setTimeout(() => {
-    animateBaseBlur(0, 550);
     loadTilesAroundHotspot(
       hotspotId,
       MAX_LEVEL,
@@ -1119,6 +1121,7 @@ function switchFocusToHotspot(hotspotId, hotspotEl) {
 }
 
 function returnFromFocus(autoAdvance = false) {
+  animateBaseBlur(0, 450);
   clearTimeout(focusLeaveTimer);
   storyAdvancePending = false;
   if (!autoAdvance) stopSpeech();
@@ -1466,6 +1469,7 @@ function startExperience() {
   showPrimaryHotspots();
   hideAllHalos();
   refreshVoices();
+  animateBaseBlur(0, 0);
 
   const welcomeText =
     currentLanguage === 'ar'
@@ -1514,6 +1518,7 @@ Object.keys(hotspotTexts).forEach(addHotspot);
 
 window.addEventListener('load', () => {
   auditHotspotTexts();
+  animateBaseBlur(0, 0);
   hideInfo();
   hideAllHalos();
   pageReady = false;
