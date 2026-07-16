@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Cinematic Attention</title>
+<title>The Night Watch — Audio Guided Story</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
 <style>
@@ -115,7 +115,7 @@ body {
   <button
     id="backButton"
     class="tileButton"
-    onclick="returnFromFocus()"
+    onclick="returnFromFocus(false)"
     style="display:none">
     ← Back
   </button>
@@ -232,11 +232,117 @@ const backButton = document.querySelector('#backButton');
 
 let loadedTileKeys = new Set();
 let tileGeneration = 0;
+let storyNarrating = false;
+let storyAdvancePending = false;
+const GAZE_CONFIRM_MS = 2500;
 let focusedHotspotId = null;
 let focusTransitioning = false;
 let focusLeaveTimer = null;
 
 // Progressive attention guidance.
+const audioGuide = {
+  captain: {
+    direct: {
+      en: 'Look toward the captain in black near the center.',
+      ar: 'انظر نحو القائد الذي يرتدي الأسود قرب مركز اللوحة.'
+    },
+    narrate: {
+      en: 'Captain Frans Banninck Cocq leads the civic guard. His dark clothing, red sash, and outstretched hand establish authority and movement.',
+      ar: 'يقود الكابتن فرانس بانينك كوك فرقة الحرس المدني، وتبرز ملابسه الداكنة ووشاحه الأحمر ويده الممدودة سلطته وحركة المشهد.'
+    }
+  },
+  lieutenant: {
+    direct: {
+      en: 'Now look to the lieutenant in bright yellow beside him.',
+      ar: 'والآن انظر إلى الملازم ذي الملابس الصفراء اللامعة بجانبه.'
+    },
+    narrate: {
+      en: 'Lieutenant Willem van Ruytenburch creates a luminous contrast beside the captain and draws the eye across the center.',
+      ar: 'يخلق الملازم فيليم فان رويتنبرخ تباينًا مضيئًا بجانب القائد ويوجه النظر عبر مركز اللوحة.'
+    }
+  },
+  girl: {
+    direct: {
+      en: 'Next, find the illuminated girl to the left.',
+      ar: 'بعد ذلك، ابحث عن الفتاة المضيئة إلى اليسار.'
+    },
+    narrate: {
+      en: 'The illuminated girl is a symbolic figure carrying objects linked to the identity and traditions of the civic guard.',
+      ar: 'الفتاة المضيئة شخصية رمزية تحمل أشياء مرتبطة بهوية الحرس المدني وتقاليده.'
+    }
+  },
+  drummer: {
+    direct: {
+      en: 'Now look to the drummer on the far right.',
+      ar: 'والآن انظر إلى قارع الطبل في أقصى اليمين.'
+    },
+    narrate: {
+      en: 'The drummer adds imagined sound and rhythm, making the company feel ready to move.',
+      ar: 'يضيف قارع الطبل صوتًا وإيقاعًا متخيلين ويجعل الفرقة تبدو مستعدة للتحرك.'
+    }
+  },
+  flag: {
+    direct: {
+      en: 'Look upward and left for the flag bearer.',
+      ar: 'انظر إلى الأعلى واليسار بحثًا عن حامل الراية.'
+    },
+    narrate: {
+      en: 'The flag identifies the company and adds ceremony and strong diagonal movement.',
+      ar: 'تُعرّف الراية بالفرقة وتضيف طابعًا احتفاليًا وحركة قطرية قوية.'
+    }
+  },
+  musketeer: {
+    direct: {
+      en: 'Now find the musketeer on the left.',
+      ar: 'والآن ابحث عن حامل البندقية في اليسار.'
+    },
+    narrate: {
+      en: 'The musketeer recalls the guard’s military role while his weapon becomes part of the composition’s theatrical lines.',
+      ar: 'يشير حامل البندقية إلى الدور العسكري للحرس، بينما يصبح سلاحه جزءًا من الخطوط المسرحية في التكوين.'
+    }
+  },
+  dog: {
+    direct: {
+      en: 'Look down near the drummer for the small dog.',
+      ar: 'انظر إلى الأسفل قرب قارع الطبل بحثًا عن الكلب الصغير.'
+    },
+    narrate: {
+      en: 'The dog adds spontaneity and everyday life to the crowded scene.',
+      ar: 'يضيف الكلب العفوية وإحساس الحياة اليومية إلى المشهد المزدحم.'
+    }
+  },
+  leftGroup: {
+    direct: {
+      en: 'Now look across the group of guards on the left.',
+      ar: 'والآن انظر إلى مجموعة الحراس في اليسار.'
+    },
+    narrate: {
+      en: 'The overlapping figures create depth and turn a formal portrait into a dramatic scene.',
+      ar: 'تخلق الشخصيات المتداخلة عمقًا وتحول الصورة الرسمية إلى مشهد درامي.'
+    }
+  },
+  rightGroup: {
+    direct: {
+      en: 'Shift your attention to the group on the right.',
+      ar: 'حوّل انتباهك إلى المجموعة في اليمين.'
+    },
+    narrate: {
+      en: 'The figures on the right balance the central pair and expand the sense of a large gathering.',
+      ar: 'توازن الشخصيات في اليمين الثنائي المركزي وتوسع الإحساس بتجمع كبير.'
+    }
+  },
+  backgroundArch: {
+    direct: {
+      en: 'Finally, look toward the dark architecture in the background.',
+      ar: 'وأخيرًا، انظر نحو العمارة الداكنة في الخلفية.'
+    },
+    narrate: {
+      en: 'The architecture frames the action and intensifies Rembrandt’s dramatic use of light and shadow.',
+      ar: 'تؤطر العمارة الخلفية الحركة وتكثف استخدام رامبرانت الدرامي للضوء والظل.'
+    }
+  }
+};
+
 const attentionSequence = [
   'captain',
   'lieutenant',
@@ -521,6 +627,55 @@ function loadTilesAroundHotspot(
 }
 
 
+function stopSpeech() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  storyNarrating = false;
+}
+
+function speakText(value, onEnd = null) {
+  stopSpeech();
+
+  if (!('speechSynthesis' in window) || !value) {
+    if (onEnd) setTimeout(onEnd, 250);
+    return;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(value);
+  utterance.lang = currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
+  utterance.rate = 0.94;
+  utterance.pitch = 1;
+  utterance.volume = 1;
+
+  utterance.onend = () => {
+    storyNarrating = false;
+    if (onEnd) onEnd();
+  };
+
+  utterance.onerror = () => {
+    storyNarrating = false;
+    if (onEnd) onEnd();
+  };
+
+  storyNarrating = true;
+  window.speechSynthesis.speak(utterance);
+}
+
+function speakDirection(id) {
+  const entry = audioGuide[id];
+  if (entry) speakText(entry.direct[currentLanguage]);
+}
+
+function speakNarration(id, onEnd = null) {
+  const entry = audioGuide[id];
+  if (!entry) {
+    if (onEnd) onEnd();
+    return;
+  }
+  speakText(entry.narrate[currentLanguage], onEnd);
+}
+
 function clearAttentionTimers() {
   clearTimeout(attentionLevelTimer);
   clearTimeout(attentionAdvanceTimer);
@@ -559,6 +714,7 @@ function startProgressiveAttention(hotspotId) {
   // At lower pyramid levels, each tile covers a large rectangular area,
   // which makes the cue look like a large square rather than a person.
   loadTilesAroundHotspot(hotspotId, 14, 0.0, cueSize, true);
+  speakDirection(hotspotId);
 
   // If the visitor does not engage, guide attention to the next element.
   attentionAdvanceTimer = setTimeout(() => {
@@ -692,12 +848,26 @@ function zoomToHotspot(hotspotId) {
     );
   }, 620);
 
-  // Description appears halfway through the camera movement.
+  // Description and narration begin during the camera movement.
   setTimeout(() => {
     showInfo(
       hotspotTexts[hotspotId][currentLanguage],
       hotspot
     );
+
+    speakNarration(hotspotId, () => {
+      storyAdvancePending = true;
+
+      setTimeout(() => {
+        if (
+          storyAdvancePending &&
+          focusedHotspotId === hotspotId &&
+          !focusTransitioning
+        ) {
+          returnFromFocus(true);
+        }
+      }, 1800);
+    });
   }, 980);
 
   // Full, unmasked high-resolution tiles settle into the close view.
@@ -723,8 +893,10 @@ function switchFocusToHotspot(hotspotId, hotspotEl) {
   // The visitor returns with Back before selecting another subject.
 }
 
-function returnFromFocus() {
+function returnFromFocus(autoAdvance = false) {
   clearTimeout(focusLeaveTimer);
+  storyAdvancePending = false;
+  if (!autoAdvance) stopSpeech();
   if (!focusedHotspotId && !focusTransitioning) return;
 
   focusTransitioning = true;
@@ -1030,7 +1202,7 @@ function addHotspot(id) {
 
     infoTimer = setTimeout(() => {
       zoomToHotspot(id);
-    }, 2000);
+    }, GAZE_CONFIRM_MS);
   });
 
   el.addEventListener('mouseleave', () => {
@@ -1051,8 +1223,8 @@ function startExperience() {
 
   const welcomeText =
     currentLanguage === 'ar'
-      ? 'اتبع التفاصيل التي تظهر تدريجيًا، ثم انظر إليها لمدة ثانيتين لفتح العرض القريب.'
-      : 'Follow the detail that gradually comes into focus, then gaze at it for two seconds to open the close view.';
+      ? 'استمع إلى المرشد، واتبع التفاصيل التي تظهر تدريجيًا، ثم انظر إليها لمدة ثانيتين ونصف تقريبًا.'
+      : 'Listen to the guide, follow the detail that comes into focus, and gaze at it for about two and a half seconds.';
 
   setPanelText(welcomePanel, welcomeText, currentLanguage);
   welcomePanel.setAttribute('visible', true);
@@ -1066,7 +1238,7 @@ function startExperience() {
 
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape' && (focusedHotspotId || focusTransitioning)) {
-    returnFromFocus();
+    returnFromFocus(false);
   }
 });
 
