@@ -424,16 +424,16 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.30, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.24, focusW: 0.56, focusH: 0.90 },
-  lieutenant:     { cueW: 0.24, cueH: 0.36, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
-  girl:           { cueW: 0.22, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
-  drummer:        { cueW: 0.28, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
-  flag:           { cueW: 0.28, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.70, focusH: 1.08 },
-  musketeer:      { cueW: 0.22, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.48, focusH: 0.78 },
-  dog:            { cueW: 0.26, cueH: 0.16, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40 },
-  leftGroup:      { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.74, focusH: 0.96 },
-  rightGroup:     { cueW: 0.34, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.86, focusH: 1.02 },
-  backgroundArch: { cueW: 0.34, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68 }
+  captain:        { cueW: 0.62, cueH: 0.96, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.56, focusH: 0.90 },
+  lieutenant:     { cueW: 0.60, cueH: 0.96, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
+  girl:           { cueW: 0.54, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
+  drummer:        { cueW: 0.76, cueH: 1.08, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
+  flag:           { cueW: 0.82, cueH: 1.20, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.70, focusH: 1.08 },
+  musketeer:      { cueW: 0.58, cueH: 0.88, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.48, focusH: 0.78 },
+  dog:            { cueW: 0.74, cueH: 0.50, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40 },
+  leftGroup:      { cueW: 0.88, cueH: 1.10, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.74, focusH: 0.96 },
+  rightGroup:     { cueW: 1.00, cueH: 1.16, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.86, focusH: 1.02 },
+  backgroundArch: { cueW: 1.06, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68 }
 };
 
 const State = Object.freeze({
@@ -734,28 +734,36 @@ const CueCache = {
     const radiusY =
       cfg.cueH / 2 / WORLD_HEIGHT * IMAGE_HEIGHT;
 
-    ctx.globalCompositeOperation = 'destination-in';
+    // Painting-independent golden halo: visible over both dark and bright regions.
+    ctx.clearRect(0, 0, unionWidth, unionHeight);
     ctx.save();
     ctx.translate(maskCenterX, maskCenterY);
     ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
 
-    const gradient = ctx.createRadialGradient(
-      0, 0, radiusX * 0.02,
+    const halo = ctx.createRadialGradient(
+      0, 0, radiusX * 0.56,
       0, 0, radiusX
     );
+    halo.addColorStop(0.00, 'rgba(255,205,80,0.00)');
+    halo.addColorStop(0.58, 'rgba(255,205,80,0.06)');
+    halo.addColorStop(0.74, 'rgba(255,190,55,0.22)');
+    halo.addColorStop(0.86, 'rgba(255,225,140,0.68)');
+    halo.addColorStop(0.93, 'rgba(255,248,205,0.96)');
+    halo.addColorStop(0.98, 'rgba(255,180,35,0.46)');
+    halo.addColorStop(1.00, 'rgba(255,165,20,0.00)');
 
-    gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
-    gradient.addColorStop(0.28, 'rgba(255,255,255,0.98)');
-    gradient.addColorStop(0.48, 'rgba(255,255,255,0.82)');
-    gradient.addColorStop(0.66, 'rgba(255,255,255,0.54)');
-    gradient.addColorStop(0.82, 'rgba(255,255,255,0.25)');
-    gradient.addColorStop(0.93, 'rgba(255,255,255,0.08)');
-    gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
-
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = halo;
     ctx.beginPath();
     ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.lineWidth = Math.max(8, radiusX * 0.035);
+    ctx.strokeStyle = 'rgba(255,232,160,0.95)';
+    ctx.shadowColor = 'rgba(255,170,30,0.95)';
+    ctx.shadowBlur = Math.max(18, radiusX * 0.08);
+    ctx.beginPath();
+    ctx.arc(0, 0, radiusX * 0.88, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -793,7 +801,7 @@ const CueCache = {
           if (mesh) {
             mesh.material = new THREE.MeshBasicMaterial({
               map: texture,
-              color: new THREE.Color('#fff1a8'),
+              color: new THREE.Color('#ffffff'),
               transparent: true,
               opacity: 0,
               side: THREE.DoubleSide,
@@ -1164,8 +1172,8 @@ const TourEngine = {
 
     const cueMesh = entry.entity.getObject3D('mesh');
     if (cueMesh && cueMesh.material) {
-      cueMesh.material.color.set('#fff1a8');
-      cueMesh.material.opacity = 0.08;
+      cueMesh.material.color.set('#ffffff');
+      cueMesh.material.opacity = 0.10;
       cueMesh.material.blending = THREE.AdditiveBlending;
       cueMesh.material.needsUpdate = true;
     }
@@ -1183,7 +1191,7 @@ const TourEngine = {
         this.target !== id
       ) return;
 
-      animateOpacity(entry.entity.object3D, 0.42, 650);
+      animateOpacity(entry.entity.object3D, 0.72, 700);
       await this.wait(760);
 
       if (
@@ -1192,13 +1200,13 @@ const TourEngine = {
         this.target !== id
       ) return;
 
-      animateOpacity(entry.entity.object3D, 0.08, 650);
+      animateOpacity(entry.entity.object3D, 0.12, 700);
       await this.wait(760);
     }
 
     if (token !== this.pulseToken || this.target !== id) return;
 
-    animateOpacity(entry.entity.object3D, 0.10, 300);
+    animateOpacity(entry.entity.object3D, 0.14, 320);
     this.setState(State.WAIT_GAZE);
   },
 
