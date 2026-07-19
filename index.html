@@ -189,7 +189,7 @@ body {
   <a-entity id="paintingRoot" position="0 1.6 -3">
     <a-image
       id="paintingLow"
-      src="painting_low.jpg"
+      src="painting_low.jpg?v=2"
       width="4"
       height="3.45"
       position="0 0 0"
@@ -202,7 +202,7 @@ body {
       height="3.45"
       position="0 0 0.0002"
       material="transparent: true; opacity: 0; shader: flat"
-      blurred-copy="source: painting_low.jpg; radius: 4">
+      blurred-copy="source: painting_low.jpg?v=2; radius: 4">
     </a-plane>
 
     <a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
@@ -568,6 +568,52 @@ function animateOpacity(object3D, target, duration = 450) {
   requestAnimationFrame(frame);
 }
 
+function animateTint(object3D, targetHex, duration = 850) {
+  return new Promise(resolve => {
+    if (!object3D) {
+      resolve();
+      return;
+    }
+
+    const materials = [];
+    object3D.traverse(node => {
+      if (node.material && node.material.color) {
+        materials.push(node.material);
+      }
+    });
+
+    if (!materials.length) {
+      resolve();
+      return;
+    }
+
+    const target = new THREE.Color(targetHex);
+    const starts = materials.map(material => material.color.clone());
+    const started = performance.now();
+
+    function frame(now) {
+      const progress = Math.min(1, (now - started) / duration);
+      const eased =
+        progress < 0.5
+          ? 2 * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      materials.forEach((material, index) => {
+        material.color.copy(starts[index]).lerp(target, eased);
+        material.needsUpdate = true;
+      });
+
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        resolve();
+      }
+    }
+
+    requestAnimationFrame(frame);
+  });
+}
+
 function setBlurOpacity(target, duration = 450) {
   const mesh = paintingBlur.getObject3D('mesh');
   if (!mesh || !mesh.material) return;
@@ -747,6 +793,7 @@ const CueCache = {
           if (mesh) {
             mesh.material = new THREE.MeshBasicMaterial({
               map: texture,
+              color: new THREE.Color('#ffffff'),
               transparent: true,
               opacity: 0,
               side: THREE.DoubleSide,
@@ -1094,36 +1141,55 @@ const TourEngine = {
     this.target = id;
     this.setState(State.CUE);
     CueCache.hideAll();
+
+    // The attention cue now comes entirely from the high-resolution tile:
+    // it repeatedly changes from a dark, cool tint to its original colors.
+    // This remains visible even when the base image and tiles are perfectly aligned.
     setBlurOpacity(0, 150);
 
     const entry = await CueCache.ensure(id);
     if (token !== this.pulseToken) return;
 
     entry.entity.setAttribute('visible', true);
-    animateOpacity(entry.entity.object3D, 0.38, 300);
 
-    for (let cycle = 0; cycle < 3; cycle++) {
-      if (token !== this.pulseToken || this.state === State.ZOOMING) return;
-
-      await this.wait(220);
-      setBlurOpacity(0.34, 700);
-      animateOpacity(entry.entity.object3D, 0.66, 700);
-      await this.wait(950);
-
-      setBlurOpacity(0, 700);
-      animateOpacity(entry.entity.object3D, 0.28, 700);
-      await this.wait(950);
+    const cueMesh = entry.entity.getObject3D('mesh');
+    if (cueMesh && cueMesh.material) {
+      cueMesh.material.opacity = 0.96;
+      cueMesh.material.color.set('#5f6472');
+      cueMesh.material.needsUpdate = true;
     }
 
-    if (token !== this.pulseToken) return;
-
-    setBlurOpacity(0, 250);
-    animateOpacity(entry.entity.object3D, 0.34, 350);
     this.setState(State.WAIT_GAZE);
 
     const nextId = STORY_ORDER[this.index + 1];
     if (nextId) {
       CueCache.ensure(nextId).catch(console.warn);
+    }
+
+    while (
+      token === this.pulseToken &&
+      this.state === State.WAIT_GAZE &&
+      this.target === id
+    ) {
+      // Dark/tinted state.
+      await animateTint(entry.entity.object3D, '#5f6472', 900);
+      if (
+        token !== this.pulseToken ||
+        this.state !== State.WAIT_GAZE ||
+        this.target !== id
+      ) break;
+
+      await this.wait(120);
+
+      // Original, untinted image.
+      await animateTint(entry.entity.object3D, '#ffffff', 900);
+      if (
+        token !== this.pulseToken ||
+        this.state !== State.WAIT_GAZE ||
+        this.target !== id
+      ) break;
+
+      await this.wait(220);
     }
   },
 
