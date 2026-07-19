@@ -424,7 +424,7 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.18, cueH: 0.18, cueOffsetX: 0.00, cueOffsetY: 0.10, focusW: 0.56, focusH: 0.90 },
+  captain:        { cueW: 0.30, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.24, focusW: 0.56, focusH: 0.90 },
   lieutenant:     { cueW: 0.24, cueH: 0.36, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
   girl:           { cueW: 0.22, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
   drummer:        { cueW: 0.28, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
@@ -793,13 +793,15 @@ const CueCache = {
           if (mesh) {
             mesh.material = new THREE.MeshBasicMaterial({
               map: texture,
-              color: new THREE.Color('#ffffff'),
+              color: new THREE.Color('#fff1a8'),
               transparent: true,
               opacity: 0,
               side: THREE.DoubleSide,
               depthWrite: false,
+              depthTest: true,
               toneMapped: false,
-              premultipliedAlpha: true
+              blending: THREE.AdditiveBlending,
+              premultipliedAlpha: false
             });
           }
 
@@ -992,7 +994,7 @@ function stopSpeech() {
   speechUtterance = null;
 }
 
-function speak(text) {
+function speak(text, onEnd = null) {
   if (!('speechSynthesis' in window) || !text) return;
 
   stopSpeech();
@@ -1009,6 +1011,18 @@ function speak(text) {
   utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.92;
   utterance.pitch = 0.97;
   if (preferred) utterance.voice = preferred;
+
+  if (typeof onEnd === 'function') {
+    let completed = false;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      onEnd();
+    };
+
+    utterance.onend = finish;
+    utterance.onerror = finish;
+  }
 
   speechUtterance = utterance;
   window.speechSynthesis.speak(utterance);
@@ -1141,10 +1155,6 @@ const TourEngine = {
     this.target = id;
     this.setState(State.CUE);
     CueCache.hideAll();
-
-    // The attention cue now comes entirely from the high-resolution tile:
-    // it repeatedly changes from a dark, cool tint to its original colors.
-    // This remains visible even when the base image and tiles are perfectly aligned.
     setBlurOpacity(0, 150);
 
     const entry = await CueCache.ensure(id);
@@ -1154,43 +1164,42 @@ const TourEngine = {
 
     const cueMesh = entry.entity.getObject3D('mesh');
     if (cueMesh && cueMesh.material) {
-      cueMesh.material.opacity = 0.96;
-      cueMesh.material.color.set('#5f6472');
+      cueMesh.material.color.set('#fff1a8');
+      cueMesh.material.opacity = 0.08;
+      cueMesh.material.blending = THREE.AdditiveBlending;
       cueMesh.material.needsUpdate = true;
     }
-
-    this.setState(State.WAIT_GAZE);
 
     const nextId = STORY_ORDER[this.index + 1];
     if (nextId) {
       CueCache.ensure(nextId).catch(console.warn);
     }
 
-    while (
-      token === this.pulseToken &&
-      this.state === State.WAIT_GAZE &&
-      this.target === id
-    ) {
-      // Dark/tinted state.
-      await animateTint(entry.entity.object3D, '#5f6472', 900);
+    // Four gentle halo pulses, then leave only a very subtle glow.
+    for (let cycle = 0; cycle < 4; cycle++) {
       if (
         token !== this.pulseToken ||
-        this.state !== State.WAIT_GAZE ||
+        this.state === State.ZOOMING ||
         this.target !== id
-      ) break;
+      ) return;
 
-      await this.wait(120);
+      animateOpacity(entry.entity.object3D, 0.42, 650);
+      await this.wait(760);
 
-      // Original, untinted image.
-      await animateTint(entry.entity.object3D, '#ffffff', 900);
       if (
         token !== this.pulseToken ||
-        this.state !== State.WAIT_GAZE ||
+        this.state === State.ZOOMING ||
         this.target !== id
-      ) break;
+      ) return;
 
-      await this.wait(220);
+      animateOpacity(entry.entity.object3D, 0.08, 650);
+      await this.wait(760);
     }
+
+    if (token !== this.pulseToken || this.target !== id) return;
+
+    animateOpacity(entry.entity.object3D, 0.10, 300);
+    this.setState(State.WAIT_GAZE);
   },
 
   confirmGaze(id) {
@@ -1355,16 +1364,14 @@ function selectLanguage(language) {
       ? 'مرحبًا بك في الحراسة الليلية. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
       : 'Welcome to The Night Watch. The painting will guide your attention from one detail to the next.';
 
-  speak(welcome);
-
-  setTimeout(() => {
+  speak(welcome, () => {
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
 
     setTimeout(() => {
       CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
     }, 900);
-  }, 3200);
+  });
 }
 
 
