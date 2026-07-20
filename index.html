@@ -2,80 +2,8 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Safe Attention Debug</title>
+<title>The Night Watch — Fixed Display and Attention</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-<script>
-window.addEventListener('error', function (event) {
-  const status = document.getElementById('startupStatus');
-  if (status) {
-    status.className = 'error';
-    status.textContent = 'Page error: ' + (event.message || 'Unknown error');
-  }
-});
-
-if (!window.AFRAME) {
-  window.addEventListener('DOMContentLoaded', () => {
-    const status = document.getElementById('startupStatus');
-    if (status) {
-      status.className = 'error';
-      status.textContent =
-        'A-Frame did not load. Check your internet connection or CDN access.';
-    }
-  });
-} else {
-AFRAME.registerComponent('blurred-copy', {
-  schema: {
-    source: { type: 'string' },
-    radius: { type: 'number', default: 4 }
-  },
-
-  init() {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-
-    image.onload = () => {
-      const scale = 0.32;
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-
-      const ctx = canvas.getContext('2d');
-      ctx.filter = `blur(${this.data.radius}px)`;
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      ctx.filter = 'none';
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.needsUpdate = true;
-
-      const apply = () => {
-        const mesh = this.el.getObject3D('mesh');
-        if (!mesh) return;
-
-        mesh.material = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 0,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          toneMapped: false
-        });
-      };
-
-      if (this.el.getObject3D('mesh')) {
-        apply();
-      } else {
-        this.el.addEventListener('object3dset', apply, { once: true });
-      }
-    };
-
-    image.src = this.data.source;
-  }
-});
-}
-</script>
-
-
 <style>
 body {
   margin: 0;
@@ -178,25 +106,14 @@ body {
   background: rgba(60,60,60,0.92);
 }
 
-
-#startupStatus {
-  position: fixed;
-  left: 16px;
-  bottom: 16px;
-  z-index: 10000;
-  max-width: 520px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(0,0,0,0.82);
-  color: white;
-  font: 14px/1.4 Arial, sans-serif;
-}
-#startupStatus.error { background: rgba(120,0,0,0.9); }
 </style>
 </head>
 
 <body>
-<div id="startupStatus">Starting The Night Watch…</div>
+<img id="htmlFallbackPainting"
+     src="#paintingAsset"
+     alt="The Night Watch"
+     style="position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#111;z-index:-2;">
 <div id="tileControls">
   <button
     id="backButton"
@@ -217,9 +134,13 @@ body {
   </div>
 </div>
 
-<a-scene>
+<a-scene loading-screen="enabled: false" renderer="alpha: true; colorManagement: true">
 
   <!-- Painting root: low-res base plus optional high-res tile overlay -->
+  <a-assets timeout="10000">
+    <img id="paintingAsset" src="painting_low.jpg" crossorigin="anonymous">
+  </a-assets>
+
   <a-entity id="paintingRoot" position="0 1.6 -3">
     <a-image
       id="paintingLow"
@@ -235,8 +156,7 @@ body {
       width="4"
       height="3.45"
       position="0 0 0.0002"
-      material="transparent: true; opacity: 0; shader: flat"
-      blurred-copy="source: painting_low.jpg; radius: 4">
+      material="color: #111; transparent: true; opacity: 0; shader: flat; depthWrite: false">
     </a-plane>
 
     <a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
@@ -1167,6 +1087,39 @@ function showNestedDetails(id) {
   });
 }
 
+
+function hideAllAttentionHalos() {
+  document.querySelectorAll('[id$="Halo"]').forEach(halo => {
+    halo.removeAttribute('animation__attentionOpacity');
+    halo.removeAttribute('animation__attentionScale');
+    halo.setAttribute('visible', false);
+    halo.setAttribute('scale', '1 1 1');
+  });
+}
+
+function showAttentionHalo(id) {
+  hideAllAttentionHalos();
+
+  const halo = document.querySelector('#' + id + 'Halo');
+  if (!halo) return;
+
+  const cfg = REGION[id] || {};
+  const brightTarget = id === 'lieutenant' || id === 'girl';
+  const peakOpacity = brightTarget ? 0.78 : (id === 'drummer' ? 0.62 : 0.48);
+  const maxScale = id === 'drummer' ? 1.34 : (brightTarget ? 1.24 : 1.18);
+
+  halo.setAttribute('material',
+    `color: #ffd75e; transparent: true; opacity: 0.12; ` +
+    `blending: additive; depthWrite: false; depthTest: false; side: double`);
+  halo.setAttribute('visible', true);
+  halo.setAttribute('animation__attentionOpacity',
+    `property: material.opacity; from: 0.12; to: ${peakOpacity}; ` +
+    `dur: 780; dir: alternate; loop: true; easing: easeInOutSine`);
+  halo.setAttribute('animation__attentionScale',
+    `property: scale; from: 0.92 0.92 0.92; to: ${maxScale} ${maxScale} ${maxScale}; ` +
+    `dur: 780; dir: alternate; loop: true; easing: easeInOutSine`);
+}
+
 const TourEngine = {
   state: State.IDLE,
   index: 0,
@@ -1188,20 +1141,23 @@ const TourEngine = {
     this.setState(State.CUE);
     CueCache.hideAll();
     setBlurOpacity(0, 150);
+    showAttentionHalo(id);
 
-    const halo = document.querySelector('#' + id + 'Halo');
-    if (halo) {
-      halo.setAttribute('visible', true);
-      halo.setAttribute('animation__pulseOpacity',
-        'property: material.opacity; from: 0.10; to: 0.55; dur: 850; dir: alternate; loop: true; easing: easeInOutSine');
-      halo.setAttribute('animation__pulseScale',
-        'property: scale; from: 0.92 0.92 0.92; to: 1.18 1.18 1.18; dur: 850; dir: alternate; loop: true; easing: easeInOutSine');
+    let entry = null;
+    try {
+      entry = await Promise.race([
+        CueCache.ensure(id),
+        this.wait(1400).then(() => null)
+      ]);
+    } catch (error) {
+      console.warn('High-resolution cue unavailable; halo remains active.', error);
     }
 
-    const entry = await CueCache.ensure(id);
     if (token !== this.pulseToken) return;
 
-    entry.entity.setAttribute('visible', true);
+    if (entry) {
+      entry.entity.setAttribute('visible', true);
+    }
 
     const config = REGION[id];
     const cuePeak = config.cueOpacity ?? 0.66;
@@ -1209,47 +1165,38 @@ const TourEngine = {
     const cueRest = Math.max(0.24, cuePeak * 0.42);
     const cueStart = Math.max(0.26, cuePeak * 0.50);
 
-    animateOpacity(
-      entry.entity.object3D,
-      cueStart,
-      300
-    );
+    if (entry) {
+      animateOpacity(entry.entity.object3D, cueStart, 300);
+    }
 
     for (let cycle = 0; cycle < 3; cycle++) {
       if (token !== this.pulseToken || this.state === State.ZOOMING) return;
 
       await this.wait(220);
       setBlurOpacity(blurPeak, 700);
-      animateOpacity(
-        entry.entity.object3D,
-        cuePeak,
-        700
-      );
+      if (entry) {
+        animateOpacity(entry.entity.object3D, cuePeak, 700);
+      }
       await this.wait(950);
 
       setBlurOpacity(0, 700);
-      animateOpacity(
-        entry.entity.object3D,
-        cueRest,
-        700
-      );
+      if (entry) {
+        animateOpacity(entry.entity.object3D, cueRest, 700);
+      }
       await this.wait(950);
     }
 
     if (token !== this.pulseToken) return;
 
     setBlurOpacity(0, 250);
-    animateOpacity(
-      entry.entity.object3D,
-      Math.max(0.28, cuePeak * 0.48),
-      350
-    );
-    this.setState(State.WAIT_GAZE);
-
-    const nextId = STORY_ORDER[this.index + 1];
-    if (nextId) {
-      CueCache.ensure(nextId).catch(console.warn);
+    if (entry) {
+      animateOpacity(
+        entry.entity.object3D,
+        Math.max(0.28, cuePeak * 0.48),
+        350
+      );
     }
+    this.setState(State.WAIT_GAZE);
   },
 
   confirmGaze(id) {
@@ -1272,12 +1219,7 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     setBlurOpacity(0, 250);
     CueCache.hideAll();
-    document.querySelectorAll('[id$="Halo"]').forEach(h => {
-      h.removeAttribute('animation__pulseOpacity');
-      h.removeAttribute('animation__pulseScale');
-      h.setAttribute('visible', false);
-      h.setAttribute('scale', '1 1 1');
-    });
+    hideAllAttentionHalos();
     showPrimaryHotspots(false);
     await loadFocusTiles(id);
 
@@ -1345,6 +1287,7 @@ const TourEngine = {
           this.target = null;
           this.setState(State.FREE);
           CueCache.hideAll();
+          hideAllAttentionHalos();
           setBlurOpacity(0, 250);
 
           const ending =
@@ -1425,10 +1368,6 @@ function selectLanguage(language) {
   setTimeout(() => {
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
-
-    setTimeout(() => {
-      CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
-    }, 900);
   }, 3200);
 }
 
@@ -1452,26 +1391,6 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
-  const status = document.getElementById('startupStatus');
-
-  if (!window.AFRAME) return;
-
-  const paintingImage = new Image();
-  paintingImage.onload = () => {
-    if (status) {
-      status.textContent = 'Ready. Choose a language to begin.';
-      setTimeout(() => status.remove(), 2500);
-    }
-  };
-  paintingImage.onerror = () => {
-    if (status) {
-      status.className = 'error';
-      status.textContent =
-        'painting_low.jpg was not found. Keep this HTML in the same folder as painting_low.jpg and the tiles folder.';
-    }
-  };
-  paintingImage.src = 'painting_low.jpg';
-
   syncPrimaryHotspotsToFocusRegions();
   pageReady = false;
   gazeCursor.setAttribute('visible', false);
