@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Large Semantic Gaze Regions</title>
+<title>The Night Watch — Adaptive Attention Cues</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -189,7 +189,7 @@ body {
   <a-entity id="paintingRoot" position="0 1.6 -3">
     <a-image
       id="paintingLow"
-      src="painting_low.jpg?v=2"
+      src="painting_low.jpg"
       width="4"
       height="3.45"
       position="0 0 0"
@@ -202,7 +202,7 @@ body {
       height="3.45"
       position="0 0 0.0002"
       material="transparent: true; opacity: 0; shader: flat"
-      blurred-copy="source: painting_low.jpg?v=2; radius: 4">
+      blurred-copy="source: painting_low.jpg; radius: 4">
     </a-plane>
 
     <a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
@@ -424,16 +424,75 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.56, cueH: 0.90, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.56, focusH: 0.90 },
-  lieutenant:     { cueW: 0.54, cueH: 0.90, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
-  girl:           { cueW: 0.46, cueH: 0.70, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
-  drummer:        { cueW: 0.66, cueH: 0.98, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
-  flag:           { cueW: 0.70, cueH: 1.08, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.70, focusH: 1.08 },
-  musketeer:      { cueW: 0.48, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.48, focusH: 0.78 },
-  dog:            { cueW: 0.66, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40 },
-  leftGroup:      { cueW: 0.74, cueH: 0.96, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.74, focusH: 0.96 },
-  rightGroup:     { cueW: 0.86, cueH: 1.02, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.86, focusH: 1.02 },
-  backgroundArch: { cueW: 0.96, cueH: 0.68, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68 }
+  captain: {
+    cueW: 0.18, cueH: 0.18,
+    cueOffsetX: 0.00, cueOffsetY: 0.10,
+    cueOpacity: 0.66, blurOpacity: 0.34,
+    focusW: 0.56, focusH: 0.90
+  },
+
+  lieutenant: {
+    cueW: 0.26, cueH: 0.32,
+    cueOffsetX: 0.00, cueOffsetY: 0.12,
+    cueOpacity: 0.94, blurOpacity: 0.48,
+    focusW: 0.54, focusH: 0.90
+  },
+
+  girl: {
+    cueW: 0.24, cueH: 0.34,
+    cueOffsetX: 0.00, cueOffsetY: 0.08,
+    cueOpacity: 1.00, blurOpacity: 0.52,
+    focusW: 0.46, focusH: 0.70
+  },
+
+  drummer: {
+    cueW: 0.36, cueH: 0.46,
+    cueOffsetX: 0.02, cueOffsetY: 0.24,
+    cueOpacity: 0.80, blurOpacity: 0.42,
+    focusW: 0.66, focusH: 0.98
+  },
+
+  flag: {
+    cueW: 0.32, cueH: 0.46,
+    cueOffsetX: 0.00, cueOffsetY: 0.16,
+    cueOpacity: 0.84, blurOpacity: 0.44,
+    focusW: 0.70, focusH: 1.08
+  },
+
+  musketeer: {
+    cueW: 0.24, cueH: 0.34,
+    cueOffsetX: 0.00, cueOffsetY: 0.10,
+    cueOpacity: 0.78, blurOpacity: 0.40,
+    focusW: 0.48, focusH: 0.78
+  },
+
+  dog: {
+    cueW: 0.34, cueH: 0.22,
+    cueOffsetX: 0.00, cueOffsetY: 0.00,
+    cueOpacity: 0.88, blurOpacity: 0.46,
+    focusW: 0.66, focusH: 0.40
+  },
+
+  leftGroup: {
+    cueW: 0.34, cueH: 0.44,
+    cueOffsetX: 0.00, cueOffsetY: 0.08,
+    cueOpacity: 0.76, blurOpacity: 0.40,
+    focusW: 0.74, focusH: 0.96
+  },
+
+  rightGroup: {
+    cueW: 0.38, cueH: 0.46,
+    cueOffsetX: 0.00, cueOffsetY: 0.08,
+    cueOpacity: 0.78, blurOpacity: 0.42,
+    focusW: 0.86, focusH: 1.02
+  },
+
+  backgroundArch: {
+    cueW: 0.38, cueH: 0.26,
+    cueOffsetX: 0.00, cueOffsetY: 0.00,
+    cueOpacity: 0.74, blurOpacity: 0.38,
+    focusW: 0.96, focusH: 0.68
+  }
 };
 
 const State = Object.freeze({
@@ -566,85 +625,6 @@ function animateOpacity(object3D, target, duration = 450) {
   }
 
   requestAnimationFrame(frame);
-}
-
-function animateTint(object3D, targetHex, duration = 850) {
-  return new Promise(resolve => {
-    if (!object3D) {
-      resolve();
-      return;
-    }
-
-    const materials = [];
-    object3D.traverse(node => {
-      if (node.material && node.material.color) {
-        materials.push(node.material);
-      }
-    });
-
-    if (!materials.length) {
-      resolve();
-      return;
-    }
-
-    const target = new THREE.Color(targetHex);
-    const starts = materials.map(material => material.color.clone());
-    const started = performance.now();
-
-    function frame(now) {
-      const progress = Math.min(1, (now - started) / duration);
-      const eased =
-        progress < 0.5
-          ? 2 * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-      materials.forEach((material, index) => {
-        material.color.copy(starts[index]).lerp(target, eased);
-        material.needsUpdate = true;
-      });
-
-      if (progress < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        resolve();
-      }
-    }
-
-    requestAnimationFrame(frame);
-  });
-}
-
-
-function animateMaterialOpacity(material, target, duration = 650) {
-  return new Promise(resolve => {
-    if (!material) {
-      resolve();
-      return;
-    }
-
-    const start = material.opacity || 0;
-    const started = performance.now();
-
-    function frame(now) {
-      const progress = Math.min(1, (now - started) / duration);
-      const eased =
-        progress < 0.5
-          ? 2 * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-      material.transparent = true;
-      material.opacity = start + (target - start) * eased;
-      material.needsUpdate = true;
-
-      if (progress < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        resolve();
-      }
-    }
-
-    requestAnimationFrame(frame);
-  });
 }
 
 function setBlurOpacity(target, duration = 450) {
@@ -810,96 +790,41 @@ const CueCache = {
       (0.5 - (unionTop + unionHeight / 2) / dims.height) *
       WORLD_HEIGHT;
 
-    // Build two duplicated layers from the same masked image region.
-    // Layer 1: a blurred additive glow that gently spills outside the region.
-    // Layer 2: a sharp, slightly brightened copy that changes the local image shade.
-    const blurCanvas = document.createElement('canvas');
-    blurCanvas.width = canvas.width;
-    blurCanvas.height = canvas.height;
-    const blurCtx = blurCanvas.getContext('2d');
-    blurCtx.clearRect(0, 0, blurCanvas.width, blurCanvas.height);
-    blurCtx.filter = 'blur(18px)';
-    blurCtx.drawImage(canvas, 0, 0);
-    blurCtx.filter = 'none';
+    const plane = document.createElement('a-plane');
+    plane.setAttribute('width', worldWidth);
+    plane.setAttribute('height', worldHeight);
+    plane.setAttribute('position', `${centerX} ${centerY} 0`);
+    plane.setAttribute('visible', false);
+    plane.dataset.target = id;
 
-    const blurTexture = new THREE.CanvasTexture(blurCanvas);
-    blurTexture.colorSpace = THREE.SRGBColorSpace;
-    blurTexture.minFilter = THREE.LinearFilter;
-    blurTexture.magFilter = THREE.LinearFilter;
-    blurTexture.generateMipmaps = false;
-    blurTexture.needsUpdate = true;
+    const ready = new Promise(resolve => {
+      plane.addEventListener(
+        'loaded',
+        () => {
+          const mesh = plane.getObject3D('mesh');
 
-    const group = document.createElement('a-entity');
-    group.setAttribute('position', '0 0 0');
-    group.setAttribute('visible', false);
-    group.dataset.target = id;
-
-    const glowPlane = document.createElement('a-plane');
-    glowPlane.setAttribute('width', worldWidth * 1.08);
-    glowPlane.setAttribute('height', worldHeight * 1.08);
-    glowPlane.setAttribute('position', `${centerX} ${centerY} 0`);
-
-    const sharpPlane = document.createElement('a-plane');
-    sharpPlane.setAttribute('width', worldWidth);
-    sharpPlane.setAttribute('height', worldHeight);
-    sharpPlane.setAttribute('position', `${centerX} ${centerY} 0.0001`);
-
-    group.appendChild(glowPlane);
-    group.appendChild(sharpPlane);
-
-    const ready = Promise.all([
-      new Promise(resolve => {
-        glowPlane.addEventListener('loaded', () => {
-          const mesh = glowPlane.getObject3D('mesh');
-          if (mesh) {
-            mesh.material = new THREE.MeshBasicMaterial({
-              map: blurTexture,
-              color: new THREE.Color(1.10, 1.03, 0.92),
-              transparent: true,
-              opacity: 0,
-              side: THREE.DoubleSide,
-              depthWrite: false,
-              depthTest: true,
-              toneMapped: false,
-              blending: THREE.AdditiveBlending,
-              premultipliedAlpha: false
-            });
-          }
-          resolve();
-        }, { once: true });
-      }),
-      new Promise(resolve => {
-        sharpPlane.addEventListener('loaded', () => {
-          const mesh = sharpPlane.getObject3D('mesh');
           if (mesh) {
             mesh.material = new THREE.MeshBasicMaterial({
               map: texture,
-              color: new THREE.Color(1.18, 1.12, 1.04),
               transparent: true,
               opacity: 0,
               side: THREE.DoubleSide,
               depthWrite: false,
-              depthTest: true,
               toneMapped: false,
-              blending: THREE.NormalBlending,
               premultipliedAlpha: true
             });
           }
-          resolve();
-        }, { once: true });
-      })
-    ]);
 
-    cueLayer.appendChild(group);
+          resolve();
+        },
+        { once: true }
+      );
+    });
+
+    cueLayer.appendChild(plane);
     await ready;
 
-    const entry = {
-      entity: group,
-      texture,
-      blurTexture,
-      glowPlane,
-      sharpPlane
-    };
+    const entry = { entity: plane, texture };
     this.entries.set(id, entry);
     return entry;
   },
@@ -1079,7 +1004,7 @@ function stopSpeech() {
   speechUtterance = null;
 }
 
-function speak(text, onEnd = null) {
+function speak(text) {
   if (!('speechSynthesis' in window) || !text) return;
 
   stopSpeech();
@@ -1096,18 +1021,6 @@ function speak(text, onEnd = null) {
   utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.92;
   utterance.pitch = 0.97;
   if (preferred) utterance.voice = preferred;
-
-  if (typeof onEnd === 'function') {
-    let completed = false;
-    const finish = () => {
-      if (completed) return;
-      completed = true;
-      onEnd();
-    };
-
-    utterance.onend = finish;
-    utterance.onerror = finish;
-  }
 
   speechUtterance = utterance;
   window.speechSynthesis.speak(utterance);
@@ -1247,65 +1160,53 @@ const TourEngine = {
 
     entry.entity.setAttribute('visible', true);
 
-    const glowMesh = entry.glowPlane.getObject3D('mesh');
-    const sharpMesh = entry.sharpPlane.getObject3D('mesh');
-    const glowMaterial = glowMesh ? glowMesh.material : null;
-    const sharpMaterial = sharpMesh ? sharpMesh.material : null;
+    const config = REGION[id];
+    const cuePeak = config.cueOpacity ?? 0.66;
+    const blurPeak = config.blurOpacity ?? 0.34;
+    const cueRest = Math.max(0.24, cuePeak * 0.42);
+    const cueStart = Math.max(0.26, cuePeak * 0.50);
 
-    if (glowMaterial) {
-      glowMaterial.opacity = 0;
-      glowMaterial.needsUpdate = true;
+    animateOpacity(
+      entry.entity.object3D,
+      cueStart,
+      300
+    );
+
+    for (let cycle = 0; cycle < 3; cycle++) {
+      if (token !== this.pulseToken || this.state === State.ZOOMING) return;
+
+      await this.wait(220);
+      setBlurOpacity(blurPeak, 700);
+      animateOpacity(
+        entry.entity.object3D,
+        cuePeak,
+        700
+      );
+      await this.wait(950);
+
+      setBlurOpacity(0, 700);
+      animateOpacity(
+        entry.entity.object3D,
+        cueRest,
+        700
+      );
+      await this.wait(950);
     }
-    if (sharpMaterial) {
-      sharpMaterial.opacity = 0;
-      sharpMaterial.needsUpdate = true;
-    }
+
+    if (token !== this.pulseToken) return;
+
+    setBlurOpacity(0, 250);
+    animateOpacity(
+      entry.entity.object3D,
+      Math.max(0.28, cuePeak * 0.48),
+      350
+    );
+    this.setState(State.WAIT_GAZE);
 
     const nextId = STORY_ORDER[this.index + 1];
     if (nextId) {
       CueCache.ensure(nextId).catch(console.warn);
     }
-
-    // Four museum-style pulses:
-    // the sharp region brightens while a very soft blurred copy glows underneath.
-    for (let cycle = 0; cycle < 4; cycle++) {
-      if (
-        token !== this.pulseToken ||
-        this.state === State.ZOOMING ||
-        this.target !== id
-      ) return;
-
-      await Promise.all([
-        animateMaterialOpacity(glowMaterial, 0.24, 700),
-        animateMaterialOpacity(sharpMaterial, 0.42, 700)
-      ]);
-
-      await this.wait(170);
-
-      if (
-        token !== this.pulseToken ||
-        this.state === State.ZOOMING ||
-        this.target !== id
-      ) return;
-
-      await Promise.all([
-        animateMaterialOpacity(glowMaterial, 0.02, 700),
-        animateMaterialOpacity(sharpMaterial, 0.00, 700)
-      ]);
-
-      await this.wait(220);
-    }
-
-    if (token !== this.pulseToken || this.target !== id) return;
-
-    // Return completely to the untouched painting after the four pulses.
-    await Promise.all([
-      animateMaterialOpacity(glowMaterial, 0, 280),
-      animateMaterialOpacity(sharpMaterial, 0, 280)
-    ]);
-
-    entry.entity.setAttribute('visible', false);
-    this.setState(State.WAIT_GAZE);
   },
 
   confirmGaze(id) {
@@ -1470,14 +1371,16 @@ function selectLanguage(language) {
       ? 'مرحبًا بك في الحراسة الليلية. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
       : 'Welcome to The Night Watch. The painting will guide your attention from one detail to the next.';
 
-  speak(welcome, () => {
+  speak(welcome);
+
+  setTimeout(() => {
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
 
     setTimeout(() => {
       CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
     }, 900);
-  });
+  }, 3200);
 }
 
 
