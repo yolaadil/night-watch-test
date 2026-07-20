@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Museum Region Pulse</title>
+<title>The Night Watch — Local Region Pulse Only</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <style>
 body {
@@ -233,6 +233,7 @@ const languageOverlay = document.querySelector('#languageOverlay');
 const cueLayer = document.querySelector('#cueLayer');
 const focusLayer = document.querySelector('#focusLayer');
 const paintingBlur = document.querySelector('#paintingBlur');
+if (paintingBlur) paintingBlur.setAttribute('visible', false);
 const mainCamera = document.querySelector('#mainCamera');
 const backButton = document.querySelector('#backButton');
 
@@ -565,12 +566,12 @@ function setRegionEnhancement(object3D, strength = 0) {
     // The duplicate remains the same painted pixels.
     // We only change brightness/contrast/saturation-like appearance.
     material.color.setRGB(
-      1 + 0.30 * s,
-      1 + 0.22 * s,
-      1 + 0.10 * s
+      1 + 0.16 * s,
+      1 + 0.12 * s,
+      1 + 0.05 * s
     );
 
-    material.opacity = 0.08 + 0.54 * s;
+    material.opacity = 0.02 + 0.32 * s;
     material.needsUpdate = true;
   });
 }
@@ -1178,49 +1179,42 @@ const TourEngine = {
     const config = REGION[id];
 
     const peakStrength =
-      id === 'girl' ? 1.00 :
-      id === 'lieutenant' ? 0.95 :
-      id === 'drummer' ? 0.78 :
-      id === 'captain' ? 0.72 :
-      0.68;
+      id === 'girl' ? 0.62 :
+      id === 'lieutenant' ? 0.58 :
+      id === 'drummer' ? 0.50 :
+      id === 'captain' ? 0.46 :
+      0.42;
 
-    const restStrength = 0.06;
+    const restStrength = 0.00;
 
     if (entry) {
       setRegionEnhancement(entry.entity.object3D, restStrength);
     }
 
-    for (let cycle = 0; cycle < 4; cycle++) {
+    for (let cycle = 0; cycle < 3; cycle++) {
       if (token !== this.pulseToken || this.state === State.ZOOMING) return;
 
       await this.wait(180);
-
-      setBlurOpacity(
-        Math.min(0.26, config.blurOpacity ?? 0.22),
-        520
-      );
 
       if (entry) {
         await animateRegionEnhancement(
           entry.entity.object3D,
           restStrength,
           peakStrength,
-          760
+          620
         );
       } else {
         await this.wait(760);
       }
 
-      await this.wait(240);
-
-      setBlurOpacity(0, 520);
+      await this.wait(180);
 
       if (entry) {
         await animateRegionEnhancement(
           entry.entity.object3D,
           peakStrength,
           restStrength,
-          760
+          620
         );
       } else {
         await this.wait(760);
@@ -1229,12 +1223,10 @@ const TourEngine = {
 
     if (token !== this.pulseToken) return;
 
-    setBlurOpacity(0, 250);
-
     if (entry) {
       setRegionEnhancement(
         entry.entity.object3D,
-        0.16
+        0.06
       );
     }
 
