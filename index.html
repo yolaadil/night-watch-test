@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Local Region Pulse Only</title>
+<title>The Night Watch — Reliable Local Region Pulse</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <style>
 body {
@@ -566,12 +566,12 @@ function setRegionEnhancement(object3D, strength = 0) {
     // The duplicate remains the same painted pixels.
     // We only change brightness/contrast/saturation-like appearance.
     material.color.setRGB(
+      1 + 0.22 * s,
       1 + 0.16 * s,
-      1 + 0.12 * s,
-      1 + 0.05 * s
+      1 + 0.07 * s
     );
 
-    material.opacity = 0.02 + 0.32 * s;
+    material.opacity = 0.04 + 0.48 * s;
     material.needsUpdate = true;
   });
 }
@@ -650,6 +650,99 @@ function setBlurOpacity(target, duration = 450) {
 
   requestAnimationFrame(frame);
 }
+
+
+const LocalRegionCue = {
+  entries: new Map(),
+
+  async ensure(id) {
+    if (this.entries.has(id)) {
+      return this.entries.get(id);
+    }
+
+    const cfg = REGION[id];
+    const center = hotspotCenter(id);
+    const cueCenter = {
+      x: center.x + (cfg.cueOffsetX || 0),
+      y: center.y + (cfg.cueOffsetY || 0)
+    };
+
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = 'painting_low.jpg';
+    });
+
+    const texture = new THREE.Texture(image);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+
+    const repeatX = cfg.cueW / WORLD_WIDTH;
+    const repeatY = cfg.cueH / WORLD_HEIGHT;
+    const offsetX =
+      (cueCenter.x - cfg.cueW / 2) / WORLD_WIDTH + 0.5;
+    const offsetY =
+      0.5 - (cueCenter.y + cfg.cueH / 2) / WORLD_HEIGHT;
+
+    texture.repeat.set(repeatX, repeatY);
+    texture.offset.set(offsetX, offsetY);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.needsUpdate = true;
+
+    const plane = document.createElement('a-plane');
+    plane.setAttribute('width', cfg.cueW);
+    plane.setAttribute('height', cfg.cueH);
+    plane.setAttribute(
+      'position',
+      `${cueCenter.x} ${cueCenter.y} 0`
+    );
+    plane.setAttribute('visible', false);
+    plane.dataset.target = id;
+
+    const ready = new Promise(resolve => {
+      plane.addEventListener(
+        'loaded',
+        () => {
+          const mesh = plane.getObject3D('mesh');
+
+          if (mesh) {
+            mesh.material = new THREE.MeshBasicMaterial({
+              map: texture,
+              transparent: true,
+              opacity: 0,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+              depthTest: false,
+              toneMapped: false
+            });
+            mesh.renderOrder = 50;
+          }
+
+          resolve();
+        },
+        { once: true }
+      );
+    });
+
+    cueLayer.appendChild(plane);
+    await ready;
+
+    const entry = { entity: plane, texture };
+    this.entries.set(id, entry);
+    return entry;
+  },
+
+  hideAll() {
+    this.entries.forEach(entry => {
+      entry.entity.setAttribute('visible', false);
+    });
+  }
+};
 
 const CueCache = {
   entries: new Map(),
@@ -1157,17 +1250,15 @@ const TourEngine = {
 
     this.target = id;
     this.setState(State.CUE);
-    CueCache.hideAll();
+    LocalRegionCue.hideAll();
     setBlurOpacity(0, 150);
 
     let entry = null;
+
     try {
-      entry = await Promise.race([
-        CueCache.ensure(id),
-        this.wait(1400).then(() => null)
-      ]);
+      entry = await LocalRegionCue.ensure(id);
     } catch (error) {
-      console.warn('High-resolution cue unavailable; halo remains active.', error);
+      console.warn('Local region cue could not be created.', error);
     }
 
     if (token !== this.pulseToken) return;
@@ -1179,11 +1270,11 @@ const TourEngine = {
     const config = REGION[id];
 
     const peakStrength =
-      id === 'girl' ? 0.62 :
-      id === 'lieutenant' ? 0.58 :
-      id === 'drummer' ? 0.50 :
-      id === 'captain' ? 0.46 :
-      0.42;
+      id === 'girl' ? 0.92 :
+      id === 'lieutenant' ? 0.88 :
+      id === 'drummer' ? 0.78 :
+      id === 'captain' ? 0.70 :
+      0.66;
 
     const restStrength = 0.00;
 
@@ -1226,7 +1317,7 @@ const TourEngine = {
     if (entry) {
       setRegionEnhancement(
         entry.entity.object3D,
-        0.06
+        0.18
       );
     }
 
@@ -1253,6 +1344,7 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     setBlurOpacity(0, 250);
     CueCache.hideAll();
+    LocalRegionCue.hideAll();
     showPrimaryHotspots(false);
     await loadFocusTiles(id);
 
