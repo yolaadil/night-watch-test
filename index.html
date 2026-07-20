@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Fixed Display and Attention</title>
+<title>The Night Watch — Museum Region Pulse</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <style>
 body {
@@ -552,6 +552,54 @@ function tileRangeFor(id, width, height, offsetX = 0, offsetY = 0) {
   };
 }
 
+
+function setRegionEnhancement(object3D, strength = 0) {
+  if (!object3D) return;
+
+  object3D.traverse(node => {
+    if (!node.material) return;
+
+    const material = node.material;
+    const s = Math.max(0, Math.min(1, strength));
+
+    // The duplicate remains the same painted pixels.
+    // We only change brightness/contrast/saturation-like appearance.
+    material.color.setRGB(
+      1 + 0.30 * s,
+      1 + 0.22 * s,
+      1 + 0.10 * s
+    );
+
+    material.opacity = 0.08 + 0.54 * s;
+    material.needsUpdate = true;
+  });
+}
+
+function animateRegionEnhancement(object3D, fromStrength, toStrength, duration = 700) {
+  if (!object3D) return Promise.resolve();
+
+  return new Promise(resolve => {
+    const started = performance.now();
+
+    function frame(now) {
+      const progress = Math.min(1, (now - started) / duration);
+      const eased = progress * progress * (3 - 2 * progress);
+      const strength =
+        fromStrength + (toStrength - fromStrength) * eased;
+
+      setRegionEnhancement(object3D, strength);
+
+      if (progress < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        resolve();
+      }
+    }
+
+    requestAnimationFrame(frame);
+  });
+}
+
 function animateOpacity(object3D, target, duration = 450) {
   if (!object3D) return;
 
@@ -764,6 +812,7 @@ const CueCache = {
               opacity: 0,
               side: THREE.DoubleSide,
               depthWrite: false,
+              depthTest: false,
               toneMapped: false,
               premultipliedAlpha: true
             });
@@ -1088,38 +1137,6 @@ function showNestedDetails(id) {
 }
 
 
-function hideAllAttentionHalos() {
-  document.querySelectorAll('[id$="Halo"]').forEach(halo => {
-    halo.removeAttribute('animation__attentionOpacity');
-    halo.removeAttribute('animation__attentionScale');
-    halo.setAttribute('visible', false);
-    halo.setAttribute('scale', '1 1 1');
-  });
-}
-
-function showAttentionHalo(id) {
-  hideAllAttentionHalos();
-
-  const halo = document.querySelector('#' + id + 'Halo');
-  if (!halo) return;
-
-  const cfg = REGION[id] || {};
-  const brightTarget = id === 'lieutenant' || id === 'girl';
-  const peakOpacity = brightTarget ? 0.78 : (id === 'drummer' ? 0.62 : 0.48);
-  const maxScale = id === 'drummer' ? 1.34 : (brightTarget ? 1.24 : 1.18);
-
-  halo.setAttribute('material',
-    `color: #ffd75e; transparent: true; opacity: 0.12; ` +
-    `blending: additive; depthWrite: false; depthTest: false; side: double`);
-  halo.setAttribute('visible', true);
-  halo.setAttribute('animation__attentionOpacity',
-    `property: material.opacity; from: 0.12; to: ${peakOpacity}; ` +
-    `dur: 780; dir: alternate; loop: true; easing: easeInOutSine`);
-  halo.setAttribute('animation__attentionScale',
-    `property: scale; from: 0.92 0.92 0.92; to: ${maxScale} ${maxScale} ${maxScale}; ` +
-    `dur: 780; dir: alternate; loop: true; easing: easeInOutSine`);
-}
-
 const TourEngine = {
   state: State.IDLE,
   index: 0,
@@ -1141,7 +1158,6 @@ const TourEngine = {
     this.setState(State.CUE);
     CueCache.hideAll();
     setBlurOpacity(0, 150);
-    showAttentionHalo(id);
 
     let entry = null;
     try {
@@ -1160,42 +1176,68 @@ const TourEngine = {
     }
 
     const config = REGION[id];
-    const cuePeak = config.cueOpacity ?? 0.66;
-    const blurPeak = config.blurOpacity ?? 0.34;
-    const cueRest = Math.max(0.24, cuePeak * 0.42);
-    const cueStart = Math.max(0.26, cuePeak * 0.50);
+
+    const peakStrength =
+      id === 'girl' ? 1.00 :
+      id === 'lieutenant' ? 0.95 :
+      id === 'drummer' ? 0.78 :
+      id === 'captain' ? 0.72 :
+      0.68;
+
+    const restStrength = 0.06;
 
     if (entry) {
-      animateOpacity(entry.entity.object3D, cueStart, 300);
+      setRegionEnhancement(entry.entity.object3D, restStrength);
     }
 
-    for (let cycle = 0; cycle < 3; cycle++) {
+    for (let cycle = 0; cycle < 4; cycle++) {
       if (token !== this.pulseToken || this.state === State.ZOOMING) return;
 
-      await this.wait(220);
-      setBlurOpacity(blurPeak, 700);
-      if (entry) {
-        animateOpacity(entry.entity.object3D, cuePeak, 700);
-      }
-      await this.wait(950);
+      await this.wait(180);
 
-      setBlurOpacity(0, 700);
+      setBlurOpacity(
+        Math.min(0.26, config.blurOpacity ?? 0.22),
+        520
+      );
+
       if (entry) {
-        animateOpacity(entry.entity.object3D, cueRest, 700);
+        await animateRegionEnhancement(
+          entry.entity.object3D,
+          restStrength,
+          peakStrength,
+          760
+        );
+      } else {
+        await this.wait(760);
       }
-      await this.wait(950);
+
+      await this.wait(240);
+
+      setBlurOpacity(0, 520);
+
+      if (entry) {
+        await animateRegionEnhancement(
+          entry.entity.object3D,
+          peakStrength,
+          restStrength,
+          760
+        );
+      } else {
+        await this.wait(760);
+      }
     }
 
     if (token !== this.pulseToken) return;
 
     setBlurOpacity(0, 250);
+
     if (entry) {
-      animateOpacity(
+      setRegionEnhancement(
         entry.entity.object3D,
-        Math.max(0.28, cuePeak * 0.48),
-        350
+        0.16
       );
     }
+
     this.setState(State.WAIT_GAZE);
   },
 
@@ -1219,7 +1261,6 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     setBlurOpacity(0, 250);
     CueCache.hideAll();
-    hideAllAttentionHalos();
     showPrimaryHotspots(false);
     await loadFocusTiles(id);
 
@@ -1287,8 +1328,7 @@ const TourEngine = {
           this.target = null;
           this.setState(State.FREE);
           CueCache.hideAll();
-          hideAllAttentionHalos();
-          setBlurOpacity(0, 250);
+                setBlurOpacity(0, 250);
 
           const ending =
             currentLanguage === 'ar'
