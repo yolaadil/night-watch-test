@@ -2,9 +2,27 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Visible Glow Attention Cues</title>
+<title>The Night Watch — Safe Attention Debug</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
+window.addEventListener('error', function (event) {
+  const status = document.getElementById('startupStatus');
+  if (status) {
+    status.className = 'error';
+    status.textContent = 'Page error: ' + (event.message || 'Unknown error');
+  }
+});
+
+if (!window.AFRAME) {
+  window.addEventListener('DOMContentLoaded', () => {
+    const status = document.getElementById('startupStatus');
+    if (status) {
+      status.className = 'error';
+      status.textContent =
+        'A-Frame did not load. Check your internet connection or CDN access.';
+    }
+  });
+} else {
 AFRAME.registerComponent('blurred-copy', {
   schema: {
     source: { type: 'string' },
@@ -54,6 +72,7 @@ AFRAME.registerComponent('blurred-copy', {
     image.src = this.data.source;
   }
 });
+}
 </script>
 
 
@@ -159,10 +178,25 @@ body {
   background: rgba(60,60,60,0.92);
 }
 
+
+#startupStatus {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 10000;
+  max-width: 520px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.82);
+  color: white;
+  font: 14px/1.4 Arial, sans-serif;
+}
+#startupStatus.error { background: rgba(120,0,0,0.9); }
 </style>
 </head>
 
 <body>
+<div id="startupStatus">Starting The Night Watch…</div>
 <div id="tileControls">
   <button
     id="backButton"
@@ -428,7 +462,6 @@ const REGION = {
     cueW: 0.18, cueH: 0.18,
     cueOffsetX: 0.00, cueOffsetY: 0.10,
     cueOpacity: 0.66, blurOpacity: 0.34,
-    haloOpacity: 0.30, haloScale: 1.05,
     focusW: 0.56, focusH: 0.90
   },
 
@@ -436,7 +469,6 @@ const REGION = {
     cueW: 0.26, cueH: 0.32,
     cueOffsetX: 0.00, cueOffsetY: 0.12,
     cueOpacity: 0.94, blurOpacity: 0.48,
-    haloOpacity: 0.58, haloScale: 1.18,
     focusW: 0.54, focusH: 0.90
   },
 
@@ -444,7 +476,6 @@ const REGION = {
     cueW: 0.24, cueH: 0.34,
     cueOffsetX: 0.00, cueOffsetY: 0.08,
     cueOpacity: 1.00, blurOpacity: 0.52,
-    haloOpacity: 0.64, haloScale: 1.22,
     focusW: 0.46, focusH: 0.70
   },
 
@@ -452,7 +483,6 @@ const REGION = {
     cueW: 0.36, cueH: 0.46,
     cueOffsetX: 0.02, cueOffsetY: 0.24,
     cueOpacity: 0.80, blurOpacity: 0.42,
-    haloOpacity: 0.48, haloScale: 1.30,
     focusW: 0.66, focusH: 0.98
   },
 
@@ -460,7 +490,6 @@ const REGION = {
     cueW: 0.32, cueH: 0.46,
     cueOffsetX: 0.00, cueOffsetY: 0.16,
     cueOpacity: 0.84, blurOpacity: 0.44,
-    haloOpacity: 0.46, haloScale: 1.18,
     focusW: 0.70, focusH: 1.08
   },
 
@@ -468,7 +497,6 @@ const REGION = {
     cueW: 0.24, cueH: 0.34,
     cueOffsetX: 0.00, cueOffsetY: 0.10,
     cueOpacity: 0.78, blurOpacity: 0.40,
-    haloOpacity: 0.40, haloScale: 1.12,
     focusW: 0.48, focusH: 0.78
   },
 
@@ -476,7 +504,6 @@ const REGION = {
     cueW: 0.34, cueH: 0.22,
     cueOffsetX: 0.00, cueOffsetY: 0.00,
     cueOpacity: 0.88, blurOpacity: 0.46,
-    haloOpacity: 0.50, haloScale: 1.20,
     focusW: 0.66, focusH: 0.40
   },
 
@@ -484,7 +511,6 @@ const REGION = {
     cueW: 0.34, cueH: 0.44,
     cueOffsetX: 0.00, cueOffsetY: 0.08,
     cueOpacity: 0.76, blurOpacity: 0.40,
-    haloOpacity: 0.38, haloScale: 1.14,
     focusW: 0.74, focusH: 0.96
   },
 
@@ -492,7 +518,6 @@ const REGION = {
     cueW: 0.38, cueH: 0.46,
     cueOffsetX: 0.00, cueOffsetY: 0.08,
     cueOpacity: 0.78, blurOpacity: 0.42,
-    haloOpacity: 0.40, haloScale: 1.16,
     focusW: 0.86, focusH: 1.02
   },
 
@@ -500,7 +525,6 @@ const REGION = {
     cueW: 0.38, cueH: 0.26,
     cueOffsetX: 0.00, cueOffsetY: 0.00,
     cueOpacity: 0.74, blurOpacity: 0.38,
-    haloOpacity: 0.36, haloScale: 1.12,
     focusW: 0.96, focusH: 0.68
   }
 };
@@ -1143,98 +1167,6 @@ function showNestedDetails(id) {
   });
 }
 
-
-const HaloController = {
-  active: null,
-  animationFrame: null,
-  startedAt: 0,
-  pulseDuration: 1800,
-  makeGlowTexture() {
-    const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size; canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const c = size / 2;
-    const gradient = ctx.createRadialGradient(c,c,size*0.05,c,c,size*0.50);
-    gradient.addColorStop(0.00,'rgba(255,238,145,0.82)');
-    gradient.addColorStop(0.28,'rgba(255,220,105,0.48)');
-    gradient.addColorStop(0.58,'rgba(255,188,72,0.20)');
-    gradient.addColorStop(0.82,'rgba(255,166,50,0.07)');
-    gradient.addColorStop(1.00,'rgba(255,150,35,0.00)');
-    ctx.fillStyle = gradient; ctx.fillRect(0,0,size,size);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-    texture.needsUpdate = true;
-    return texture;
-  },
-  initialize() {
-    this.texture = this.makeGlowTexture();
-    document.querySelectorAll('[id$="Halo"]').forEach(el => {
-      const apply = () => {
-        const mesh = el.getObject3D('mesh');
-        if (!mesh) return;
-        mesh.material = new THREE.MeshBasicMaterial({
-          map: this.texture, transparent: true, opacity: 0,
-          blending: THREE.AdditiveBlending, depthWrite: false,
-          depthTest: false, side: THREE.DoubleSide, toneMapped: false
-        });
-        mesh.renderOrder = 100;
-      };
-      if (el.getObject3D('mesh')) apply();
-      else el.addEventListener('object3dset', apply, { once: true });
-      el.setAttribute('visible', false);
-    });
-  },
-  show(id) {
-    this.hide();
-    const halo = document.querySelector('#' + id + 'Halo');
-    if (!halo) return;
-    this.active = { id, halo };
-    this.startedAt = performance.now();
-    halo.setAttribute('visible', true);
-    const animate = now => {
-      if (!this.active || this.active.halo !== halo) return;
-      const cfg = REGION[id] || {};
-      const peak = cfg.haloOpacity ?? 0.42;
-      const scaleBoost = cfg.haloScale ?? 1.14;
-      const phase = ((now - this.startedAt) % this.pulseDuration) / this.pulseDuration;
-      const wave = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
-      const opacity = peak * (0.30 + 0.70 * wave);
-      const scale = 0.92 + (scaleBoost - 0.92) * wave;
-      const mesh = halo.getObject3D('mesh');
-      if (mesh && mesh.material) { mesh.material.opacity = opacity; mesh.material.needsUpdate = true; }
-      halo.object3D.scale.set(scale, scale, scale);
-      this.animationFrame = requestAnimationFrame(animate);
-    };
-    this.animationFrame = requestAnimationFrame(animate);
-  },
-  soften() {
-    if (!this.active) return;
-    const { id, halo } = this.active;
-    const mesh = halo.getObject3D('mesh');
-    if (mesh && mesh.material) {
-      mesh.material.opacity = Math.max(0.12, (REGION[id]?.haloOpacity ?? 0.42) * 0.32);
-      mesh.material.needsUpdate = true;
-    }
-    halo.object3D.scale.set(1,1,1);
-  },
-  hide() {
-    if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
-    this.animationFrame = null;
-    if (this.active) {
-      const { halo } = this.active;
-      const mesh = halo.getObject3D('mesh');
-      if (mesh && mesh.material) { mesh.material.opacity = 0; mesh.material.needsUpdate = true; }
-      halo.object3D.scale.set(1,1,1);
-      halo.setAttribute('visible', false);
-    }
-    this.active = null;
-  }
-};
-
 const TourEngine = {
   state: State.IDLE,
   index: 0,
@@ -1256,16 +1188,20 @@ const TourEngine = {
     this.setState(State.CUE);
     CueCache.hideAll();
     setBlurOpacity(0, 150);
-    HaloController.show(id);
 
-    let entry = null;
-    try {
-      entry = await CueCache.ensure(id);
-    } catch (error) {
-      console.warn('Tile cue unavailable; using halo guidance only.', error);
+    const halo = document.querySelector('#' + id + 'Halo');
+    if (halo) {
+      halo.setAttribute('visible', true);
+      halo.setAttribute('animation__pulseOpacity',
+        'property: material.opacity; from: 0.10; to: 0.55; dur: 850; dir: alternate; loop: true; easing: easeInOutSine');
+      halo.setAttribute('animation__pulseScale',
+        'property: scale; from: 0.92 0.92 0.92; to: 1.18 1.18 1.18; dur: 850; dir: alternate; loop: true; easing: easeInOutSine');
     }
+
+    const entry = await CueCache.ensure(id);
     if (token !== this.pulseToken) return;
-    if (entry) entry.entity.setAttribute('visible', true);
+
+    entry.entity.setAttribute('visible', true);
 
     const config = REGION[id];
     const cuePeak = config.cueOpacity ?? 0.66;
@@ -1273,26 +1209,41 @@ const TourEngine = {
     const cueRest = Math.max(0.24, cuePeak * 0.42);
     const cueStart = Math.max(0.26, cuePeak * 0.50);
 
-    if (entry) animateOpacity(entry.entity.object3D, cueStart, 300);
+    animateOpacity(
+      entry.entity.object3D,
+      cueStart,
+      300
+    );
 
     for (let cycle = 0; cycle < 3; cycle++) {
       if (token !== this.pulseToken || this.state === State.ZOOMING) return;
 
       await this.wait(220);
       setBlurOpacity(blurPeak, 700);
-      if (entry) animateOpacity(entry.entity.object3D, cuePeak, 700);
+      animateOpacity(
+        entry.entity.object3D,
+        cuePeak,
+        700
+      );
       await this.wait(950);
 
       setBlurOpacity(0, 700);
-      if (entry) animateOpacity(entry.entity.object3D, cueRest, 700);
+      animateOpacity(
+        entry.entity.object3D,
+        cueRest,
+        700
+      );
       await this.wait(950);
     }
 
     if (token !== this.pulseToken) return;
 
     setBlurOpacity(0, 250);
-    if (entry) animateOpacity(entry.entity.object3D, Math.max(0.28, cuePeak * 0.48), 350);
-    HaloController.soften();
+    animateOpacity(
+      entry.entity.object3D,
+      Math.max(0.28, cuePeak * 0.48),
+      350
+    );
     this.setState(State.WAIT_GAZE);
 
     const nextId = STORY_ORDER[this.index + 1];
@@ -1321,7 +1272,12 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     setBlurOpacity(0, 250);
     CueCache.hideAll();
-    HaloController.hide();
+    document.querySelectorAll('[id$="Halo"]').forEach(h => {
+      h.removeAttribute('animation__pulseOpacity');
+      h.removeAttribute('animation__pulseScale');
+      h.setAttribute('visible', false);
+      h.setAttribute('scale', '1 1 1');
+    });
     showPrimaryHotspots(false);
     await loadFocusTiles(id);
 
@@ -1369,7 +1325,7 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     stopSpeech();
     this.setState(State.RETURNING);
-    HaloController.hide();
+    
     showNestedDetails(null);
     backButton.style.display = 'none';
 
@@ -1389,7 +1345,6 @@ const TourEngine = {
           this.target = null;
           this.setState(State.FREE);
           CueCache.hideAll();
-          HaloController.hide();
           setBlurOpacity(0, 250);
 
           const ending =
@@ -1497,7 +1452,26 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
-  HaloController.initialize();
+  const status = document.getElementById('startupStatus');
+
+  if (!window.AFRAME) return;
+
+  const paintingImage = new Image();
+  paintingImage.onload = () => {
+    if (status) {
+      status.textContent = 'Ready. Choose a language to begin.';
+      setTimeout(() => status.remove(), 2500);
+    }
+  };
+  paintingImage.onerror = () => {
+    if (status) {
+      status.className = 'error';
+      status.textContent =
+        'painting_low.jpg was not found. Keep this HTML in the same folder as painting_low.jpg and the tiles folder.';
+    }
+  };
+  paintingImage.src = 'painting_low.jpg';
+
   syncPrimaryHotspotsToFocusRegions();
   pageReady = false;
   gazeCursor.setAttribute('visible', false);
