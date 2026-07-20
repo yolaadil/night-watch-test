@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Large Semantic Gaze Regions</title>
+<title>The Night Watch — Refined Attention Cues</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -58,10 +58,17 @@ AFRAME.registerComponent('blurred-copy', {
 
 
 <style>
-body {
+html, body {
   margin: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
+  background: #000;
   font-family: Arial, Tahoma, sans-serif;
+}
+
+a-scene {
+  background: #000 !important;
 }
 
 #languageOverlay {
@@ -183,7 +190,7 @@ body {
   </div>
 </div>
 
-<a-scene>
+<a-scene background="color: #000000">
 
   <!-- Painting root: low-res base plus optional high-res tile overlay -->
   <a-entity id="paintingRoot" position="0 1.6 -3">
@@ -290,6 +297,7 @@ const TILE_SIZE = 254;
 const TILE_OVERLAP = 1;
 const TILE_FOLDER = 'tiles';
 const MAX_LEVEL = 14;
+const CUE_LEVEL = 13;
 const GAZE_MS = 2500;
 
 const hotspotTexts = {
@@ -424,16 +432,16 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.30, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.24, focusW: 0.56, focusH: 0.90 },
-  lieutenant:     { cueW: 0.24, cueH: 0.36, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
-  girl:           { cueW: 0.22, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
-  drummer:        { cueW: 0.28, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
-  flag:           { cueW: 0.28, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.70, focusH: 1.08 },
-  musketeer:      { cueW: 0.22, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.48, focusH: 0.78 },
-  dog:            { cueW: 0.26, cueH: 0.16, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40 },
-  leftGroup:      { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.74, focusH: 0.96 },
-  rightGroup:     { cueW: 0.34, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.86, focusH: 1.02 },
-  backgroundArch: { cueW: 0.34, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68 }
+  captain:        { cueW: 0.34, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.22, focusW: 0.56, focusH: 0.90, pulseHigh: 0.42, pulseLow: 0.06, tint: '#fff6dc', pulseCount: 3 },
+  lieutenant:     { cueW: 0.30, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.08, focusW: 0.54, focusH: 0.90, pulseHigh: 0.58, pulseLow: 0.08, tint: '#ffffff', pulseCount: 3 },
+  girl:           { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.06, focusW: 0.46, focusH: 0.70, pulseHigh: 0.62, pulseLow: 0.08, tint: '#ffffff', pulseCount: 3 },
+  drummer:        { cueW: 0.44, cueH: 0.54, cueOffsetX: 0.02, cueOffsetY: 0.22, focusW: 0.66, focusH: 0.98, pulseHigh: 0.50, pulseLow: 0.07, tint: '#fff8e8', pulseCount: 3 },
+  flag:           { cueW: 0.36, cueH: 0.50, cueOffsetX: 0.00, cueOffsetY: 0.12, focusW: 0.70, focusH: 1.08, pulseHigh: 0.46, pulseLow: 0.06, tint: '#fff4d6', pulseCount: 3 },
+  musketeer:      { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.08, focusW: 0.48, focusH: 0.78, pulseHigh: 0.44, pulseLow: 0.06, tint: '#fff3d2', pulseCount: 3 },
+  dog:            { cueW: 0.36, cueH: 0.24, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40, pulseHigh: 0.50, pulseLow: 0.07, tint: '#fff7e2', pulseCount: 3 },
+  leftGroup:      { cueW: 0.40, cueH: 0.48, cueOffsetX: 0.00, cueOffsetY: 0.04, focusW: 0.74, focusH: 0.96, pulseHigh: 0.40, pulseLow: 0.05, tint: '#fff2d0', pulseCount: 3 },
+  rightGroup:     { cueW: 0.44, cueH: 0.50, cueOffsetX: 0.00, cueOffsetY: 0.04, focusW: 0.86, focusH: 1.02, pulseHigh: 0.42, pulseLow: 0.05, tint: '#fff2d0', pulseCount: 3 },
+  backgroundArch: { cueW: 0.44, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68, pulseHigh: 0.36, pulseLow: 0.04, tint: '#f5ead0', pulseCount: 3 }
 };
 
 const State = Object.freeze({
@@ -505,13 +513,13 @@ function hotspotCenter(id) {
   return { x: pos.x, y: pos.y - 1.6 };
 }
 
-function tileRangeFor(id, width, height, offsetX = 0, offsetY = 0) {
+function tileRangeFor(id, width, height, offsetX = 0, offsetY = 0, level = MAX_LEVEL) {
   const baseCenter = hotspotCenter(id);
   const center = {
     x: baseCenter.x + offsetX,
     y: baseCenter.y + offsetY
   };
-  const dims = levelDimensions(MAX_LEVEL);
+  const dims = levelDimensions(level);
 
   const leftPx = Math.max(
     0,
@@ -649,13 +657,14 @@ const CueCache = {
       cfg.cueW,
       cfg.cueH,
       cfg.cueOffsetX || 0,
-      cfg.cueOffsetY || 0
+      cfg.cueOffsetY || 0,
+      CUE_LEVEL
     );
     const geometries = [];
 
     for (let row = range.startRow; row <= range.endRow; row++) {
       for (let col = range.startCol; col <= range.endCol; col++) {
-        const geometry = tileGeometry(MAX_LEVEL, col, row);
+        const geometry = tileGeometry(CUE_LEVEL, col, row);
 
         if (geometry) {
           geometries.push({ col, row, geometry });
@@ -717,7 +726,7 @@ const CueCache = {
 
           image.onerror = resolve;
           image.src =
-            `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
+            `${TILE_FOLDER}/${CUE_LEVEL}/${col}_${row}.jpeg`;
         })
       )
     );
@@ -765,7 +774,7 @@ const CueCache = {
     texture.generateMipmaps = false;
     texture.needsUpdate = true;
 
-    const dims = levelDimensions(MAX_LEVEL);
+    const dims = levelDimensions(CUE_LEVEL);
     const worldWidth =
       unionWidth / dims.width * WORLD_WIDTH;
     const worldHeight =
@@ -793,15 +802,15 @@ const CueCache = {
           if (mesh) {
             mesh.material = new THREE.MeshBasicMaterial({
               map: texture,
-              color: new THREE.Color('#fff1a8'),
+              color: new THREE.Color(cfg.tint || '#ffffff'),
               transparent: true,
               opacity: 0,
               side: THREE.DoubleSide,
               depthWrite: false,
               depthTest: true,
               toneMapped: false,
-              blending: THREE.AdditiveBlending,
-              premultipliedAlpha: false
+              blending: THREE.NormalBlending,
+              premultipliedAlpha: true
             });
           }
 
@@ -1162,29 +1171,26 @@ const TourEngine = {
 
     entry.entity.setAttribute('visible', true);
 
+    const cfg = REGION[id];
     const cueMesh = entry.entity.getObject3D('mesh');
+
     if (cueMesh && cueMesh.material) {
-      cueMesh.material.color.set('#fff1a8');
-      cueMesh.material.opacity = 0.08;
-      cueMesh.material.blending = THREE.AdditiveBlending;
+      cueMesh.material.color.set(cfg.tint || '#ffffff');
+      cueMesh.material.opacity = cfg.pulseLow;
+      cueMesh.material.blending = THREE.NormalBlending;
       cueMesh.material.needsUpdate = true;
     }
 
-    const nextId = STORY_ORDER[this.index + 1];
-    if (nextId) {
-      CueCache.ensure(nextId).catch(console.warn);
-    }
-
-    // Four gentle halo pulses, then leave only a very subtle glow.
-    for (let cycle = 0; cycle < 4; cycle++) {
+    // Three region-specific pulses, then leave a subtle cue.
+    for (let cycle = 0; cycle < cfg.pulseCount; cycle++) {
       if (
         token !== this.pulseToken ||
         this.state === State.ZOOMING ||
         this.target !== id
       ) return;
 
-      animateOpacity(entry.entity.object3D, 0.42, 650);
-      await this.wait(760);
+      animateOpacity(entry.entity.object3D, cfg.pulseHigh, 700);
+      await this.wait(820);
 
       if (
         token !== this.pulseToken ||
@@ -1192,13 +1198,13 @@ const TourEngine = {
         this.target !== id
       ) return;
 
-      animateOpacity(entry.entity.object3D, 0.08, 650);
-      await this.wait(760);
+      animateOpacity(entry.entity.object3D, cfg.pulseLow, 700);
+      await this.wait(820);
     }
 
     if (token !== this.pulseToken || this.target !== id) return;
 
-    animateOpacity(entry.entity.object3D, 0.10, 300);
+    animateOpacity(entry.entity.object3D, Math.max(cfg.pulseLow, 0.07), 300);
     this.setState(State.WAIT_GAZE);
   },
 
@@ -1367,10 +1373,6 @@ function selectLanguage(language) {
   speak(welcome, () => {
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
-
-    setTimeout(() => {
-      CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
-    }, 900);
   });
 }
 
