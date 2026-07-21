@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Low-Resolution Region Pulse</title>
+<title>The Night Watch — Large Semantic Gaze Regions</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -11,64 +12,53 @@ AFRAME.registerComponent('blurred-copy', {
     radius: { type: 'number', default: 4 }
   },
 
-  init() {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
+init() {const image = new Image();image.crossOrigin = 'anonymous';
 
-    image.onload = () => {
-      const scale = 0.32;
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+image.onload = () => {
+  const scale = 0.32;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
 
-      const ctx = canvas.getContext('2d');
-      ctx.filter = `blur(${this.data.radius}px)`;
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-      ctx.filter = 'none';
+  const ctx = canvas.getContext('2d');
+  ctx.filter = `blur(${this.data.radius}px)`;
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  ctx.filter = 'none';
 
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.needsUpdate = true;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
 
-      const apply = () => {
-        const mesh = this.el.getObject3D('mesh');
-        if (!mesh) return;
+  const apply = () => {
+    const mesh = this.el.getObject3D('mesh');
+    if (!mesh) return;
 
-        mesh.material = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 0,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          toneMapped: false
-        });
-      };
+    mesh.material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      toneMapped: false
+    });
+  };
 
-      if (this.el.getObject3D('mesh')) {
-        apply();
-      } else {
-        this.el.addEventListener('object3dset', apply, { once: true });
-      }
-    };
-
-    image.src = this.data.source;
+  if (this.el.getObject3D('mesh')) {
+    apply();
+  } else {
+    this.el.addEventListener('object3dset', apply, { once: true });
   }
-});
-</script>
+};
 
+image.src = this.data.source;
+
+}});</script>
 
 <style>
-html, body {
+body {
   margin: 0;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
-  background: #000;
   font-family: Arial, Tahoma, sans-serif;
-}
-
-a-scene {
-  background: #000 !important;
 }
 
 #languageOverlay {
@@ -167,6 +157,7 @@ a-scene {
 }
 
 </style>
+
 </head>
 
 <body>
@@ -180,7 +171,6 @@ a-scene {
   </button>
 </div>
 
-
 <div id="languageOverlay">
   <div id="languageBox">
     <h1>The Night Watch</h1>
@@ -190,9 +180,10 @@ a-scene {
   </div>
 </div>
 
-<a-scene background="color: #000000">
+<a-scene>
 
   <!-- Painting root: low-res base plus optional high-res tile overlay -->
+
   <a-entity id="paintingRoot" position="0 1.6 -3">
     <a-image
       id="paintingLow"
@@ -203,68 +194,42 @@ a-scene {
       material="shader: flat; toneMapped: false">
     </a-image>
 
-    <a-plane
-      id="paintingBlur"
-      width="4"
-      height="3.45"
-      position="0 0 0.0002"
-      material="transparent: true; opacity: 0; shader: flat"
-      blurred-copy="source: painting_low.jpg?v=2; radius: 4">
-    </a-plane>
+<a-plane
+  id="paintingBlur"
+  width="4"
+  height="3.45"
+  position="0 0 0.0002"
+  material="transparent: true; opacity: 0; shader: flat"
+  blurred-copy="source: painting_low.jpg?v=2; radius: 4">
+</a-plane>
 
-    <a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
-    <a-entity id="focusLayer" position="0 0 0.0008"></a-entity>
+<a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
+<a-entity id="focusLayer" position="0 0 0.0008"></a-entity>
+
   </a-entity>
 
   <!-- GLOWING HALOS: hidden until gaze enters -->
-  <a-circle id="captainHalo" position="-0.03 1.28 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="lieutenantHalo" position="0.48 1.25 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="girlHalo" position="-0.66 1.12 -2.94" radius="0.23" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="drummerHalo" position="1.60 1.15 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="flagHalo" position="-0.68 1.82 -2.94" radius="0.34" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="dogHalo" position="1.08 0.58 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="leftGroupHalo" position="-1.45 1.63 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="rightGroupHalo" position="1.42 1.55 -2.94" radius="0.38" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.35" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
 
-  <a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.36" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.40" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
-  <a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+<a-circle id="captainHalo" position="-0.03 1.28 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="lieutenantHalo" position="0.48 1.25 -2.94" radius="0.26" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="girlHalo" position="-0.66 1.12 -2.94" radius="0.23" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="drummerHalo" position="1.60 1.15 -2.94" radius="0.33" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="flagHalo" position="-0.68 1.82 -2.94" radius="0.34" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="musketeerHalo" position="-1.10 1.45 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="dogHalo" position="1.08 0.58 -2.94" radius="0.22" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="leftGroupHalo" position="-1.45 1.63 -2.94" radius="0.32" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="rightGroupHalo" position="1.42 1.55 -2.94" radius="0.38" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="backgroundArchHalo" position="0.45 2.25 -2.94" radius="0.35" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
 
-  <a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
-  <a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
+<a-circle id="chickenClawsHalo" position="-0.72 1.02 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="drinkingHornHalo" position="-0.58 1.16 -2.94" radius="0.17" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="weaponsHalo" position="-1.00 1.35 -2.94" radius="0.24" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="spearsHalo" position="0.90 2.05 -2.94" radius="0.36" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="lightHalo" position="-0.25 1.20 -2.94" radius="0.40" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle><a-circle id="shieldHalo" position="0.58 1.90 -2.94" radius="0.18" color="#ffe680" visible="false" material="transparent:true; opacity:0.06"></a-circle>
+
+<a-circle id="captainHandHalo" position="-0.23 1.45 -2.94" radius="0.16" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle><a-circle id="redSashHalo" position="-0.10 1.25 -2.94" radius="0.18" color="#ffb347" visible="false" material="transparent:true; opacity:0.08"></a-circle>
 
   <!-- INVISIBLE HOTSPOTS -->
-  <a-plane class="hotspot gallery" id="captain" position="-0.03 1.42 -2.95" width="0.56" height="0.90" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.54" height="0.86" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.46" height="0.68" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.66" height="0.96" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.66" height="1.02" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.48" height="0.78" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.66" height="0.40" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.72" height="0.94" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.84" height="1.00" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.94" height="0.66" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+<a-plane class="hotspot gallery" id="captain" position="-0.03 1.42 -2.95" width="0.56" height="0.90" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="lieutenant" position="0.48 1.25 -2.95" width="0.54" height="0.86" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="girl" position="-0.66 1.12 -2.95" width="0.46" height="0.68" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="drummer" position="1.60 1.15 -2.95" width="0.66" height="0.96" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="flag" position="-0.68 1.82 -2.95" width="0.66" height="1.02" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="musketeer" position="-1.10 1.45 -2.95" width="0.48" height="0.78" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="dog" position="1.08 0.58 -2.95" width="0.66" height="0.40" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="leftGroup" position="-1.45 1.63 -2.95" width="0.72" height="0.94" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="rightGroup" position="1.42 1.55 -2.95" width="0.84" height="1.00" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot gallery" id="backgroundArch" position="0.45 2.25 -2.95" width="0.94" height="0.66" material="opacity:0; transparent:true"></a-plane>
 
-  <a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane>
-  <a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
+<a-plane class="hotspot curatorOnly" id="chickenClaws" position="-0.72 1.02 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot curatorOnly" id="drinkingHorn" position="-0.58 1.16 -2.95" width="0.24" height="0.24" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot curatorOnly" id="weapons" position="-1.00 1.35 -2.95" width="0.36" height="0.45" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot curatorOnly" id="spears" position="0.90 2.05 -2.95" width="0.90" height="0.45" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot curatorOnly" id="light" position="-0.25 1.20 -2.95" width="0.80" height="0.75" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot curatorOnly" id="shield" position="0.58 1.90 -2.95" width="0.30" height="0.25" material="opacity:0; transparent:true"></a-plane>
+
+<a-plane class="hotspot curatorOnly captainDetail" id="captainHand" visible="false" position="-0.23 1.45 -2.95" width="0.28" height="0.20" material="opacity:0; transparent:true"></a-plane><a-plane class="hotspot curatorOnly captainDetail" id="redSash" visible="false" position="-0.10 1.25 -2.95" width="0.22" height="0.30" material="opacity:0; transparent:true"></a-plane>
 
   <!-- Text panels -->
-  <a-plane id="infoPanel" visible="false" scale="0 0 0" position="0 0 -2.8" width="1.05" height="0.36" material="transparent:true; opacity:1"></a-plane>
-  <a-plane id="welcomePanel" visible="false" scale="0 0 0" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
+
+<a-plane id="infoPanel" visible="false" scale="0 0 0" position="0 0 -2.8" width="1.05" height="0.36" material="transparent:true; opacity:1"></a-plane><a-plane id="welcomePanel" visible="false" scale="0 0 0" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
 
   <!-- Camera and gaze cursor -->
+
   <a-camera id="mainCamera" position="0 1.6 0">
     <a-cursor
       id="gazeCursor"
@@ -431,16 +396,16 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.44, cueH: 0.58, cueOffsetX: 0.00, cueOffsetY: 0.12, focusW: 0.56, focusH: 0.90, pulseHigh: 0.78, pulseLow: 0.05, brightness: 1.22, contrast: 1.10, saturation: 1.08, pulseCount: 3 },
-  lieutenant:     { cueW: 0.40, cueH: 0.62, cueOffsetX: 0.00, cueOffsetY: 0.03, focusW: 0.54, focusH: 0.90, pulseHigh: 0.82, pulseLow: 0.05, brightness: 1.16, contrast: 1.12, saturation: 1.06, pulseCount: 3 },
-  girl:           { cueW: 0.38, cueH: 0.50, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.46, focusH: 0.70, pulseHigh: 0.84, pulseLow: 0.05, brightness: 1.17, contrast: 1.12, saturation: 1.05, pulseCount: 3 },
-  drummer:        { cueW: 0.54, cueH: 0.72, cueOffsetX: 0.00, cueOffsetY: 0.12, focusW: 0.66, focusH: 0.98, pulseHigh: 0.82, pulseLow: 0.05, brightness: 1.24, contrast: 1.12, saturation: 1.10, pulseCount: 3 },
-  flag:           { cueW: 0.50, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.06, focusW: 0.70, focusH: 1.08, pulseHigh: 0.76, pulseLow: 0.05, brightness: 1.23, contrast: 1.10, saturation: 1.10, pulseCount: 3 },
-  musketeer:      { cueW: 0.40, cueH: 0.58, cueOffsetX: 0.00, cueOffsetY: 0.03, focusW: 0.48, focusH: 0.78, pulseHigh: 0.76, pulseLow: 0.05, brightness: 1.23, contrast: 1.10, saturation: 1.09, pulseCount: 3 },
-  dog:            { cueW: 0.46, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40, pulseHigh: 0.82, pulseLow: 0.05, brightness: 1.26, contrast: 1.12, saturation: 1.08, pulseCount: 3 },
-  leftGroup:      { cueW: 0.56, cueH: 0.72, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.74, focusH: 0.96, pulseHigh: 0.74, pulseLow: 0.04, brightness: 1.22, contrast: 1.10, saturation: 1.08, pulseCount: 3 },
-  rightGroup:     { cueW: 0.64, cueH: 0.76, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.86, focusH: 1.02, pulseHigh: 0.74, pulseLow: 0.04, brightness: 1.22, contrast: 1.10, saturation: 1.08, pulseCount: 3 },
-  backgroundArch: { cueW: 0.70, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68, pulseHigh: 0.70, pulseLow: 0.04, brightness: 1.20, contrast: 1.12, saturation: 1.03, pulseCount: 3 }
+  captain:        { cueW: 0.30, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.24, focusW: 0.56, focusH: 0.90 },
+  lieutenant:     { cueW: 0.24, cueH: 0.36, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
+  girl:           { cueW: 0.22, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
+  drummer:        { cueW: 0.28, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.98 },
+  flag:           { cueW: 0.28, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.70, focusH: 1.08 },
+  musketeer:      { cueW: 0.22, cueH: 0.32, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.48, focusH: 0.78 },
+  dog:            { cueW: 0.26, cueH: 0.16, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40 },
+  leftGroup:      { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.74, focusH: 0.96 },
+  rightGroup:     { cueW: 0.34, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.86, focusH: 1.02 },
+  backgroundArch: { cueW: 0.34, cueH: 0.22, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68 }
 };
 
 const State = Object.freeze({
@@ -642,91 +607,193 @@ function setBlurOpacity(target, duration = 450) {
   requestAnimationFrame(frame);
 }
 
-let lowResCueImagePromise = null;
-
-function getLowResCueImage() {
-  if (lowResCueImagePromise) return lowResCueImagePromise;
-  lowResCueImagePromise = new Promise((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = 'painting_low.jpg?v=2';
-  });
-  return lowResCueImagePromise;
-}
-
-function buildEnhancedCueCanvas(image, id) {
-  const cfg = REGION[id];
-  const center = hotspotCenter(id);
-  const cueCenter = { x: center.x + (cfg.cueOffsetX || 0), y: center.y + (cfg.cueOffsetY || 0) };
-  const leftNorm = (cueCenter.x - cfg.cueW / 2) / WORLD_WIDTH + 0.5;
-  const topNorm = 0.5 - (cueCenter.y + cfg.cueH / 2) / WORLD_HEIGHT;
-  const widthNorm = cfg.cueW / WORLD_WIDTH;
-  const heightNorm = cfg.cueH / WORLD_HEIGHT;
-  const sx = Math.max(0, Math.round(leftNorm * image.naturalWidth));
-  const sy = Math.max(0, Math.round(topNorm * image.naturalHeight));
-  const sw = Math.max(1, Math.min(image.naturalWidth - sx, Math.round(widthNorm * image.naturalWidth)));
-  const sh = Math.max(1, Math.min(image.naturalHeight - sy, Math.round(heightNorm * image.naturalHeight)));
-  const canvas = document.createElement('canvas');
-  canvas.width = sw; canvas.height = sh;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,sw,sh);
-  ctx.filter = `brightness(${cfg.brightness}) contrast(${cfg.contrast}) saturate(${cfg.saturation})`;
-  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
-  ctx.filter = 'none';
-  ctx.globalCompositeOperation = 'destination-in';
-  const edgeCanvas = document.createElement('canvas');
-  edgeCanvas.width = sw; edgeCanvas.height = sh;
-  const edgeCtx = edgeCanvas.getContext('2d');
-  const fx = Math.min(0.22, Math.max(0.10, 28 / sw));
-  const fy = Math.min(0.22, Math.max(0.10, 28 / sh));
-  const gx = edgeCtx.createLinearGradient(0,0,sw,0);
-  gx.addColorStop(0,'rgba(255,255,255,0)'); gx.addColorStop(fx,'rgba(255,255,255,1)'); gx.addColorStop(1-fx,'rgba(255,255,255,1)'); gx.addColorStop(1,'rgba(255,255,255,0)');
-  edgeCtx.fillStyle=gx; edgeCtx.fillRect(0,0,sw,sh);
-  edgeCtx.globalCompositeOperation='destination-in';
-  const gy = edgeCtx.createLinearGradient(0,0,0,sh);
-  gy.addColorStop(0,'rgba(255,255,255,0)'); gy.addColorStop(fy,'rgba(255,255,255,1)'); gy.addColorStop(1-fy,'rgba(255,255,255,1)'); gy.addColorStop(1,'rgba(255,255,255,0)');
-  edgeCtx.fillStyle=gy; edgeCtx.fillRect(0,0,sw,sh);
-  ctx.drawImage(edgeCanvas,0,0);
-  ctx.globalCompositeOperation='source-over';
-  return {canvas, cueCenter};
-}
-
 const CueCache = {
   entries: new Map(),
+
   async ensure(id) {
-    if (this.entries.has(id)) return this.entries.get(id);
+    if (this.entries.has(id)) {
+      return this.entries.get(id);
+    }
+
     const cfg = REGION[id];
-    const image = await getLowResCueImage();
-    const {canvas, cueCenter} = buildEnhancedCueCanvas(image,id);
+    const range = tileRangeFor(
+      id,
+      cfg.cueW,
+      cfg.cueH,
+      cfg.cueOffsetX || 0,
+      cfg.cueOffsetY || 0
+    );
+    const geometries = [];
+
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      for (let col = range.startCol; col <= range.endCol; col++) {
+        const geometry = tileGeometry(MAX_LEVEL, col, row);
+
+        if (geometry) {
+          geometries.push({ col, row, geometry });
+        }
+      }
+    }
+
+    if (!geometries.length) {
+      throw new Error(`No cue tiles found for ${id}`);
+    }
+
+    const unionLeft = Math.min(
+      ...geometries.map(item => item.geometry.fileX)
+    );
+    const unionTop = Math.min(
+      ...geometries.map(item => item.geometry.fileY)
+    );
+    const unionRight = Math.max(
+      ...geometries.map(
+        item => item.geometry.fileX + item.geometry.fileW
+      )
+    );
+    const unionBottom = Math.max(
+      ...geometries.map(
+        item => item.geometry.fileY + item.geometry.fileH
+      )
+    );
+
+    const unionWidth = unionRight - unionLeft;
+    const unionHeight = unionBottom - unionTop;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = unionWidth;
+    canvas.height = unionHeight;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, unionWidth, unionHeight);
+
+    await Promise.all(
+      geometries.map(({ col, row, geometry }) =>
+        new Promise(resolve => {
+          const image = new Image();
+          image.crossOrigin = 'anonymous';
+
+          image.onload = () => {
+            const drawX = geometry.fileX - unionLeft;
+            const drawY = geometry.fileY - unionTop;
+
+            ctx.drawImage(
+              image,
+              drawX,
+              drawY,
+              geometry.fileW,
+              geometry.fileH
+            );
+
+            resolve();
+          };
+
+          image.onerror = resolve;
+          image.src =
+            `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
+        })
+      )
+    );
+
+    const imageCenterX =
+      ((range.center.x / WORLD_WIDTH) + 0.5) * IMAGE_WIDTH;
+    const imageCenterY =
+      (0.5 - range.center.y / WORLD_HEIGHT) * IMAGE_HEIGHT;
+
+    const maskCenterX = imageCenterX - unionLeft;
+    const maskCenterY = imageCenterY - unionTop;
+    const radiusX =
+      cfg.cueW / 2 / WORLD_WIDTH * IMAGE_WIDTH;
+    const radiusY =
+      cfg.cueH / 2 / WORLD_HEIGHT * IMAGE_HEIGHT;
+
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.save();
+    ctx.translate(maskCenterX, maskCenterY);
+    ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
+
+    const gradient = ctx.createRadialGradient(
+      0, 0, radiusX * 0.02,
+      0, 0, radiusX
+    );
+
+    gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
+    gradient.addColorStop(0.28, 'rgba(255,255,255,0.98)');
+    gradient.addColorStop(0.48, 'rgba(255,255,255,0.82)');
+    gradient.addColorStop(0.66, 'rgba(255,255,255,0.54)');
+    gradient.addColorStop(0.82, 'rgba(255,255,255,0.25)');
+    gradient.addColorStop(0.93, 'rgba(255,255,255,0.08)');
+    gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
     texture.needsUpdate = true;
+
+    const dims = levelDimensions(MAX_LEVEL);
+    const worldWidth =
+      unionWidth / dims.width * WORLD_WIDTH;
+    const worldHeight =
+      unionHeight / dims.height * WORLD_HEIGHT;
+    const centerX =
+      ((unionLeft + unionWidth / 2) / dims.width - 0.5) *
+      WORLD_WIDTH;
+    const centerY =
+      (0.5 - (unionTop + unionHeight / 2) / dims.height) *
+      WORLD_HEIGHT;
+
     const plane = document.createElement('a-plane');
-    plane.setAttribute('width',cfg.cueW);
-    plane.setAttribute('height',cfg.cueH);
-    plane.setAttribute('position',`${cueCenter.x} ${cueCenter.y} 0`);
-    plane.setAttribute('visible',false);
-    const ready = new Promise(resolve=>{
-      const apply=()=>{
-        const mesh=plane.getObject3D('mesh'); if(!mesh) return;
-        mesh.material = new THREE.MeshBasicMaterial({map:texture,color:new THREE.Color('#ffffff'),transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,depthTest:true,toneMapped:false,blending:THREE.NormalBlending,premultipliedAlpha:true});
-        mesh.renderOrder=20; resolve();
-      };
-      if(plane.getObject3D('mesh')) apply(); else plane.addEventListener('object3dset',apply,{once:true});
+    plane.setAttribute('width', worldWidth);
+    plane.setAttribute('height', worldHeight);
+    plane.setAttribute('position', `${centerX} ${centerY} 0`);
+    plane.setAttribute('visible', false);
+    plane.dataset.target = id;
+
+    const ready = new Promise(resolve => {
+      plane.addEventListener(
+        'loaded',
+        () => {
+          const mesh = plane.getObject3D('mesh');
+
+          if (mesh) {
+            mesh.material = new THREE.MeshBasicMaterial({
+              map: texture,
+              color: new THREE.Color('#fff1a8'),
+              transparent: true,
+              opacity: 0,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+              depthTest: true,
+              toneMapped: false,
+              blending: THREE.AdditiveBlending,
+              premultipliedAlpha: false
+            });
+          }
+
+          resolve();
+        },
+        { once: true }
+      );
     });
-    cueLayer.appendChild(plane); await ready;
-    const entry={entity:plane,texture}; this.entries.set(id,entry); return entry;
+
+    cueLayer.appendChild(plane);
+    await ready;
+
+    const entry = { entity: plane, texture };
+    this.entries.set(id, entry);
+    return entry;
   },
+
   hideAll() {
-    this.entries.forEach(entry=>{
-      entry.entity.setAttribute('visible',false);
-      const mesh=entry.entity.getObject3D('mesh');
-      if(mesh&&mesh.material){mesh.material.opacity=0;mesh.material.needsUpdate=true;}
+    this.entries.forEach(entry => {
+      entry.entity.setAttribute('visible', false);
     });
   }
 };
@@ -1056,30 +1123,57 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     this.pulseToken += 1;
     const token = this.pulseToken;
+
     this.target = id;
     this.setState(State.CUE);
     CueCache.hideAll();
-    setBlurOpacity(0, 0);
-    let entry = null;
-    try { entry = await CueCache.ensure(id); }
-    catch (error) { console.error('Could not create attention cue for', id, error); this.setState(State.WAIT_GAZE); return; }
-    if (token !== this.pulseToken || this.target !== id) return;
-    const cfg = REGION[id];
-    const mesh = entry.entity.getObject3D('mesh');
+    setBlurOpacity(0, 150);
+
+    const entry = await CueCache.ensure(id);
+    if (token !== this.pulseToken) return;
+
     entry.entity.setAttribute('visible', true);
-    if (mesh && mesh.material) { mesh.material.opacity = cfg.pulseLow; mesh.material.needsUpdate = true; }
-    for (let cycle = 0; cycle < cfg.pulseCount; cycle++) {
-      if (token !== this.pulseToken || this.state === State.ZOOMING || this.target !== id) return;
-      animateOpacity(entry.entity.object3D, cfg.pulseHigh, 720);
-      await this.wait(820);
-      if (token !== this.pulseToken || this.state === State.ZOOMING || this.target !== id) return;
-      animateOpacity(entry.entity.object3D, cfg.pulseLow, 720);
-      await this.wait(820);
+
+    const cueMesh = entry.entity.getObject3D('mesh');
+    if (cueMesh && cueMesh.material) {
+      cueMesh.material.color.set('#fff1a8');
+      cueMesh.material.opacity = 0.08;
+      cueMesh.material.blending = THREE.AdditiveBlending;
+      cueMesh.material.needsUpdate = true;
     }
+
+    const nextId = STORY_ORDER[this.index + 1];
+    if (nextId) {
+      CueCache.ensure(nextId).catch(console.warn);
+    }
+
+    // Four gentle halo pulses, then leave only a very subtle glow.
+    for (let cycle = 0; cycle < 4; cycle++) {
+      if (
+        token !== this.pulseToken ||
+        this.state === State.ZOOMING ||
+        this.target !== id
+      ) return;
+
+      animateOpacity(entry.entity.object3D, 0.42, 650);
+      await this.wait(760);
+
+      if (
+        token !== this.pulseToken ||
+        this.state === State.ZOOMING ||
+        this.target !== id
+      ) return;
+
+      animateOpacity(entry.entity.object3D, 0.08, 650);
+      await this.wait(760);
+    }
+
     if (token !== this.pulseToken || this.target !== id) return;
-    animateOpacity(entry.entity.object3D, Math.max(cfg.pulseLow, 0.08), 300);
+
+    animateOpacity(entry.entity.object3D, 0.10, 300);
     this.setState(State.WAIT_GAZE);
-  }
+  },
+
   confirmGaze(id) {
     if (this.state === State.FREE) {
       this.openTarget(id, false);
@@ -1245,6 +1339,10 @@ function selectLanguage(language) {
   speak(welcome, () => {
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
+
+    setTimeout(() => {
+      CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
+    }, 900);
   });
 }
 
