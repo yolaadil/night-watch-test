@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Refined Attention Cues</title>
+<title>The Night Watch — Low-Resolution Region Pulse</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -297,7 +297,6 @@ const TILE_SIZE = 254;
 const TILE_OVERLAP = 1;
 const TILE_FOLDER = 'tiles';
 const MAX_LEVEL = 14;
-const CUE_LEVEL = 13;
 const GAZE_MS = 2500;
 
 const hotspotTexts = {
@@ -432,16 +431,16 @@ const STORY_TEXT = {
 };
 
 const REGION = {
-  captain:        { cueW: 0.34, cueH: 0.38, cueOffsetX: 0.00, cueOffsetY: 0.22, focusW: 0.56, focusH: 0.90, pulseHigh: 0.42, pulseLow: 0.06, tint: '#fff6dc', pulseCount: 3 },
-  lieutenant:     { cueW: 0.30, cueH: 0.42, cueOffsetX: 0.00, cueOffsetY: 0.08, focusW: 0.54, focusH: 0.90, pulseHigh: 0.58, pulseLow: 0.08, tint: '#ffffff', pulseCount: 3 },
-  girl:           { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.06, focusW: 0.46, focusH: 0.70, pulseHigh: 0.62, pulseLow: 0.08, tint: '#ffffff', pulseCount: 3 },
-  drummer:        { cueW: 0.44, cueH: 0.54, cueOffsetX: 0.02, cueOffsetY: 0.22, focusW: 0.66, focusH: 0.98, pulseHigh: 0.50, pulseLow: 0.07, tint: '#fff8e8', pulseCount: 3 },
-  flag:           { cueW: 0.36, cueH: 0.50, cueOffsetX: 0.00, cueOffsetY: 0.12, focusW: 0.70, focusH: 1.08, pulseHigh: 0.46, pulseLow: 0.06, tint: '#fff4d6', pulseCount: 3 },
-  musketeer:      { cueW: 0.30, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.08, focusW: 0.48, focusH: 0.78, pulseHigh: 0.44, pulseLow: 0.06, tint: '#fff3d2', pulseCount: 3 },
-  dog:            { cueW: 0.36, cueH: 0.24, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40, pulseHigh: 0.50, pulseLow: 0.07, tint: '#fff7e2', pulseCount: 3 },
-  leftGroup:      { cueW: 0.40, cueH: 0.48, cueOffsetX: 0.00, cueOffsetY: 0.04, focusW: 0.74, focusH: 0.96, pulseHigh: 0.40, pulseLow: 0.05, tint: '#fff2d0', pulseCount: 3 },
-  rightGroup:     { cueW: 0.44, cueH: 0.50, cueOffsetX: 0.00, cueOffsetY: 0.04, focusW: 0.86, focusH: 1.02, pulseHigh: 0.42, pulseLow: 0.05, tint: '#fff2d0', pulseCount: 3 },
-  backgroundArch: { cueW: 0.44, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68, pulseHigh: 0.36, pulseLow: 0.04, tint: '#f5ead0', pulseCount: 3 }
+  captain:        { cueW: 0.44, cueH: 0.58, cueOffsetX: 0.00, cueOffsetY: 0.12, focusW: 0.56, focusH: 0.90, pulseHigh: 0.78, pulseLow: 0.05, brightness: 1.22, contrast: 1.10, saturation: 1.08, pulseCount: 3 },
+  lieutenant:     { cueW: 0.40, cueH: 0.62, cueOffsetX: 0.00, cueOffsetY: 0.03, focusW: 0.54, focusH: 0.90, pulseHigh: 0.82, pulseLow: 0.05, brightness: 1.16, contrast: 1.12, saturation: 1.06, pulseCount: 3 },
+  girl:           { cueW: 0.38, cueH: 0.50, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.46, focusH: 0.70, pulseHigh: 0.84, pulseLow: 0.05, brightness: 1.17, contrast: 1.12, saturation: 1.05, pulseCount: 3 },
+  drummer:        { cueW: 0.54, cueH: 0.72, cueOffsetX: 0.00, cueOffsetY: 0.12, focusW: 0.66, focusH: 0.98, pulseHigh: 0.82, pulseLow: 0.05, brightness: 1.24, contrast: 1.12, saturation: 1.10, pulseCount: 3 },
+  flag:           { cueW: 0.50, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.06, focusW: 0.70, focusH: 1.08, pulseHigh: 0.76, pulseLow: 0.05, brightness: 1.23, contrast: 1.10, saturation: 1.10, pulseCount: 3 },
+  musketeer:      { cueW: 0.40, cueH: 0.58, cueOffsetX: 0.00, cueOffsetY: 0.03, focusW: 0.48, focusH: 0.78, pulseHigh: 0.76, pulseLow: 0.05, brightness: 1.23, contrast: 1.10, saturation: 1.09, pulseCount: 3 },
+  dog:            { cueW: 0.46, cueH: 0.30, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40, pulseHigh: 0.82, pulseLow: 0.05, brightness: 1.26, contrast: 1.12, saturation: 1.08, pulseCount: 3 },
+  leftGroup:      { cueW: 0.56, cueH: 0.72, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.74, focusH: 0.96, pulseHigh: 0.74, pulseLow: 0.04, brightness: 1.22, contrast: 1.10, saturation: 1.08, pulseCount: 3 },
+  rightGroup:     { cueW: 0.64, cueH: 0.76, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.86, focusH: 1.02, pulseHigh: 0.74, pulseLow: 0.04, brightness: 1.22, contrast: 1.10, saturation: 1.08, pulseCount: 3 },
+  backgroundArch: { cueW: 0.70, cueH: 0.40, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.96, focusH: 0.68, pulseHigh: 0.70, pulseLow: 0.04, brightness: 1.20, contrast: 1.12, saturation: 1.03, pulseCount: 3 }
 };
 
 const State = Object.freeze({
@@ -513,13 +512,13 @@ function hotspotCenter(id) {
   return { x: pos.x, y: pos.y - 1.6 };
 }
 
-function tileRangeFor(id, width, height, offsetX = 0, offsetY = 0, level = MAX_LEVEL) {
+function tileRangeFor(id, width, height, offsetX = 0, offsetY = 0) {
   const baseCenter = hotspotCenter(id);
   const center = {
     x: baseCenter.x + offsetX,
     y: baseCenter.y + offsetY
   };
-  const dims = levelDimensions(level);
+  const dims = levelDimensions(MAX_LEVEL);
 
   const leftPx = Math.max(
     0,
@@ -643,194 +642,91 @@ function setBlurOpacity(target, duration = 450) {
   requestAnimationFrame(frame);
 }
 
+let lowResCueImagePromise = null;
+
+function getLowResCueImage() {
+  if (lowResCueImagePromise) return lowResCueImagePromise;
+  lowResCueImagePromise = new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = 'painting_low.jpg?v=2';
+  });
+  return lowResCueImagePromise;
+}
+
+function buildEnhancedCueCanvas(image, id) {
+  const cfg = REGION[id];
+  const center = hotspotCenter(id);
+  const cueCenter = { x: center.x + (cfg.cueOffsetX || 0), y: center.y + (cfg.cueOffsetY || 0) };
+  const leftNorm = (cueCenter.x - cfg.cueW / 2) / WORLD_WIDTH + 0.5;
+  const topNorm = 0.5 - (cueCenter.y + cfg.cueH / 2) / WORLD_HEIGHT;
+  const widthNorm = cfg.cueW / WORLD_WIDTH;
+  const heightNorm = cfg.cueH / WORLD_HEIGHT;
+  const sx = Math.max(0, Math.round(leftNorm * image.naturalWidth));
+  const sy = Math.max(0, Math.round(topNorm * image.naturalHeight));
+  const sw = Math.max(1, Math.min(image.naturalWidth - sx, Math.round(widthNorm * image.naturalWidth)));
+  const sh = Math.max(1, Math.min(image.naturalHeight - sy, Math.round(heightNorm * image.naturalHeight)));
+  const canvas = document.createElement('canvas');
+  canvas.width = sw; canvas.height = sh;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,sw,sh);
+  ctx.filter = `brightness(${cfg.brightness}) contrast(${cfg.contrast}) saturate(${cfg.saturation})`;
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+  ctx.filter = 'none';
+  ctx.globalCompositeOperation = 'destination-in';
+  const edgeCanvas = document.createElement('canvas');
+  edgeCanvas.width = sw; edgeCanvas.height = sh;
+  const edgeCtx = edgeCanvas.getContext('2d');
+  const fx = Math.min(0.22, Math.max(0.10, 28 / sw));
+  const fy = Math.min(0.22, Math.max(0.10, 28 / sh));
+  const gx = edgeCtx.createLinearGradient(0,0,sw,0);
+  gx.addColorStop(0,'rgba(255,255,255,0)'); gx.addColorStop(fx,'rgba(255,255,255,1)'); gx.addColorStop(1-fx,'rgba(255,255,255,1)'); gx.addColorStop(1,'rgba(255,255,255,0)');
+  edgeCtx.fillStyle=gx; edgeCtx.fillRect(0,0,sw,sh);
+  edgeCtx.globalCompositeOperation='destination-in';
+  const gy = edgeCtx.createLinearGradient(0,0,0,sh);
+  gy.addColorStop(0,'rgba(255,255,255,0)'); gy.addColorStop(fy,'rgba(255,255,255,1)'); gy.addColorStop(1-fy,'rgba(255,255,255,1)'); gy.addColorStop(1,'rgba(255,255,255,0)');
+  edgeCtx.fillStyle=gy; edgeCtx.fillRect(0,0,sw,sh);
+  ctx.drawImage(edgeCanvas,0,0);
+  ctx.globalCompositeOperation='source-over';
+  return {canvas, cueCenter};
+}
+
 const CueCache = {
   entries: new Map(),
-
   async ensure(id) {
-    if (this.entries.has(id)) {
-      return this.entries.get(id);
-    }
-
+    if (this.entries.has(id)) return this.entries.get(id);
     const cfg = REGION[id];
-    const range = tileRangeFor(
-      id,
-      cfg.cueW,
-      cfg.cueH,
-      cfg.cueOffsetX || 0,
-      cfg.cueOffsetY || 0,
-      CUE_LEVEL
-    );
-    const geometries = [];
-
-    for (let row = range.startRow; row <= range.endRow; row++) {
-      for (let col = range.startCol; col <= range.endCol; col++) {
-        const geometry = tileGeometry(CUE_LEVEL, col, row);
-
-        if (geometry) {
-          geometries.push({ col, row, geometry });
-        }
-      }
-    }
-
-    if (!geometries.length) {
-      throw new Error(`No cue tiles found for ${id}`);
-    }
-
-    const unionLeft = Math.min(
-      ...geometries.map(item => item.geometry.fileX)
-    );
-    const unionTop = Math.min(
-      ...geometries.map(item => item.geometry.fileY)
-    );
-    const unionRight = Math.max(
-      ...geometries.map(
-        item => item.geometry.fileX + item.geometry.fileW
-      )
-    );
-    const unionBottom = Math.max(
-      ...geometries.map(
-        item => item.geometry.fileY + item.geometry.fileH
-      )
-    );
-
-    const unionWidth = unionRight - unionLeft;
-    const unionHeight = unionBottom - unionTop;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = unionWidth;
-    canvas.height = unionHeight;
-
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, unionWidth, unionHeight);
-
-    await Promise.all(
-      geometries.map(({ col, row, geometry }) =>
-        new Promise(resolve => {
-          const image = new Image();
-          image.crossOrigin = 'anonymous';
-
-          image.onload = () => {
-            const drawX = geometry.fileX - unionLeft;
-            const drawY = geometry.fileY - unionTop;
-
-            ctx.drawImage(
-              image,
-              drawX,
-              drawY,
-              geometry.fileW,
-              geometry.fileH
-            );
-
-            resolve();
-          };
-
-          image.onerror = resolve;
-          image.src =
-            `${TILE_FOLDER}/${CUE_LEVEL}/${col}_${row}.jpeg`;
-        })
-      )
-    );
-
-    const imageCenterX =
-      ((range.center.x / WORLD_WIDTH) + 0.5) * IMAGE_WIDTH;
-    const imageCenterY =
-      (0.5 - range.center.y / WORLD_HEIGHT) * IMAGE_HEIGHT;
-
-    const maskCenterX = imageCenterX - unionLeft;
-    const maskCenterY = imageCenterY - unionTop;
-    const radiusX =
-      cfg.cueW / 2 / WORLD_WIDTH * IMAGE_WIDTH;
-    const radiusY =
-      cfg.cueH / 2 / WORLD_HEIGHT * IMAGE_HEIGHT;
-
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.save();
-    ctx.translate(maskCenterX, maskCenterY);
-    ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
-
-    const gradient = ctx.createRadialGradient(
-      0, 0, radiusX * 0.02,
-      0, 0, radiusX
-    );
-
-    gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
-    gradient.addColorStop(0.28, 'rgba(255,255,255,0.98)');
-    gradient.addColorStop(0.48, 'rgba(255,255,255,0.82)');
-    gradient.addColorStop(0.66, 'rgba(255,255,255,0.54)');
-    gradient.addColorStop(0.82, 'rgba(255,255,255,0.25)');
-    gradient.addColorStop(0.93, 'rgba(255,255,255,0.08)');
-    gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
+    const image = await getLowResCueImage();
+    const {canvas, cueCenter} = buildEnhancedCueCanvas(image,id);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
     texture.needsUpdate = true;
-
-    const dims = levelDimensions(CUE_LEVEL);
-    const worldWidth =
-      unionWidth / dims.width * WORLD_WIDTH;
-    const worldHeight =
-      unionHeight / dims.height * WORLD_HEIGHT;
-    const centerX =
-      ((unionLeft + unionWidth / 2) / dims.width - 0.5) *
-      WORLD_WIDTH;
-    const centerY =
-      (0.5 - (unionTop + unionHeight / 2) / dims.height) *
-      WORLD_HEIGHT;
-
     const plane = document.createElement('a-plane');
-    plane.setAttribute('width', worldWidth);
-    plane.setAttribute('height', worldHeight);
-    plane.setAttribute('position', `${centerX} ${centerY} 0`);
-    plane.setAttribute('visible', false);
-    plane.dataset.target = id;
-
-    const ready = new Promise(resolve => {
-      plane.addEventListener(
-        'loaded',
-        () => {
-          const mesh = plane.getObject3D('mesh');
-
-          if (mesh) {
-            mesh.material = new THREE.MeshBasicMaterial({
-              map: texture,
-              color: new THREE.Color(cfg.tint || '#ffffff'),
-              transparent: true,
-              opacity: 0,
-              side: THREE.DoubleSide,
-              depthWrite: false,
-              depthTest: true,
-              toneMapped: false,
-              blending: THREE.NormalBlending,
-              premultipliedAlpha: true
-            });
-          }
-
-          resolve();
-        },
-        { once: true }
-      );
+    plane.setAttribute('width',cfg.cueW);
+    plane.setAttribute('height',cfg.cueH);
+    plane.setAttribute('position',`${cueCenter.x} ${cueCenter.y} 0`);
+    plane.setAttribute('visible',false);
+    const ready = new Promise(resolve=>{
+      const apply=()=>{
+        const mesh=plane.getObject3D('mesh'); if(!mesh) return;
+        mesh.material = new THREE.MeshBasicMaterial({map:texture,color:new THREE.Color('#ffffff'),transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,depthTest:true,toneMapped:false,blending:THREE.NormalBlending,premultipliedAlpha:true});
+        mesh.renderOrder=20; resolve();
+      };
+      if(plane.getObject3D('mesh')) apply(); else plane.addEventListener('object3dset',apply,{once:true});
     });
-
-    cueLayer.appendChild(plane);
-    await ready;
-
-    const entry = { entity: plane, texture };
-    this.entries.set(id, entry);
-    return entry;
+    cueLayer.appendChild(plane); await ready;
+    const entry={entity:plane,texture}; this.entries.set(id,entry); return entry;
   },
-
   hideAll() {
-    this.entries.forEach(entry => {
-      entry.entity.setAttribute('visible', false);
+    this.entries.forEach(entry=>{
+      entry.entity.setAttribute('visible',false);
+      const mesh=entry.entity.getObject3D('mesh');
+      if(mesh&&mesh.material){mesh.material.opacity=0;mesh.material.needsUpdate=true;}
     });
   }
 };
@@ -1160,54 +1056,30 @@ const TourEngine = {
     clearTimeout(this.autoTimer);
     this.pulseToken += 1;
     const token = this.pulseToken;
-
     this.target = id;
     this.setState(State.CUE);
     CueCache.hideAll();
-    setBlurOpacity(0, 150);
-
-    const entry = await CueCache.ensure(id);
-    if (token !== this.pulseToken) return;
-
-    entry.entity.setAttribute('visible', true);
-
-    const cfg = REGION[id];
-    const cueMesh = entry.entity.getObject3D('mesh');
-
-    if (cueMesh && cueMesh.material) {
-      cueMesh.material.color.set(cfg.tint || '#ffffff');
-      cueMesh.material.opacity = cfg.pulseLow;
-      cueMesh.material.blending = THREE.NormalBlending;
-      cueMesh.material.needsUpdate = true;
-    }
-
-    // Three region-specific pulses, then leave a subtle cue.
-    for (let cycle = 0; cycle < cfg.pulseCount; cycle++) {
-      if (
-        token !== this.pulseToken ||
-        this.state === State.ZOOMING ||
-        this.target !== id
-      ) return;
-
-      animateOpacity(entry.entity.object3D, cfg.pulseHigh, 700);
-      await this.wait(820);
-
-      if (
-        token !== this.pulseToken ||
-        this.state === State.ZOOMING ||
-        this.target !== id
-      ) return;
-
-      animateOpacity(entry.entity.object3D, cfg.pulseLow, 700);
-      await this.wait(820);
-    }
-
+    setBlurOpacity(0, 0);
+    let entry = null;
+    try { entry = await CueCache.ensure(id); }
+    catch (error) { console.error('Could not create attention cue for', id, error); this.setState(State.WAIT_GAZE); return; }
     if (token !== this.pulseToken || this.target !== id) return;
-
-    animateOpacity(entry.entity.object3D, Math.max(cfg.pulseLow, 0.07), 300);
+    const cfg = REGION[id];
+    const mesh = entry.entity.getObject3D('mesh');
+    entry.entity.setAttribute('visible', true);
+    if (mesh && mesh.material) { mesh.material.opacity = cfg.pulseLow; mesh.material.needsUpdate = true; }
+    for (let cycle = 0; cycle < cfg.pulseCount; cycle++) {
+      if (token !== this.pulseToken || this.state === State.ZOOMING || this.target !== id) return;
+      animateOpacity(entry.entity.object3D, cfg.pulseHigh, 720);
+      await this.wait(820);
+      if (token !== this.pulseToken || this.state === State.ZOOMING || this.target !== id) return;
+      animateOpacity(entry.entity.object3D, cfg.pulseLow, 720);
+      await this.wait(820);
+    }
+    if (token !== this.pulseToken || this.target !== id) return;
+    animateOpacity(entry.entity.object3D, Math.max(cfg.pulseLow, 0.08), 300);
     this.setState(State.WAIT_GAZE);
-  },
-
+  }
   confirmGaze(id) {
     if (this.state === State.FREE) {
       this.openTarget(id, false);
