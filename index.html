@@ -399,7 +399,7 @@ const REGION = {
   captain:        { cueW: 0.52, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.56, focusH: 0.90 },
   lieutenant:     { cueW: 0.44, cueH: 0.72, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.54, focusH: 0.90 },
   girl:           { cueW: 0.40, cueH: 0.60, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.46, focusH: 0.70 },
-  drummer:        { cueW: 0.58, cueH: 0.88, cueOffsetX: 0.12, cueOffsetY: 0.08, focusW: 0.66, focusH: 0.98 },
+  drummer:        { cueW: 0.54, cueH: 0.84, cueOffsetX: 0.00, cueOffsetY: 0.05, focusW: 0.66, focusH: 0.98 },
   flag:           { cueW: 0.48, cueH: 0.82, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.70, focusH: 1.08 },
   musketeer:      { cueW: 0.40, cueH: 0.62, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.48, focusH: 0.78 },
   dog:            { cueW: 0.44, cueH: 0.28, cueOffsetX: 0.00, cueOffsetY: 0.00, focusW: 0.66, focusH: 0.40 },
@@ -421,8 +421,8 @@ const State = Object.freeze({
 let currentLanguage = null;
 let pageReady = false;
 let gazeTimer = null;
-let speechUtterance = null;
-let voices = [];
+let activeAudio = null;
+let activeAudioFinish = null;
 
 function levelDimensions(level) {
   const scale = Math.pow(2, level - MAX_LEVEL);
@@ -950,54 +950,70 @@ const texture = new THREE.CanvasTexture(canvas);
   focusLayer.appendChild(plane);
 }
 
-function refreshVoices() {
-  if (!('speechSynthesis' in window)) return;
-  voices = window.speechSynthesis.getVoices();
-}
-
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
-}
-
 function stopSpeech() {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
+  if (activeAudioFinish) {
+    activeAudioFinish = null;
   }
-  speechUtterance = null;
+
+  if (activeAudio) {
+    activeAudio.pause();
+    activeAudio.removeAttribute('src');
+    activeAudio.load();
+    activeAudio = null;
+  }
 }
 
-function speak(text, onEnd = null) {
-  if (!('speechSynthesis' in window) || !text) return;
+function audioPath(id) {
+  return `audio/${currentLanguage}/${id}.mp3`;
+}
 
+function playNarration(id, onEnd = null) {
   stopSpeech();
-  refreshVoices();
 
-  const prefix = currentLanguage === 'ar' ? 'ar' : 'en';
-  const preferred = voices.find(v =>
-    v.lang.toLowerCase().startsWith(prefix) &&
-    /aria|jenny|samantha|daniel|salma|hamed|google/i.test(v.name)
-  ) || voices.find(v => v.lang.toLowerCase().startsWith(prefix));
+  const audio = new Audio();
+  audio.preload = 'auto';
+  audio.src = audioPath(id);
+  activeAudio = audio;
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
-  utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.92;
-  utterance.pitch = 0.97;
-  if (preferred) utterance.voice = preferred;
+  let completed = false;
 
-  if (typeof onEnd === 'function') {
-    let completed = false;
-    const finish = () => {
-      if (completed) return;
-      completed = true;
+  const finish = () => {
+    if (completed) return;
+    completed = true;
+
+    if (activeAudio === audio) {
+      activeAudio = null;
+    }
+
+    if (activeAudioFinish === finish) {
+      activeAudioFinish = null;
+    }
+
+    if (typeof onEnd === 'function') {
       onEnd();
-    };
+    }
+  };
 
-    utterance.onend = finish;
-    utterance.onerror = finish;
+  activeAudioFinish = finish;
+
+  audio.addEventListener('ended', finish, { once: true });
+  audio.addEventListener(
+    'error',
+    event => {
+      console.error('Narration failed to load:', audio.src, event);
+      finish();
+    },
+    { once: true }
+  );
+
+  const playPromise = audio.play();
+
+  if (playPromise && typeof playPromise.catch === 'function') {
+    playPromise.catch(error => {
+      console.error('Narration playback was blocked:', audio.src, error);
+      finish();
+    });
   }
-
-  speechUtterance = utterance;
-  window.speechSynthesis.speak(utterance);
 }
 
 function standardNarration(id) {
@@ -1213,21 +1229,18 @@ const TourEngine = {
       showNestedDetails(id);
       backButton.style.display = 'block';
 
-      const narration = orderedStory
-        ? STORY_TEXT[id][currentLanguage]
-        : standardNarration(id);
-
-      speak(narration);
-
       if (orderedStory) {
-        const words = narration.trim().split(/\s+/).length;
-        const narrationMs = Math.max(7000, words * 430);
+        playNarration(id, () => {
+          if (this.state !== State.STORY || this.target !== id) return;
 
-        this.autoTimer = setTimeout(() => {
-          if (this.state === State.STORY && this.target === id) {
-            this.returnFromTarget(true);
-          }
-        }, narrationMs + 1200);
+          this.autoTimer = setTimeout(() => {
+            if (this.state === State.STORY && this.target === id) {
+              this.returnFromTarget(true);
+            }
+          }, 1200);
+        });
+      } else {
+        playNarration(id);
       }
     }, 850);
   },
@@ -1268,7 +1281,7 @@ const TourEngine = {
               ? 'انتهت القصة الموجهة. يمكنك الآن استكشاف أي عنصر بحرية.'
               : 'The guided story is complete. You can now explore any element freely.';
 
-          speak(ending);
+          playNarration('ending');
 
           setTimeout(() => {
             
@@ -1304,7 +1317,7 @@ function addHotspot(id) {
     gazeTimer = setTimeout(() => {
       if (el.classList.contains('captainDetail')) {
         
-        speak(standardNarration(id));
+        playNarration(id);
         return;
       }
 
@@ -1327,16 +1340,9 @@ function selectLanguage(language) {
   languageOverlay.style.display = 'none';
   gazeCursor.setAttribute('visible', true);
   showPrimaryHotspots(true);
-  refreshVoices();
-
-  
-
-  const welcome =
-    language === 'ar'
-      ? 'مرحبًا بك في الحراسة الليلية. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
-      : 'Welcome to The Night Watch. The painting will guide your attention from one detail to the next.';
-
-  speak(welcome, () => {
+  // Starting the welcome MP3 directly inside this button click
+  // satisfies the Meta Quest Browser's user-gesture requirement.
+  playNarration('welcome', () => {
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
 
