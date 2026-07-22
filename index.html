@@ -175,6 +175,7 @@ body {
   <div id="languageBox">
     <h1>The Night Watch</h1>
     <p>Choose language / اختر اللغة</p>
+    <p id="audioStatus" style="min-height:24px;color:#ffcf66;font-size:14px"></p>
     <button class="languageButton" onclick="selectLanguage('en')">English</button>
     <button class="languageButton" onclick="selectLanguage('ar')">العربية</button>
   </div>
@@ -253,6 +254,7 @@ const focusLayer = document.querySelector('#focusLayer');
 const paintingBlur = document.querySelector('#paintingBlur');
 const mainCamera = document.querySelector('#mainCamera');
 const backButton = document.querySelector('#backButton');
+const audioStatus = document.querySelector('#audioStatus');
 
 const IMAGE_WIDTH = 15354;
 const IMAGE_HEIGHT = 13230;
@@ -951,15 +953,14 @@ const texture = new THREE.CanvasTexture(canvas);
 }
 
 function stopSpeech() {
-  if (activeAudioFinish) {
-    activeAudioFinish = null;
-  }
-
   if (activeAudio) {
     activeAudio.pause();
-    activeAudio.removeAttribute('src');
-    activeAudio.load();
+    activeAudio.currentTime = 0;
     activeAudio = null;
+  }
+
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
   }
 }
 
@@ -967,53 +968,75 @@ function audioPath(id) {
   return `audio/${currentLanguage}/${id}.mp3`;
 }
 
-function playNarration(id, onEnd = null) {
+function fallbackSpeech(text, onEnd = null) {
+  if (!('speechSynthesis' in window) || !text) return false;
+
+  try {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
+    utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.92;
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (typeof onEnd === 'function') onEnd();
+    };
+
+    utterance.onend = finish;
+    utterance.onerror = () => {
+      console.warn('Browser speech synthesis failed.');
+    };
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    return true;
+  } catch (error) {
+    console.warn('Speech synthesis unavailable:', error);
+    return false;
+  }
+}
+
+function playNarration(id, onEnd = null, fallbackText = '') {
   stopSpeech();
 
-  const audio = new Audio();
+  const audio = new Audio(audioPath(id));
   audio.preload = 'auto';
-  audio.src = audioPath(id);
   activeAudio = audio;
 
-  let completed = false;
+  let endedNormally = false;
 
-  const finish = () => {
-    if (completed) return;
-    completed = true;
+  audio.addEventListener('ended', () => {
+    endedNormally = true;
+    if (activeAudio === audio) activeAudio = null;
+    if (typeof onEnd === 'function') onEnd();
+  }, { once: true });
 
-    if (activeAudio === audio) {
-      activeAudio = null;
-    }
+  const handleFailure = error => {
+    console.error('Narration unavailable:', audio.src, error || 'load error');
+    if (activeAudio === audio) activeAudio = null;
 
-    if (activeAudioFinish === finish) {
-      activeAudioFinish = null;
-    }
+    // Desktop browsers may still support text-to-speech.
+    const fallbackStarted = fallbackSpeech(fallbackText, onEnd);
 
-    if (typeof onEnd === 'function') {
-      onEnd();
+    // Important: do NOT call onEnd when both MP3 and TTS fail.
+    // This prevents the Captain from pulsing before welcome narration.
+    if (!fallbackStarted && audioStatus) {
+      audioStatus.textContent = currentLanguage === 'ar'
+        ? 'تعذر تشغيل الصوت. تأكد من رفع ملفات MP3 داخل مجلد audio.'
+        : 'Audio could not play. Check that the MP3 files are uploaded inside the audio folder.';
+      languageOverlay.style.display = 'flex';
     }
   };
 
-  activeAudioFinish = finish;
+  audio.addEventListener('error', handleFailure, { once: true });
 
-  audio.addEventListener('ended', finish, { once: true });
-  audio.addEventListener(
-    'error',
-    event => {
-      console.error('Narration failed to load:', audio.src, event);
-      finish();
-    },
-    { once: true }
-  );
-
-  const playPromise = audio.play();
-
-  if (playPromise && typeof playPromise.catch === 'function') {
-    playPromise.catch(error => {
-      console.error('Narration playback was blocked:', audio.src, error);
-      finish();
-    });
+  const promise = audio.play();
+  if (promise && typeof promise.catch === 'function') {
+    promise.catch(handleFailure);
   }
+
+  return audio;
 }
 
 function standardNarration(id) {
@@ -1238,9 +1261,9 @@ const TourEngine = {
               this.returnFromTarget(true);
             }
           }, 1200);
-        });
+        }, narration);
       } else {
-        playNarration(id);
+        playNarration(id, null, narration);
       }
     }, 850);
   },
@@ -1337,19 +1360,31 @@ function addHotspot(id) {
 function selectLanguage(language) {
   currentLanguage = language;
   pageReady = true;
-  languageOverlay.style.display = 'none';
   gazeCursor.setAttribute('visible', true);
   showPrimaryHotspots(true);
-  // Starting the welcome MP3 directly inside this button click
-  // satisfies the Meta Quest Browser's user-gesture requirement.
+
+  if (audioStatus) {
+    audioStatus.textContent = language === 'ar'
+      ? 'جارٍ تشغيل المقدمة الصوتية…'
+      : 'Starting the welcome narration…';
+  }
+
+  const welcome =
+    language === 'ar'
+      ? 'مرحبًا بك في الحراسة الليلية. ستقودك اللوحة بصريًا من تفصيل إلى آخر.'
+      : 'Welcome to The Night Watch. The painting will guide your attention from one detail to the next.';
+
+  // This call occurs directly inside the language-button gesture.
   playNarration('welcome', () => {
+    if (audioStatus) audioStatus.textContent = '';
+    languageOverlay.style.display = 'none';
     TourEngine.index = 0;
     TourEngine.startCue(STORY_ORDER[0]);
 
     setTimeout(() => {
       CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
     }, 900);
-  });
+  }, welcome);
 }
 
 
