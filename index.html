@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — Large Semantic Gaze Regions</title>
+<title>8:3</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -202,12 +202,10 @@ body {
   blurred-copy="source: painting_low.jpg?v=2; radius: 4">
 </a-plane>
 
-  </a-entity>
+<a-entity id="cueLayer" position="0 0 0.030"></a-entity>
+<a-entity id="focusLayer" position="0 0 0.018"></a-entity>
 
-  <!-- Quest-safe direct JPEG tile layers. These are scene-level siblings, not
-       transparent children of the painting plane. -->
-  <a-entity id="cueLayer" position="0 1.6 -2.965"></a-entity>
-  <a-entity id="focusLayer" position="0 1.6 -2.955"></a-entity>
+  </a-entity>
 
   <!-- GLOWING HALOS: hidden until gaze enters -->
 
@@ -254,6 +252,7 @@ const languageOverlay = document.querySelector('#languageOverlay');
 const cueLayer = document.querySelector('#cueLayer');
 const focusLayer = document.querySelector('#focusLayer');
 const paintingBlur = document.querySelector('#paintingBlur');
+const paintingRoot = document.querySelector('#paintingRoot');
 const mainCamera = document.querySelector('#mainCamera');
 const cameraRig = document.querySelector('#cameraRig');
 const backButton = document.querySelector('#backButton');
@@ -611,136 +610,91 @@ function setBlurOpacity(target, duration = 450) {
   requestAnimationFrame(frame);
 }
 
-function setGroupMaterials(groupEl, callback) {
-  if (!groupEl || !groupEl.object3D) return;
-  groupEl.object3D.traverse(node => {
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : (node.material ? [node.material] : []);
-    materials.forEach(callback);
-  });
-}
-
-function directTileEntity(col, row, geometry, opacity = 0) {
-  const tile = document.createElement('a-image');
-  tile.setAttribute('src', `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`);
-  tile.setAttribute('width', geometry.worldW);
-  tile.setAttribute('height', geometry.worldH);
-  tile.setAttribute('position', `${geometry.centerX} ${geometry.centerY} 0`);
-  tile.setAttribute(
-    'material',
-    `shader: flat; transparent: true; opacity: ${opacity}; ` +
-    'alphaTest: 0.001; side: double; depthTest: false; depthWrite: false; toneMapped: false'
-  );
-  tile.dataset.tile = `${col}_${row}`;
-  return tile;
-}
-
-const CueCache = {
-  entries: new Map(),
-
-  async ensure(id) {
-    if (this.entries.has(id)) return this.entries.get(id);
-
-    const cfg = REGION[id];
-    const range = tileRangeFor(
-      id,
-      cfg.cueW,
-      cfg.cueH,
-      cfg.cueOffsetX || 0,
-      cfg.cueOffsetY || 0
-    );
-
-    const group = document.createElement('a-entity');
-    group.setAttribute('visible', false);
-    group.dataset.target = id;
-
-    let count = 0;
-    for (let row = range.startRow; row <= range.endRow; row++) {
-      for (let col = range.startCol; col <= range.endCol; col++) {
-        const geometry = tileGeometry(MAX_LEVEL, col, row);
-        if (!geometry) continue;
-        group.appendChild(directTileEntity(col, row, geometry, 0));
-        count += 1;
-      }
-    }
-
-    if (!count) throw new Error(`No direct cue tiles found for ${id}`);
-
-    cueLayer.appendChild(group);
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-    // Normal blending and no canvas textures: each JPEG becomes a native GPU texture.
-    setGroupMaterials(group, material => {
-      material.transparent = true;
-      material.opacity = 0;
-      material.color.set('#fff3bd');
-      material.blending = THREE.NormalBlending;
-      material.depthTest = false;
-      material.depthWrite = false;
-      material.toneMapped = false;
-      material.needsUpdate = true;
-    });
-
-    const entry = { entity: group };
-    this.entries.set(id, entry);
-    console.log(`[Cue tiles] ${id}: ${count} native JPEG tiles`);
-    return entry;
-  },
-
+const QuestCue = {
+  activeId: null,
+  token: 0,
+  haloFor(id) { return document.querySelector('#' + id + 'Halo'); },
   hideAll() {
-    this.entries.forEach(entry => {
-      entry.entity.setAttribute('visible', false);
-      setGroupMaterials(entry.entity, material => {
-        material.opacity = 0;
-        material.needsUpdate = true;
-      });
+    this.token += 1;
+    document.querySelectorAll('[id$="Halo"]').forEach(el => {
+      el.removeAttribute('animation__cuein');
+      el.removeAttribute('animation__cueout');
+      el.setAttribute('visible', false);
+      el.setAttribute('scale', '1 1 1');
+      el.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false; depthWrite: false; side: double');
     });
+    this.activeId = null;
+  },
+  async show(id) {
+    this.hideAll();
+    this.activeId = id;
+    const localToken = ++this.token;
+    const halo = this.haloFor(id);
+    if (!halo) throw new Error(`Missing halo entity for ${id}`);
+    const cfg = REGION[id];
+    const sx = Math.max(1, cfg.cueW / 0.52);
+    const sy = Math.max(1, cfg.cueH / 0.52);
+    halo.setAttribute('visible', true);
+    halo.setAttribute('scale', `${sx} ${sy} 1`);
+    halo.setAttribute('material', 'shader: flat; color: #fff0a8; transparent: true; opacity: 0.04; depthTest: false; depthWrite: false; side: double; blending: normal');
+    for (let i = 0; i < 4; i++) {
+      if (localToken !== this.token || this.activeId !== id) return;
+      halo.setAttribute('animation__cuein', 'property: material.opacity; from: 0.04; to: 0.22; dur: 620; easing: easeInOutSine');
+      await TourEngine.wait(650);
+      if (localToken !== this.token || this.activeId !== id) return;
+      halo.removeAttribute('animation__cuein');
+      halo.setAttribute('animation__cueout', 'property: material.opacity; from: 0.22; to: 0.055; dur: 620; easing: easeInOutSine');
+      await TourEngine.wait(650);
+      halo.removeAttribute('animation__cueout');
+    }
+    if (localToken === this.token && this.activeId === id) halo.setAttribute('material', 'opacity', 0.07);
   }
 };
 
 function clearFocusTiles() {
-  while (focusLayer.firstChild) {
-    focusLayer.removeChild(focusLayer.firstChild);
-  }
+  while (focusLayer.firstChild) focusLayer.removeChild(focusLayer.firstChild);
 }
-
+function preloadImage(url) {
+  return new Promise(resolve => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve({ok:true,url});
+    image.onerror = () => resolve({ok:false,url});
+    image.src = url;
+  });
+}
 async function loadFocusTiles(id) {
   clearFocusTiles();
-
   const cfg = REGION[id];
   const range = tileRangeFor(id, cfg.focusW, cfg.focusH);
-  const group = document.createElement('a-entity');
-  group.dataset.target = id;
-  focusLayer.appendChild(group);
-
-  let count = 0;
+  const tiles = [];
   for (let row = range.startRow; row <= range.endRow; row++) {
     for (let col = range.startCol; col <= range.endCol; col++) {
       const geometry = tileGeometry(MAX_LEVEL, col, row);
-      if (!geometry) continue;
-      group.appendChild(directTileEntity(col, row, geometry, 0));
-      count += 1;
+      if (geometry) tiles.push({col,row,geometry,url:`${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`});
     }
   }
-
-  console.log(`[Focus tiles] ${id}: ${count} native JPEG tiles`);
-
-  // Give A-Frame two render frames to create the meshes and start image loads.
-  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-  setGroupMaterials(group, material => {
-    material.transparent = true;
-    material.opacity = 0;
-    material.color.set('#ffffff');
-    material.blending = THREE.NormalBlending;
-    material.depthTest = false;
-    material.depthWrite = false;
-    material.toneMapped = false;
-    material.needsUpdate = true;
-  });
-
-  animateOpacity(group.object3D, 1, 500);
+  const results = await Promise.all(tiles.map(t => preloadImage(t.url)));
+  const available = tiles.filter((t,i) => results[i].ok);
+  const group = document.createElement('a-entity');
+  group.dataset.target = id;
+  focusLayer.appendChild(group);
+  const promises = available.map(tile => new Promise(resolve => {
+    const plane = document.createElement('a-image');
+    plane.setAttribute('src', tile.url);
+    plane.setAttribute('width', tile.geometry.worldW);
+    plane.setAttribute('height', tile.geometry.worldH);
+    plane.setAttribute('position', `${tile.geometry.centerX} ${tile.geometry.centerY} 0.018`);
+    plane.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false; depthWrite: false; side: double; toneMapped: false');
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(plane); } };
+    plane.addEventListener('materialtextureloaded', finish, {once:true});
+    plane.addEventListener('loaded', () => setTimeout(finish, 700), {once:true});
+    group.appendChild(plane);
+  }));
+  const planes = await Promise.all(promises);
+  planes.forEach((plane,index) => plane.setAttribute(`animation__focusfade${index}`, 'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad'));
+  console.log(`[Focus tiles] ${id}: ${planes.length}/${tiles.length} loaded`);
 }
 
 function refreshVoices() {
@@ -993,52 +947,11 @@ const TourEngine = {
 
     this.target = id;
     this.setState(State.CUE);
-    CueCache.hideAll();
+    QuestCue.hideAll();
     setBlurOpacity(0, 150);
 
-    const entry = await CueCache.ensure(id);
+    await QuestCue.show(id);
     if (token !== this.pulseToken) return;
-
-    entry.entity.setAttribute('visible', true);
-
-    setGroupMaterials(entry.entity, material => {
-      material.color.set('#fff3bd');
-      material.opacity = 0.08;
-      material.blending = THREE.NormalBlending;
-      material.depthTest = false;
-      material.depthWrite = false;
-      material.needsUpdate = true;
-    });
-
-    const nextId = STORY_ORDER[this.index + 1];
-    if (nextId) {
-      CueCache.ensure(nextId).catch(console.warn);
-    }
-
-    // Four gentle halo pulses, then leave only a very subtle glow.
-    for (let cycle = 0; cycle < 4; cycle++) {
-      if (
-        token !== this.pulseToken ||
-        this.state === State.ZOOMING ||
-        this.target !== id
-      ) return;
-
-      animateOpacity(entry.entity.object3D, 0.42, 650);
-      await this.wait(760);
-
-      if (
-        token !== this.pulseToken ||
-        this.state === State.ZOOMING ||
-        this.target !== id
-      ) return;
-
-      animateOpacity(entry.entity.object3D, 0.08, 650);
-      await this.wait(760);
-    }
-
-    if (token !== this.pulseToken || this.target !== id) return;
-
-    animateOpacity(entry.entity.object3D, 0.10, 300);
     this.setState(State.WAIT_GAZE);
   },
 
@@ -1061,7 +974,7 @@ const TourEngine = {
     this.setState(State.ZOOMING);
     clearTimeout(this.autoTimer);
     setBlurOpacity(0, 250);
-    CueCache.hideAll();
+    QuestCue.hideAll();
     showPrimaryHotspots(false);
     await loadFocusTiles(id);
 
@@ -1069,14 +982,14 @@ const TourEngine = {
     const pos = hotspot.getAttribute('position');
 
     setTimeout(() => {
-      // In immersive VR the headset controls the camera pose directly, so
-      // animate the parent rig instead of the camera itself.
-      const rigY = pos.y - 1.6;
-      cameraRig.setAttribute(
-        'animation__focus',
-        `property: position; to: ${pos.x} ${rigY} -1.15; dur: 850; easing: easeInOutQuad`
-      );
-    }, 220);
+      const localX = pos.x;
+      const localY = pos.y - 1.6;
+      const zoomScale = 1.85;
+      const targetX = -localX * zoomScale;
+      const targetY = 1.6 - localY * zoomScale;
+      paintingRoot.setAttribute('animation__zoompos', `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`);
+      paintingRoot.setAttribute('animation__zoomscale', `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`);
+    }, 120);
 
     setTimeout(() => {
       this.setState(State.STORY);
@@ -1115,10 +1028,8 @@ const TourEngine = {
     showNestedDetails(null);
     backButton.style.display = 'none';
 
-    cameraRig.setAttribute(
-      'animation__focus',
-      'property: position; to: 0 0 0; dur: 800; easing: easeInOutQuad'
-    );
+    paintingRoot.setAttribute('animation__zoompos', 'property: position; to: 0 1.6 -3; dur: 800; easing: easeInOutQuad');
+    paintingRoot.setAttribute('animation__zoomscale', 'property: scale; to: 1 1 1; dur: 800; easing: easeInOutQuad');
 
     setTimeout(() => {
       clearFocusTiles();
@@ -1130,7 +1041,7 @@ const TourEngine = {
         if (this.index >= STORY_ORDER.length) {
           this.target = null;
           this.setState(State.FREE);
-          CueCache.hideAll();
+          QuestCue.hideAll();
           setBlurOpacity(0, 250);
 
           const ending =
@@ -1184,10 +1095,17 @@ function addHotspot(id) {
 
   el.addEventListener('mouseleave', () => {
     clearTimeout(gazeTimer);
+    if (el.classList.contains('captainDetail')) { }
+  });
 
+  el.addEventListener('click', () => {
+    if (!pageReady || !currentLanguage) return;
+    clearTimeout(gazeTimer);
     if (el.classList.contains('captainDetail')) {
-      
+      playNarration(id, standardNarration(id));
+      return;
     }
+    TourEngine.confirmGaze(id);
   });
 }
 
@@ -1258,18 +1176,6 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  // Force all native tile materials/textures to be reconsidered by the XR renderer.
-  [cueLayer, focusLayer].forEach(layer => {
-    layer.object3D.traverse(node => {
-      if (node.material) {
-        const materials = Array.isArray(node.material) ? node.material : [node.material];
-        materials.forEach(material => {
-          if (material.map) material.map.needsUpdate = true;
-          material.needsUpdate = true;
-        });
-      }
-    });
-  });
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
