@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — round 1</title>
+<title>round 2</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -183,6 +183,13 @@ body {
 
   <!-- Painting root: low-res base plus optional high-res tile overlay -->
 
+  <a-box
+        position="0 1.6 -2.8"
+        depth="0.1"
+        width="0.3"
+        height="0.3"
+        color="red">
+  </a-box>
   <a-entity id="paintingRoot" position="0 1.6 -3">
     <a-image
       id="paintingLow"
