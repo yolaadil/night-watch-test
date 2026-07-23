@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>round 2</title>
+<title>The Night Watch — Large Semantic Gaze Regions</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -183,13 +183,6 @@ body {
 
   <!-- Painting root: low-res base plus optional high-res tile overlay -->
 
-  <a-box
-        position="0 1.6 -2.8"
-        depth="0.1"
-        width="0.3"
-        height="0.3"
-        color="red">
-  </a-box>
   <a-entity id="paintingRoot" position="0 1.6 -3">
     <a-image
       id="paintingLow"
@@ -209,10 +202,12 @@ body {
   blurred-copy="source: painting_low.jpg?v=2; radius: 4">
 </a-plane>
 
-<a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
-<a-entity id="focusLayer" position="0 0 0.0008"></a-entity>
-
   </a-entity>
+
+  <!-- Quest-safe direct JPEG tile layers. These are scene-level siblings, not
+       transparent children of the painting plane. -->
+  <a-entity id="cueLayer" position="0 1.6 -2.965"></a-entity>
+  <a-entity id="focusLayer" position="0 1.6 -2.955"></a-entity>
 
   <!-- GLOWING HALOS: hidden until gaze enters -->
 
@@ -616,13 +611,36 @@ function setBlurOpacity(target, duration = 450) {
   requestAnimationFrame(frame);
 }
 
+function setGroupMaterials(groupEl, callback) {
+  if (!groupEl || !groupEl.object3D) return;
+  groupEl.object3D.traverse(node => {
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : (node.material ? [node.material] : []);
+    materials.forEach(callback);
+  });
+}
+
+function directTileEntity(col, row, geometry, opacity = 0) {
+  const tile = document.createElement('a-image');
+  tile.setAttribute('src', `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`);
+  tile.setAttribute('width', geometry.worldW);
+  tile.setAttribute('height', geometry.worldH);
+  tile.setAttribute('position', `${geometry.centerX} ${geometry.centerY} 0`);
+  tile.setAttribute(
+    'material',
+    `shader: flat; transparent: true; opacity: ${opacity}; ` +
+    'alphaTest: 0.001; side: double; depthTest: false; depthWrite: false; toneMapped: false'
+  );
+  tile.dataset.tile = `${col}_${row}`;
+  return tile;
+}
+
 const CueCache = {
   entries: new Map(),
 
   async ensure(id) {
-    if (this.entries.has(id)) {
-      return this.entries.get(id);
-    }
+    if (this.entries.has(id)) return this.entries.get(id);
 
     const cfg = REGION[id];
     const range = tileRangeFor(
@@ -632,189 +650,58 @@ const CueCache = {
       cfg.cueOffsetX || 0,
       cfg.cueOffsetY || 0
     );
-    const geometries = [];
 
+    const group = document.createElement('a-entity');
+    group.setAttribute('visible', false);
+    group.dataset.target = id;
+
+    let count = 0;
     for (let row = range.startRow; row <= range.endRow; row++) {
       for (let col = range.startCol; col <= range.endCol; col++) {
         const geometry = tileGeometry(MAX_LEVEL, col, row);
-
-        if (geometry) {
-          geometries.push({ col, row, geometry });
-        }
+        if (!geometry) continue;
+        group.appendChild(directTileEntity(col, row, geometry, 0));
+        count += 1;
       }
     }
 
-    if (!geometries.length) {
-      throw new Error(`No cue tiles found for ${id}`);
-    }
+    if (!count) throw new Error(`No direct cue tiles found for ${id}`);
 
-    const unionLeft = Math.min(
-      ...geometries.map(item => item.geometry.fileX)
-    );
-    const unionTop = Math.min(
-      ...geometries.map(item => item.geometry.fileY)
-    );
-    const unionRight = Math.max(
-      ...geometries.map(
-        item => item.geometry.fileX + item.geometry.fileW
-      )
-    );
-    const unionBottom = Math.max(
-      ...geometries.map(
-        item => item.geometry.fileY + item.geometry.fileH
-      )
-    );
+    cueLayer.appendChild(group);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-    const unionWidth = unionRight - unionLeft;
-    const unionHeight = unionBottom - unionTop;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = unionWidth;
-    canvas.height = unionHeight;
-
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, unionWidth, unionHeight);
-
-    await Promise.all(
-      geometries.map(({ col, row, geometry }) =>
-        new Promise(resolve => {
-          const image = new Image();
-          image.crossOrigin = 'anonymous';
-
-          image.onload = () => {
-            const drawX = geometry.fileX - unionLeft;
-            const drawY = geometry.fileY - unionTop;
-
-            ctx.drawImage(
-              image,
-              drawX,
-              drawY,
-              geometry.fileW,
-              geometry.fileH
-            );
-
-            resolve();
-          };
-
-          image.onerror = resolve;
-          image.src =
-            `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
-        })
-      )
-    );
-
-    const imageCenterX =
-      ((range.center.x / WORLD_WIDTH) + 0.5) * IMAGE_WIDTH;
-    const imageCenterY =
-      (0.5 - range.center.y / WORLD_HEIGHT) * IMAGE_HEIGHT;
-
-    const maskCenterX = imageCenterX - unionLeft;
-    const maskCenterY = imageCenterY - unionTop;
-    const radiusX =
-      cfg.cueW / 2 / WORLD_WIDTH * IMAGE_WIDTH;
-    const radiusY =
-      cfg.cueH / 2 / WORLD_HEIGHT * IMAGE_HEIGHT;
-
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.save();
-    ctx.translate(maskCenterX, maskCenterY);
-    ctx.scale(1, radiusY / Math.max(radiusX, 0.0001));
-
-    const gradient = ctx.createRadialGradient(
-      0, 0, radiusX * 0.02,
-      0, 0, radiusX
-    );
-
-    gradient.addColorStop(0.00, 'rgba(255,255,255,1.00)');
-    gradient.addColorStop(0.28, 'rgba(255,255,255,0.98)');
-    gradient.addColorStop(0.48, 'rgba(255,255,255,0.82)');
-    gradient.addColorStop(0.66, 'rgba(255,255,255,0.54)');
-    gradient.addColorStop(0.82, 'rgba(255,255,255,0.25)');
-    gradient.addColorStop(0.93, 'rgba(255,255,255,0.08)');
-    gradient.addColorStop(1.00, 'rgba(255,255,255,0.00)');
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(0, 0, radiusX, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = false;
-    texture.needsUpdate = true;
-
-    const dims = levelDimensions(MAX_LEVEL);
-    const worldWidth =
-      unionWidth / dims.width * WORLD_WIDTH;
-    const worldHeight =
-      unionHeight / dims.height * WORLD_HEIGHT;
-    const centerX =
-      ((unionLeft + unionWidth / 2) / dims.width - 0.5) *
-      WORLD_WIDTH;
-    const centerY =
-      (0.5 - (unionTop + unionHeight / 2) / dims.height) *
-      WORLD_HEIGHT;
-
-    const plane = document.createElement('a-plane');
-    plane.setAttribute('width', worldWidth);
-    plane.setAttribute('height', worldHeight);
-    plane.setAttribute('position', `${centerX} ${centerY} 0`);
-    plane.setAttribute('visible', false);
-    plane.dataset.target = id;
-
-    const ready = new Promise(resolve => {
-      plane.addEventListener(
-        'loaded',
-        () => {
-          const mesh = plane.getObject3D('mesh');
-
-          if (mesh) {
-            mesh.material = new THREE.MeshBasicMaterial({
-              map: texture,
-              color: new THREE.Color('#fff1a8'),
-              transparent: true,
-              opacity: 0,
-              side: THREE.DoubleSide,
-              depthWrite: false,
-              depthTest: true,
-              toneMapped: false,
-              blending: THREE.AdditiveBlending,
-              premultipliedAlpha: false
-            });
-          }
-
-          resolve();
-        },
-        { once: true }
-      );
+    // Normal blending and no canvas textures: each JPEG becomes a native GPU texture.
+    setGroupMaterials(group, material => {
+      material.transparent = true;
+      material.opacity = 0;
+      material.color.set('#fff3bd');
+      material.blending = THREE.NormalBlending;
+      material.depthTest = false;
+      material.depthWrite = false;
+      material.toneMapped = false;
+      material.needsUpdate = true;
     });
 
-    cueLayer.appendChild(plane);
-    await ready;
-
-    const entry = { entity: plane, texture };
+    const entry = { entity: group };
     this.entries.set(id, entry);
+    console.log(`[Cue tiles] ${id}: ${count} native JPEG tiles`);
     return entry;
   },
 
   hideAll() {
     this.entries.forEach(entry => {
       entry.entity.setAttribute('visible', false);
+      setGroupMaterials(entry.entity, material => {
+        material.opacity = 0;
+        material.needsUpdate = true;
+      });
     });
   }
 };
 
-let activeFocusTexture = null;
-
 function clearFocusTiles() {
-  focusLayer.innerHTML = '';
-
-  if (activeFocusTexture) {
-    activeFocusTexture.dispose();
-    activeFocusTexture = null;
+  while (focusLayer.firstChild) {
+    focusLayer.removeChild(focusLayer.firstChild);
   }
 }
 
@@ -823,140 +710,37 @@ async function loadFocusTiles(id) {
 
   const cfg = REGION[id];
   const range = tileRangeFor(id, cfg.focusW, cfg.focusH);
-  const geometries = [];
+  const group = document.createElement('a-entity');
+  group.dataset.target = id;
+  focusLayer.appendChild(group);
 
+  let count = 0;
   for (let row = range.startRow; row <= range.endRow; row++) {
     for (let col = range.startCol; col <= range.endCol; col++) {
       const geometry = tileGeometry(MAX_LEVEL, col, row);
-
-      if (geometry) {
-        geometries.push({ col, row, geometry });
-      }
+      if (!geometry) continue;
+      group.appendChild(directTileEntity(col, row, geometry, 0));
+      count += 1;
     }
   }
 
-  if (!geometries.length) return;
+  console.log(`[Focus tiles] ${id}: ${count} native JPEG tiles`);
 
-  const unionLeft = Math.min(
-    ...geometries.map(item => item.geometry.fileX)
-  );
-  const unionTop = Math.min(
-    ...geometries.map(item => item.geometry.fileY)
-  );
-  const unionRight = Math.max(
-    ...geometries.map(
-      item => item.geometry.fileX + item.geometry.fileW
-    )
-  );
-  const unionBottom = Math.max(
-    ...geometries.map(
-      item => item.geometry.fileY + item.geometry.fileH
-    )
-  );
+  // Give A-Frame two render frames to create the meshes and start image loads.
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-  const unionWidth = unionRight - unionLeft;
-  const unionHeight = unionBottom - unionTop;
+  setGroupMaterials(group, material => {
+    material.transparent = true;
+    material.opacity = 0;
+    material.color.set('#ffffff');
+    material.blending = THREE.NormalBlending;
+    material.depthTest = false;
+    material.depthWrite = false;
+    material.toneMapped = false;
+    material.needsUpdate = true;
+  });
 
-  const canvas = document.createElement('canvas');
-  canvas.width = unionWidth;
-  canvas.height = unionHeight;
-
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, unionWidth, unionHeight);
-
-  await Promise.all(
-    geometries.map(({ col, row, geometry }) =>
-      new Promise(resolve => {
-        const image = new Image();
-        image.crossOrigin = 'anonymous';
-
-        image.onload = () => {
-          ctx.drawImage(
-            image,
-            geometry.fileX - unionLeft,
-            geometry.fileY - unionTop,
-            geometry.fileW,
-            geometry.fileH
-          );
-          resolve();
-        };
-
-        image.onerror = resolve;
-        image.src =
-          `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
-      })
-    )
-  );
-
-  /* Removed rectangular edge mask so no visible boxes remain.
-     The stitched focus image is shown directly. */
-const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-  texture.needsUpdate = true;
-  activeFocusTexture = texture;
-
-  const dims = levelDimensions(MAX_LEVEL);
-  const worldWidth =
-    unionWidth / dims.width * WORLD_WIDTH;
-  const worldHeight =
-    unionHeight / dims.height * WORLD_HEIGHT;
-  const centerX =
-    ((unionLeft + unionWidth / 2) / dims.width - 0.5) *
-    WORLD_WIDTH;
-  const centerY =
-    (0.5 - (unionTop + unionHeight / 2) / dims.height) *
-    WORLD_HEIGHT;
-
-  const plane = document.createElement('a-plane');
-  plane.setAttribute('width', worldWidth);
-  plane.setAttribute('height', worldHeight);
-  plane.setAttribute('position', `${centerX} ${centerY} 0`);
-
-  plane.addEventListener(
-    'loaded',
-    () => {
-      const mesh = plane.getObject3D('mesh');
-
-      if (!mesh) return;
-
-      mesh.material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        opacity: 0,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        depthTest: true,
-        toneMapped: false,
-        premultipliedAlpha: true
-      });
-
-      const started = performance.now();
-
-      function fade(now) {
-        const progress = Math.min(
-          1,
-          (now - started) / 500
-        );
-        const eased =
-          progress * progress * (3 - 2 * progress);
-
-        mesh.material.opacity = eased;
-        mesh.material.needsUpdate = true;
-
-        if (progress < 1) {
-          requestAnimationFrame(fade);
-        }
-      }
-
-      requestAnimationFrame(fade);
-    },
-    { once: true }
-  );
-
-  focusLayer.appendChild(plane);
+  animateOpacity(group.object3D, 1, 500);
 }
 
 function refreshVoices() {
@@ -1217,13 +1001,14 @@ const TourEngine = {
 
     entry.entity.setAttribute('visible', true);
 
-    const cueMesh = entry.entity.getObject3D('mesh');
-    if (cueMesh && cueMesh.material) {
-      cueMesh.material.color.set('#fff1a8');
-      cueMesh.material.opacity = 0.08;
-      cueMesh.material.blending = THREE.AdditiveBlending;
-      cueMesh.material.needsUpdate = true;
-    }
+    setGroupMaterials(entry.entity, material => {
+      material.color.set('#fff3bd');
+      material.opacity = 0.08;
+      material.blending = THREE.NormalBlending;
+      material.depthTest = false;
+      material.depthWrite = false;
+      material.needsUpdate = true;
+    });
 
     const nextId = STORY_ORDER[this.index + 1];
     if (nextId) {
@@ -1473,6 +1258,18 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
+  // Force all native tile materials/textures to be reconsidered by the XR renderer.
+  [cueLayer, focusLayer].forEach(layer => {
+    layer.object3D.traverse(node => {
+      if (node.material) {
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach(material => {
+          if (material.map) material.map.needsUpdate = true;
+          material.needsUpdate = true;
+        });
+      }
+    });
+  });
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
