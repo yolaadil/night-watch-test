@@ -202,8 +202,8 @@ body {
   blurred-copy="source: painting_low.jpg?v=2; radius: 4">
 </a-plane>
 
-<a-entity id="cueLayer" position="0 0 0.025"></a-entity>
-<a-entity id="focusLayer" position="0 0 0.030"></a-entity>
+<a-entity id="cueLayer" position="0 0 0.0005"></a-entity>
+<a-entity id="focusLayer" position="0 0 0.0008"></a-entity>
 
   </a-entity>
 
@@ -772,24 +772,11 @@ const CueCache = {
               opacity: 0,
               side: THREE.DoubleSide,
               depthWrite: false,
-              depthTest: false,
+              depthTest: true,
               toneMapped: false,
-              blending: THREE.NormalBlending,
-              premultipliedAlpha: false,
-              polygonOffset: true,
-              polygonOffsetFactor: -4,
-              polygonOffsetUnits: -4
+              blending: THREE.AdditiveBlending,
+              premultipliedAlpha: false
             });
-
-            // Quest/WebXR: force the cue to render after the painting and
-            // avoid stereo depth-buffer conflicts with the base image.
-            mesh.renderOrder = 1000;
-            mesh.frustumCulled = false;
-            texture.colorSpace = THREE.SRGBColorSpace || texture.colorSpace;
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = false;
-            texture.needsUpdate = true;
           }
 
           resolve();
@@ -1226,12 +1213,8 @@ const TourEngine = {
     const cueMesh = entry.entity.getObject3D('mesh');
     if (cueMesh && cueMesh.material) {
       cueMesh.material.color.set('#fff1a8');
-      cueMesh.material.opacity = 0.14;
-      cueMesh.material.depthTest = false;
-      cueMesh.material.depthWrite = false;
-      cueMesh.material.blending = THREE.NormalBlending;
-      cueMesh.renderOrder = 1000;
-      cueMesh.frustumCulled = false;
+      cueMesh.material.opacity = 0.08;
+      cueMesh.material.blending = THREE.AdditiveBlending;
       cueMesh.material.needsUpdate = true;
     }
 
@@ -1248,7 +1231,7 @@ const TourEngine = {
         this.target !== id
       ) return;
 
-      animateOpacity(entry.entity.object3D, 0.62, 650);
+      animateOpacity(entry.entity.object3D, 0.42, 650);
       await this.wait(760);
 
       if (
@@ -1257,7 +1240,7 @@ const TourEngine = {
         this.target !== id
       ) return;
 
-      animateOpacity(entry.entity.object3D, 0.14, 650);
+      animateOpacity(entry.entity.object3D, 0.08, 650);
       await this.wait(760);
     }
 
@@ -1487,21 +1470,6 @@ scene.addEventListener('enter-vr', () => {
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
   showPrimaryHotspots(true);
-
-  // Re-upload dynamically created cue textures after WebXR takes control of
-  // the renderer. This is needed on some Quest Browser versions.
-  CueCache.entries.forEach(entry => {
-    const mesh = entry.entity.getObject3D('mesh');
-    if (entry.texture) entry.texture.needsUpdate = true;
-    if (mesh && mesh.material) {
-      mesh.material.depthTest = false;
-      mesh.material.depthWrite = false;
-      mesh.material.blending = THREE.NormalBlending;
-      mesh.material.needsUpdate = true;
-      mesh.renderOrder = 1000;
-      mesh.frustumCulled = false;
-    }
-  });
 
   // Keep the current tour state when entering VR. Only start the intro if
   // the experience has not begun yet.
