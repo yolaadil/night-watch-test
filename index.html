@@ -229,16 +229,18 @@ body {
 
   <!-- Camera and gaze cursor -->
 
-  <a-camera id="mainCamera" position="0 1.6 0">
-    <a-cursor
-      id="gazeCursor"
-      visible="false"
-      fuse="true"
-      fuse-timeout="2000"
-      raycaster="objects: .hotspot, .navButton"
-      color="black">
-    </a-cursor>
-  </a-camera>
+  <a-entity id="cameraRig" position="0 0 0">
+    <a-camera id="mainCamera" position="0 1.6 0">
+      <a-cursor
+        id="gazeCursor"
+        visible="false"
+        fuse="true"
+        fuse-timeout="2000"
+        raycaster="objects: .hotspot, .navButton"
+        color="black">
+      </a-cursor>
+    </a-camera>
+  </a-entity>
 
 </a-scene>
 
@@ -251,6 +253,7 @@ const cueLayer = document.querySelector('#cueLayer');
 const focusLayer = document.querySelector('#focusLayer');
 const paintingBlur = document.querySelector('#paintingBlur');
 const mainCamera = document.querySelector('#mainCamera');
+const cameraRig = document.querySelector('#cameraRig');
 const backButton = document.querySelector('#backButton');
 
 const IMAGE_WIDTH = 15354;
@@ -1274,9 +1277,12 @@ const TourEngine = {
     const pos = hotspot.getAttribute('position');
 
     setTimeout(() => {
-      mainCamera.setAttribute(
+      // In immersive VR the headset controls the camera pose directly, so
+      // animate the parent rig instead of the camera itself.
+      const rigY = pos.y - 1.6;
+      cameraRig.setAttribute(
         'animation__focus',
-        `property: position; to: ${pos.x} ${pos.y} -1.15; dur: 850; easing: easeInOutQuad`
+        `property: position; to: ${pos.x} ${rigY} -1.15; dur: 850; easing: easeInOutQuad`
       );
     }, 220);
 
@@ -1317,9 +1323,9 @@ const TourEngine = {
     showNestedDetails(null);
     backButton.style.display = 'none';
 
-    mainCamera.setAttribute(
+    cameraRig.setAttribute(
       'animation__focus',
-      'property: position; to: 0 1.6 0; dur: 800; easing: easeInOutQuad'
+      'property: position; to: 0 0 0; dur: 800; easing: easeInOutQuad'
     );
 
     setTimeout(() => {
@@ -1460,7 +1466,16 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  if (!introStarted) startIntro();
+  pageReady = true;
+  currentLanguage = 'en';
+  gazeCursor.setAttribute('visible', true);
+  showPrimaryHotspots(true);
+
+  // Keep the current tour state when entering VR. Only start the intro if
+  // the experience has not begun yet.
+  if (!experienceStarted) {
+    beginExperience();
+  }
 });
 
 
@@ -1484,12 +1499,12 @@ window.addEventListener('keydown', event => {
 
 window.addEventListener('load', () => {
   syncPrimaryHotspotsToFocusRegions();
-  pageReady = false;
-  gazeCursor.setAttribute('visible', false);
   infoPanel.setAttribute('visible', false);
-  
-  showPrimaryHotspots(false);
   setBlurOpacity(0, 0);
+
+  // Do not reset pageReady, cursor visibility, or hotspot visibility here.
+  // On Quest, A-Frame may finish loading before the window load event;
+  // resetting these values afterward disables gaze and cue effects in VR.
 });
 </script>
 
