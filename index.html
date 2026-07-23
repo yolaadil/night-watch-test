@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>8:3</title>
+<title>8:13</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
@@ -158,6 +158,81 @@ body {
 
 </style>
 
+
+<script>
+AFRAME.registerShader('tile-glow', {
+  schema: {
+    src: {type: 'map', is: 'uniform'},
+    opacity: {type: 'number', is: 'uniform', default: 0.0},
+    center: {type: 'vec2', is: 'uniform', default: {x: 0.5, y: 0.5}},
+    radius: {type: 'vec2', is: 'uniform', default: {x: 0.2, y: 0.2}},
+    tileRect: {type: 'vec4', is: 'uniform', default: {x: 0, y: 0, z: 1, w: 1}}
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D src;
+    uniform float opacity;
+    uniform vec2 center;
+    uniform vec2 radius;
+    uniform vec4 tileRect;
+    varying vec2 vUv;
+    void main() {
+      vec4 tex = texture2D(src, vUv);
+      vec2 globalUv = vec2(
+        mix(tileRect.x, tileRect.z, vUv.x),
+        mix(tileRect.y, tileRect.w, 1.0 - vUv.y)
+      );
+      vec2 d = (globalUv - center) / max(radius, vec2(0.0001));
+      float dist = length(d);
+      float mask = 1.0 - smoothstep(0.45, 1.0, dist);
+      float glow = opacity * mask;
+      vec3 lifted = tex.rgb * 1.18 + vec3(0.055, 0.040, 0.010);
+      gl_FragColor = vec4(lifted, tex.a * glow);
+    }
+  `
+});
+
+AFRAME.registerComponent('quest-gaze-select', {
+  schema: { dwell: {type: 'number', default: 2000} },
+  init() {
+    this.active = null;
+    this.timer = null;
+    this.el.addEventListener('raycaster-intersection', e => {
+      const intersections = (e.detail && e.detail.intersections) || [];
+      const hit = intersections.find(i => i.object && i.object.el && i.object.el.classList.contains('hotspot'));
+      const target = hit && hit.object.el;
+      if (!target || target === this.active) return;
+      this.cancel();
+      this.active = target;
+      this.timer = setTimeout(() => {
+        if (!this.active || !window.TourEngine) return;
+        const id = this.active.id;
+        if (this.active.classList.contains('captainDetail')) {
+          playNarration(id, standardNarration(id));
+        } else {
+          window.TourEngine.confirmGaze(id);
+        }
+        this.cancel();
+      }, this.data.dwell);
+    });
+    const clear = () => this.cancel();
+    this.el.addEventListener('raycaster-intersection-cleared', clear);
+    this.el.addEventListener('mouseleave', clear);
+  },
+  cancel() {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.active = null;
+  }
+});
+</script>
+
 </head>
 
 <body>
@@ -233,6 +308,7 @@ body {
     <a-camera id="mainCamera" position="0 1.6 0">
       <a-cursor
         id="gazeCursor"
+        quest-gaze-select="dwell: 2000"
         visible="false"
         fuse="true"
         fuse-timeout="2000"
@@ -613,41 +689,88 @@ function setBlurOpacity(target, duration = 450) {
 const QuestCue = {
   activeId: null,
   token: 0,
-  haloFor(id) { return document.querySelector('#' + id + 'Halo'); },
+  group: null,
+
   hideAll() {
     this.token += 1;
-    document.querySelectorAll('[id$="Halo"]').forEach(el => {
-      el.removeAttribute('animation__cuein');
-      el.removeAttribute('animation__cueout');
-      el.setAttribute('visible', false);
-      el.setAttribute('scale', '1 1 1');
-      el.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false; depthWrite: false; side: double');
-    });
     this.activeId = null;
+    if (this.group && this.group.parentNode) this.group.parentNode.removeChild(this.group);
+    this.group = null;
+    document.querySelectorAll('[id$="Halo"]').forEach(el => el.setAttribute('visible', false));
   },
+
   async show(id) {
     this.hideAll();
-    this.activeId = id;
     const localToken = ++this.token;
-    const halo = this.haloFor(id);
-    if (!halo) throw new Error(`Missing halo entity for ${id}`);
+    this.activeId = id;
     const cfg = REGION[id];
-    const sx = Math.max(1, cfg.cueW / 0.52);
-    const sy = Math.max(1, cfg.cueH / 0.52);
-    halo.setAttribute('visible', true);
-    halo.setAttribute('scale', `${sx} ${sy} 1`);
-    halo.setAttribute('material', 'shader: flat; color: #fff0a8; transparent: true; opacity: 0.04; depthTest: false; depthWrite: false; side: double; blending: normal');
-    for (let i = 0; i < 4; i++) {
-      if (localToken !== this.token || this.activeId !== id) return;
-      halo.setAttribute('animation__cuein', 'property: material.opacity; from: 0.04; to: 0.22; dur: 620; easing: easeInOutSine');
-      await TourEngine.wait(650);
-      if (localToken !== this.token || this.activeId !== id) return;
-      halo.removeAttribute('animation__cuein');
-      halo.setAttribute('animation__cueout', 'property: material.opacity; from: 0.22; to: 0.055; dur: 620; easing: easeInOutSine');
-      await TourEngine.wait(650);
-      halo.removeAttribute('animation__cueout');
+    const range = tileRangeFor(id, cfg.cueW, cfg.cueH, cfg.cueOffsetX || 0, cfg.cueOffsetY || 0);
+    const dims = levelDimensions(MAX_LEVEL);
+    const center = range.center;
+    const centerUv = {
+      x: center.x / WORLD_WIDTH + 0.5,
+      y: 0.5 - center.y / WORLD_HEIGHT
+    };
+    const radiusUv = {
+      x: cfg.cueW / WORLD_WIDTH / 2,
+      y: cfg.cueH / WORLD_HEIGHT / 2
+    };
+
+    const group = document.createElement('a-entity');
+    group.dataset.target = id;
+    cueLayer.appendChild(group);
+    this.group = group;
+
+    const tiles = [];
+    for (let row = range.startRow; row <= range.endRow; row++) {
+      for (let col = range.startCol; col <= range.endCol; col++) {
+        const geometry = tileGeometry(MAX_LEVEL, col, row);
+        if (!geometry) continue;
+        tiles.push({col, row, geometry, url: `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`});
+      }
     }
-    if (localToken === this.token && this.activeId === id) halo.setAttribute('material', 'opacity', 0.07);
+
+    const available = [];
+    const results = await Promise.all(tiles.map(t => preloadImage(t.url)));
+    tiles.forEach((t, i) => { if (results[i].ok) available.push(t); });
+    if (localToken !== this.token || this.activeId !== id) return;
+
+    const planes = [];
+    for (const tile of available) {
+      const g = tile.geometry;
+      const plane = document.createElement('a-plane');
+      plane.setAttribute('width', g.worldW);
+      plane.setAttribute('height', g.worldH);
+      plane.setAttribute('position', `${g.centerX} ${g.centerY} 0.032`);
+      const u0 = g.fileX / dims.width;
+      const v0 = g.fileY / dims.height;
+      const u1 = (g.fileX + g.fileW) / dims.width;
+      const v1 = (g.fileY + g.fileH) / dims.height;
+      plane.setAttribute('material', {
+        shader: 'tile-glow',
+        src: tile.url,
+        opacity: 0.03,
+        center: `${centerUv.x} ${centerUv.y}`,
+        radius: `${radiusUv.x} ${radiusUv.y}`,
+        tileRect: `${u0} ${v0} ${u1} ${v1}`,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        side: 'double'
+      });
+      group.appendChild(plane);
+      planes.push(plane);
+    }
+
+    for (let cycle = 0; cycle < 4; cycle++) {
+      if (localToken !== this.token || this.activeId !== id) return;
+      planes.forEach((p, i) => p.setAttribute(`animation__glowin${cycle}_${i}`, 'property: material.opacity; from: 0.03; to: 0.48; dur: 700; easing: easeInOutSine'));
+      await TourEngine.wait(760);
+      if (localToken !== this.token || this.activeId !== id) return;
+      planes.forEach((p, i) => p.setAttribute(`animation__glowout${cycle}_${i}`, 'property: material.opacity; from: 0.48; to: 0.07; dur: 700; easing: easeInOutSine'));
+      await TourEngine.wait(760);
+    }
+    planes.forEach(p => p.setAttribute('material', 'opacity', 0.10));
   }
 };
 
@@ -1073,39 +1196,20 @@ const TourEngine = {
   }
 };
 
+window.TourEngine = TourEngine;
+
 function addHotspot(id) {
   const el = document.querySelector('#' + id);
   if (!el) return;
 
-  el.addEventListener('mouseenter', () => {
-    if (!pageReady || !currentLanguage) return;
-
-    clearTimeout(gazeTimer);
-
-    gazeTimer = setTimeout(() => {
-      if (el.classList.contains('captainDetail')) {
-        
-        playNarration(id, standardNarration(id));
-        return;
-      }
-
-      TourEngine.confirmGaze(id);
-    }, el.classList.contains('captainDetail') ? 2000 : GAZE_MS);
-  });
-
-  el.addEventListener('mouseleave', () => {
-    clearTimeout(gazeTimer);
-    if (el.classList.contains('captainDetail')) { }
-  });
-
+  // Desktop/controller fallback. Immersive gaze is handled by quest-gaze-select.
   el.addEventListener('click', () => {
     if (!pageReady || !currentLanguage) return;
-    clearTimeout(gazeTimer);
     if (el.classList.contains('captainDetail')) {
       playNarration(id, standardNarration(id));
-      return;
+    } else {
+      TourEngine.confirmGaze(id);
     }
-    TourEngine.confirmGaze(id);
   });
 }
 
