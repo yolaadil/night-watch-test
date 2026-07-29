@@ -858,15 +858,20 @@ const QuestCue = {
       planes.push(plane);
     }
 
-    for (let cycle = 0; cycle < 4; cycle++) {
-      if (localToken !== this.token || this.activeId !== id) return;
-      planes.forEach((p, i) => p.setAttribute(`animation__glowin${cycle}_${i}`, 'property: material.opacity; from: 0.03; to: 0.48; dur: 700; easing: easeInOutSine'));
-      await TourEngine.wait(760);
-      if (localToken !== this.token || this.activeId !== id) return;
-      planes.forEach((p, i) => p.setAttribute(`animation__glowout${cycle}_${i}`, 'property: material.opacity; from: 0.48; to: 0.07; dur: 700; easing: easeInOutSine'));
-      await TourEngine.wait(760);
-    }
-    planes.forEach(p => p.setAttribute('material', 'opacity', 0.10));
+    // Keep the museum-style cue active continuously until gaze confirms
+    // the target. QuestCue.hideAll() removes this group as soon as the
+    // interaction is locked, which stops the animation automatically.
+    planes.forEach((plane, index) => {
+      plane.setAttribute(`animation__continuousglow${index}`, {
+        property: 'material.opacity',
+        from: 0.08,
+        to: 0.48,
+        dur: 900,
+        easing: 'easeInOutSine',
+        dir: 'alternate',
+        loop: true
+      });
+    });
   }
 };
 
