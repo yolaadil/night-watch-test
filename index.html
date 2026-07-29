@@ -235,8 +235,7 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
   },
 
   init() {
-    this.baseCamera = null;
-    this.lastMode = '';
+    this.wasPresenting = false;
   },
 
   tick() {
@@ -244,25 +243,37 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
     const renderer = scene && scene.renderer;
     const cameraEl = document.querySelector('#mainCamera');
     const baseCamera = cameraEl && cameraEl.getObject3D('camera');
-    if (!renderer || !baseCamera) return;
+    if (!renderer || !baseCamera || !renderer.xr) return;
 
     const cueLayer = this.data.layer;
     baseCamera.layers.enable(0);
 
-    if (!renderer.xr || !renderer.xr.isPresenting) {
-      // Keep desktop/mobile preview usable.
+    if (!renderer.xr.isPresenting) {
+      // Desktop preview remains binocular.
       baseCamera.layers.enable(cueLayer);
-      this.lastMode = 'desktop';
+      if (this.wasPresenting) renderer.xr.cameraAutoUpdate = true;
+      this.wasPresenting = false;
       return;
     }
 
-    // Do not allow the parent camera mask to hide the cue before the XR
-    // sub-cameras are evaluated.
-    baseCamera.layers.enable(cueLayer);
+    this.wasPresenting = true;
+
+    // Three.js normally copies the parent camera layer mask to both XR eye
+    // cameras immediately before rendering. That overwrites any per-eye
+    // layer changes made during A-Frame's tick. We therefore update the XR
+    // cameras ourselves, then disable the automatic overwrite for this frame.
+    renderer.xr.cameraAutoUpdate = false;
+    renderer.xr.updateCamera(baseCamera);
 
     const xrCamera = renderer.xr.getCamera(baseCamera);
     const eyes = xrCamera && xrCamera.cameras;
     if (!eyes || eyes.length < 2) return;
+
+    // The parent/ArrayCamera must include both layers, while each physical eye
+    // camera receives its own mask.
+    baseCamera.layers.enable(cueLayer);
+    xrCamera.layers.enable(0);
+    xrCamera.layers.enable(cueLayer);
 
     eyes.forEach(camera => {
       camera.layers.enable(0);
@@ -270,8 +281,12 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
     });
 
     const cueIndex = this.data.eye.toLowerCase() === 'right' ? 1 : 0;
-    eyes[Math.min(cueIndex, eyes.length - 1)].layers.enable(cueLayer);
-    this.lastMode = this.data.eye.toLowerCase();
+    eyes[cueIndex].layers.enable(cueLayer);
+  },
+
+  remove() {
+    const renderer = this.el.sceneEl && this.el.sceneEl.renderer;
+    if (renderer && renderer.xr) renderer.xr.cameraAutoUpdate = true;
   }
 });
 
