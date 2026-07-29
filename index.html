@@ -198,6 +198,83 @@ AFRAME.registerShader('tile-glow', {
   `
 });
 
+
+
+// Render an entity on a dedicated Three.js camera layer.
+// Layer 0 remains the normal binocular scene; layer 1 is reserved for
+// the temporary museum cue that will be visible to one eye only in WebXR.
+AFRAME.registerComponent('render-layer', {
+  schema: { layer: { type: 'int', default: 1 } },
+
+  init() {
+    this.applyLayer = this.applyLayer.bind(this);
+    this.el.addEventListener('object3dset', this.applyLayer);
+    this.el.addEventListener('model-loaded', this.applyLayer);
+    this.applyLayer();
+  },
+
+  applyLayer() {
+    const layer = this.data.layer;
+    this.el.object3D.traverse(object => object.layers.set(layer));
+  },
+
+  remove() {
+    this.el.removeEventListener('object3dset', this.applyLayer);
+    this.el.removeEventListener('model-loaded', this.applyLayer);
+  }
+});
+
+// Approach B: both eyes see the original painting, while only one eye sees
+// the existing warm, brightened tile overlay. Nothing else in the scene is
+// rendered monocularly. Outside immersive VR, the cue remains binocular so
+// desktop testing still works normally.
+AFRAME.registerComponent('dichoptic-cue-camera', {
+  schema: {
+    layer: { type: 'int', default: 1 },
+    eye: { type: 'string', default: 'left' }
+  },
+
+  init() {
+    this.baseCamera = null;
+    this.lastMode = '';
+  },
+
+  tick() {
+    const scene = this.el.sceneEl;
+    const renderer = scene && scene.renderer;
+    const cameraEl = document.querySelector('#mainCamera');
+    const baseCamera = cameraEl && cameraEl.getObject3D('camera');
+    if (!renderer || !baseCamera) return;
+
+    const cueLayer = this.data.layer;
+    baseCamera.layers.enable(0);
+
+    if (!renderer.xr || !renderer.xr.isPresenting) {
+      // Keep desktop/mobile preview usable.
+      baseCamera.layers.enable(cueLayer);
+      this.lastMode = 'desktop';
+      return;
+    }
+
+    // Do not allow the parent camera mask to hide the cue before the XR
+    // sub-cameras are evaluated.
+    baseCamera.layers.enable(cueLayer);
+
+    const xrCamera = renderer.xr.getCamera(baseCamera);
+    const eyes = xrCamera && xrCamera.cameras;
+    if (!eyes || eyes.length < 2) return;
+
+    eyes.forEach(camera => {
+      camera.layers.enable(0);
+      camera.layers.disable(cueLayer);
+    });
+
+    const cueIndex = this.data.eye.toLowerCase() === 'right' ? 1 : 0;
+    eyes[Math.min(cueIndex, eyes.length - 1)].layers.enable(cueLayer);
+    this.lastMode = this.data.eye.toLowerCase();
+  }
+});
+
 AFRAME.registerComponent('quest-gaze-select', {
   schema: { dwell: {type: 'number', default: 2000} },
   init() {
@@ -254,7 +331,7 @@ AFRAME.registerComponent('quest-gaze-select', {
   </div>
 </div>
 
-<a-scene>
+<a-scene dichoptic-cue-camera="layer: 1; eye: left">
 
   <!-- Painting root: low-res base plus optional high-res tile overlay -->
 
@@ -746,6 +823,7 @@ const QuestCue = {
       const v0 = g.fileY / dims.height;
       const u1 = (g.fileX + g.fileW) / dims.width;
       const v1 = (g.fileY + g.fileH) / dims.height;
+      plane.setAttribute('render-layer', 'layer: 1');
       plane.setAttribute('material', {
         shader: 'tile-glow',
         src: tile.url,
@@ -759,6 +837,9 @@ const QuestCue = {
         side: 'double'
       });
       group.appendChild(plane);
+      plane.addEventListener('object3dset', () => {
+        plane.object3D.traverse(object => object.layers.set(1));
+      });
       planes.push(plane);
     }
 
@@ -1280,6 +1361,7 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
+  console.log('[Dichoptic cue] Approach B active: cue tiles visible to left eye only.');
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
