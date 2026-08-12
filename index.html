@@ -231,11 +231,72 @@ AFRAME.registerComponent('render-layer', {
 AFRAME.registerComponent('dichoptic-cue-camera', {
   schema: {
     layer: { type: 'int', default: 1 },
-    eye: { type: 'string', default: 'left' }
+
+    // left/right force a fixed cue eye.
+    // auto selects the eye from the target's horizontal direction
+    // relative to the user's CURRENT headset viewing direction.
+    eye: { type: 'string', default: 'auto' },
+
+    // Prevent rapid eye switching when the target is almost centered.
+    // The existing eye is retained inside this angular dead-zone.
+    deadzone: { type: 'number', default: 2.5 }
   },
 
   init() {
     this.wasPresenting = false;
+    this.currentCueEye = 'left';
+    this.lastTargetId = null;
+  },
+
+  getAdaptiveCueEye(baseCamera) {
+    const mode = String(this.data.eye || 'auto').toLowerCase();
+
+    if (mode === 'left' || mode === 'right') {
+      return mode;
+    }
+
+    const targetId =
+      window.TourEngine &&
+      (window.TourEngine.state === 'CUE' || window.TourEngine.state === 'WAIT_GAZE')
+        ? window.TourEngine.target
+        : null;
+
+    if (!targetId) return this.currentCueEye;
+
+    const targetEl = document.querySelector('#' + targetId);
+    if (!targetEl || !targetEl.object3D) return this.currentCueEye;
+
+    // Position of the target in world coordinates.
+    const targetWorld = new THREE.Vector3();
+    targetEl.object3D.getWorldPosition(targetWorld);
+
+    // Convert the target to the current headset-camera coordinate system.
+    // In camera space: +X = right, -X = left, and forward is -Z.
+    const targetLocal = targetWorld.clone();
+    baseCamera.worldToLocal(targetLocal);
+
+    const horizontalAngle =
+      THREE.MathUtils.radToDeg(Math.atan2(targetLocal.x, -targetLocal.z));
+
+    let desiredEye = this.currentCueEye;
+
+    if (horizontalAngle > this.data.deadzone) {
+      // Target lies to the RIGHT of the user's current viewing direction.
+      desiredEye = 'right';
+    } else if (horizontalAngle < -this.data.deadzone) {
+      // Target lies to the LEFT of the user's current viewing direction.
+      desiredEye = 'left';
+    }
+
+    if (desiredEye !== this.currentCueEye || targetId !== this.lastTargetId) {
+      console.log(
+        `[SAGE dichoptic] target=${targetId}, horizontalAngle=${horizontalAngle.toFixed(1)}°, cueEye=${desiredEye}`
+      );
+    }
+
+    this.currentCueEye = desiredEye;
+    this.lastTargetId = targetId;
+    return desiredEye;
   },
 
   tick() {
@@ -249,7 +310,7 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
     baseCamera.layers.enable(0);
 
     if (!renderer.xr.isPresenting) {
-      // Desktop preview remains binocular.
+      // Desktop preview remains binocular so the cue can still be debugged.
       baseCamera.layers.enable(cueLayer);
       if (this.wasPresenting) renderer.xr.cameraAutoUpdate = true;
       this.wasPresenting = false;
@@ -258,10 +319,9 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
 
     this.wasPresenting = true;
 
-    // Three.js normally copies the parent camera layer mask to both XR eye
-    // cameras immediately before rendering. That overwrites any per-eye
-    // layer changes made during A-Frame's tick. We therefore update the XR
-    // cameras ourselves, then disable the automatic overwrite for this frame.
+    // Update the WebXR stereo cameras ourselves. A-Frame/Three.js normally
+    // copies the parent layer mask to both eye cameras immediately before
+    // rendering, which would otherwise overwrite our per-eye masks.
     renderer.xr.cameraAutoUpdate = false;
     renderer.xr.updateCamera(baseCamera);
 
@@ -269,18 +329,22 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
     const eyes = xrCamera && xrCamera.cameras;
     if (!eyes || eyes.length < 2) return;
 
-    // The parent/ArrayCamera must include both layers, while each physical eye
-    // camera receives its own mask.
+    // The parent ArrayCamera must contain both the normal scene and cue layer.
     baseCamera.layers.enable(cueLayer);
     xrCamera.layers.enable(0);
     xrCamera.layers.enable(cueLayer);
 
+    // Start with the cue disabled in both physical eyes.
     eyes.forEach(camera => {
       camera.layers.enable(0);
       camera.layers.disable(cueLayer);
     });
 
-    const cueIndex = this.data.eye.toLowerCase() === 'right' ? 1 : 0;
+    // Adaptive rule:
+    // target right of current view -> cue in right eye
+    // target left  of current view -> cue in left eye
+    const cueEye = this.getAdaptiveCueEye(baseCamera);
+    const cueIndex = cueEye === 'right' ? 1 : 0;
     eyes[cueIndex].layers.enable(cueLayer);
   },
 
@@ -346,7 +410,7 @@ AFRAME.registerComponent('quest-gaze-select', {
   </div>
 </div>
 
-<a-scene dichoptic-cue-camera="layer: 1; eye: left">
+<a-scene dichoptic-cue-camera="layer: 1; eye: auto; deadzone: 2.5">
 
   <!-- Painting root: low-res base plus optional high-res tile overlay -->
 
