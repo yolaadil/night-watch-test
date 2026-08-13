@@ -1,1 +1,4108 @@
-
+{
+  "schema_version": "1.0",
+  "description": "Night Watch non-linear narrative graph with audience-specific audio-ready texts.",
+  "audio_assumption_wpm": 135,
+  "audiences": {
+    "child": "Concrete, observational language for approximately ages 8-12.",
+    "general": "Accessible interpretation for a general adult visitor.",
+    "expert": "Technical or historiographic emphasis for an art-informed visitor."
+  },
+  "statuses": [
+    "documented",
+    "visual_observation",
+    "visual_prompt",
+    "scholarly_interpretation",
+    "contested",
+    "historical_myth"
+  ],
+  "pois": {
+    "whole": "Entire painting / overview",
+    "central": "Central officers and surrounding group",
+    "captain": "Captain Frans Banninck Cocq",
+    "lieutenant": "Lieutenant Willem van Ruytenburch",
+    "hand_shadow": "Captain's hand and shadow on the lieutenant",
+    "girl": "Illuminated girl",
+    "dog": "Dog in the lower right",
+    "drummer": "Drummer and drum",
+    "standard": "Standard bearer and flag",
+    "musketeer_left": "Musketeer loading at the left",
+    "musketeer_center": "Musketeer firing behind the lieutenant",
+    "musketeer_right": "Musketeer clearing the pan at the right",
+    "left_group": "Figures at the left edge",
+    "right_group": "Right-side company",
+    "weapons": "Diagonal weapons and pikes",
+    "architecture": "Arch and architectural background",
+    "cartouche": "Name cartouche above the arch",
+    "canvas": "Canvas surface and seams",
+    "captain_breeches": "Repaired slashes in the captain's breeches",
+    "acid_region": "Area affected by the 1990 acid attack",
+    "drum_repair": "Historical canvas insert in the drum",
+    "cropped_edge": "Edges removed in 1715",
+    "costume_detail": "Lieutenant's yellow costume and embroidery",
+    "paint_sample": "Microscopic paint and ground layers"
+  },
+  "sources": {
+    "RIS": {
+      "file": "../sensors-21-06855-v2.pdf",
+      "label": "Gabrieli et al., 2021",
+      "pages": "2-17"
+    },
+    "COSTUME": {
+      "file": "../s40494-025-01874-w.pdf",
+      "label": "De Keyser et al., 2025",
+      "pages": "1-17"
+    },
+    "LEAD": {
+      "file": "../sciadv.adj9394.pdf",
+      "label": "Broers et al., 2024",
+      "pages": "1-12"
+    },
+    "ACID": {
+      "file": "../s40494-025-02233-5.pdf",
+      "label": "Raven et al., 2025",
+      "pages": "1-12"
+    },
+    "SHEAR": {
+      "file": "../1-s2.0-S1296207425000123-main.pdf",
+      "label": "Tao et al., 2025",
+      "pages": "1-10"
+    },
+    "REST": {
+      "file": "../The_Art_of_Conservation_III_The_Restorat.pdf",
+      "label": "The Restorations of Rembrandt's Night Watch, 2016",
+      "pages": "1-12"
+    },
+    "SLIVE": {
+      "file": "../Slive-RembrandtContemporaryCritics-1953.pdf",
+      "label": "Slive, 1953",
+      "pages": "5-17"
+    },
+    "CORPUS": {
+      "file": "../978-94-009-0811-6.pdf",
+      "label": "A Corpus of Rembrandt Paintings III, 1989",
+      "pages": "430-485",
+      "pagination_note": "Printed pages 430-485 correspond approximately to PDF pages 444-499."
+    }
+  },
+  "nodes": [
+    {
+      "id": "NW001",
+      "title": "Meet The Night Watch",
+      "category": "orientation",
+      "poi": "whole",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "This enormous painting shows an Amsterdam civic guard getting ready to move. Rembrandt finished it in 1642.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt completed this monumental civic-guard portrait in 1642. Rather than arranging the company in a static row, he represented it gathering in action.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "Completed in 1642, the work is Rembrandt's only civic-guard piece. Its activated group structure departs from the more static conventions of Amsterdam militia portraiture.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW045"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW002",
+      "title": "Its Official Subject",
+      "category": "orientation",
+      "poi": "whole",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "LEAD",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The painting is really about Captain Frans Banninck Cocq and Lieutenant Willem van Ruytenburch leading their company.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Its official subject is the militia company of District II under Captain Frans Banninck Cocq and Lieutenant Willem van Ruytenburch.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The official title identifies the officers and other members of District II's civic guard under Banninck Cocq and Van Ruytenburch; \"The Night Watch\" is a later popular name.",
+          "words": 28,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW003",
+      "title": "Not Actually a Night Scene",
+      "category": "orientation",
+      "poi": "whole",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "6-7"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Despite its nickname, this is not a group guarding the city at night. Darkened varnish once made the scene look much darker.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "general": {
+          "text": "The familiar title is misleading: the scene does not depict a nocturnal patrol. Changes to varnish and surface appearance helped encourage that impression.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The designation \"Night Watch\" is post-seventeenth-century and iconographically misleading. The company is shown mobilizing, while altered surface coatings historically intensified the nocturnal appearance.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW004",
+      "title": "A Painting as Large as a Wall",
+      "category": "orientation",
+      "poi": "whole",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "LEAD",
+          "pages": "5"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The canvas is more than three and a half meters tall and over four and a half meters wide.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "At approximately 3.78 by 4.53 meters, the painting surrounds the viewer with nearly life-size figures and an unusually complex crowd.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The present canvas measures roughly 378 by 453 centimeters. Its monumental scale, low viewpoint, and near-life-size foreground figures support an unusually bodily encounter with a group portrait.",
+          "words": 27,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW083"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW005",
+      "title": "Who Were the Civic Guards?",
+      "category": "orientation",
+      "poi": "whole",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "SLIVE",
+          "pages": "6"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "These citizens belonged to a militia that helped protect Amsterdam and keep public order.",
+          "words": 14,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "Amsterdam's civic guards were companies of citizens associated with defending the city and maintaining public order, as well as important social institutions.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The sitters belonged to an Amsterdam civic-guard company. Such organizations combined defensive and policing functions with civic identity, ceremony, sociability, and elite self-representation.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW015",
+        "NW020",
+        "NW022",
+        "NW023",
+        "NW024",
+        "NW032",
+        "NW042",
+        "NW061"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW006",
+      "title": "The Two Leaders",
+      "category": "orientation",
+      "poi": "central",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "REST",
+          "pages": "1"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Find the two men stepping forward: the captain wears black and red, and his lieutenant wears bright yellow.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Captain Frans Banninck Cocq, dressed in black with a red sash, walks beside Lieutenant Willem van Ruytenburch in yellow.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The central hierarchy is established through costume, light, scale, and forward placement: Captain Banninck Cocq in black and red commands beside Lieutenant Van Ruytenburch in yellow.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW011",
+        "NW012",
+        "NW046"
+      ],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW007",
+      "title": "A Group Portrait in Motion",
+      "category": "orientation",
+      "poi": "central",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Instead of asking everyone to stand still, Rembrandt makes the group look as if it is starting to march.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt transformed a commissioned group portrait into an event, distributing gestures, weapons, glances, and steps across the company.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Rather than presenting evenly ranked likenesses, Rembrandt subordinated individual portrait visibility to an activated ensemble structured by overlapping figures, directional gestures, and implied temporal sequence.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW030",
+        "NW038",
+        "NW039",
+        "NW041",
+        "NW042",
+        "NW059",
+        "NW064",
+        "NW100"
+      ],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW008",
+      "title": "Painted for the Kloveniersdoelen",
+      "category": "orientation",
+      "poi": "architecture",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The painting was made for the great hall of the Amsterdam musketeers' headquarters.",
+          "words": 13,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "The officers and men commissioned the painting for the great hall of the Kloveniersdoelen, the Amsterdam arquebusiers' headquarters.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The original destination was the great hall of the Kloveniersdoelen. Its architectural setting and neighboring militia pieces shaped the work's initial scale, function, and reception.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW040",
+        "NW062",
+        "NW063"
+      ],
+      "poi_label": "Arch and architectural background"
+    },
+    {
+      "id": "NW009",
+      "title": "A Painting That Was Cut Down",
+      "category": "orientation",
+      "poi": "cropped_edge",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "In 1715, pieces were cut from all four edges so the painting would fit in a new room.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "When the work moved to Amsterdam Town Hall in 1715, it was trimmed on all four sides, most substantially at the left, to fit between architectural boundaries.",
+          "words": 27,
+          "estimated_seconds_at_135_wpm": 12
+        },
+        "expert": {
+          "text": "The 1715 transfer to the Town Hall required reductions on every side. The largest loss at left altered spacing, eliminated figures, and changed the balance of the original composition.",
+          "words": 29,
+          "estimated_seconds_at_135_wpm": 13
+        }
+      },
+      "unlocks": [
+        "NW066",
+        "NW067"
+      ],
+      "poi_label": "Edges removed in 1715"
+    },
+    {
+      "id": "NW010",
+      "title": "Operation Night Watch",
+      "category": "orientation",
+      "poi": "whole",
+      "level": 0,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2-4"
+        },
+        {
+          "source_id": "ACID",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Scientists built a special glass chamber around the painting so they could study it in the museum.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Operation Night Watch is the Rijksmuseum's large interdisciplinary research and conservation project, conducted publicly around the painting in its gallery.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Launched in 2019, Operation Night Watch integrates imaging, chemical analysis, conservation history, and structural assessment at unprecedented scale while keeping the project visible to museum audiences.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW072",
+        "NW073",
+        "NW076",
+        "NW091"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW011",
+      "title": "Captain Frans Banninck Cocq",
+      "category": "characters",
+      "poi": "captain",
+      "level": 1,
+      "requires_all": [
+        "NW006"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "REST",
+          "pages": "1"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The man in black is Captain Frans Banninck Cocq. His red sash and commanding gesture help us find him quickly.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "Captain Frans Banninck Cocq leads the company. Rembrandt identifies him through his dark costume, red sash, forward position, and emphatic hand.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Banninck Cocq's authority is constructed pictorially rather than by isolation: his black costume frames the illuminated hand, while the red sash and forward stride anchor the chromatic structure.",
+          "words": 28,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW013",
+        "NW027",
+        "NW033"
+      ],
+      "poi_label": "Captain Frans Banninck Cocq"
+    },
+    {
+      "id": "NW012",
+      "title": "Lieutenant Willem van Ruytenburch",
+      "category": "characters",
+      "poi": "lieutenant",
+      "level": 1,
+      "requires_all": [
+        "NW006"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "2"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The bright man is Lieutenant Willem van Ruytenburch. His yellow clothes make him glow beside the captain.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Lieutenant Willem van Ruytenburch walks beside the captain. His highly illuminated yellow costume makes him one of the painting's strongest visual centers.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "Van Ruytenburch's role is amplified by an exceptionally complex yellow costume whose lightness, texture, and warm reflections contrast with the captain's black attire.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW014",
+        "NW028",
+        "NW034"
+      ],
+      "poi_label": "Lieutenant Willem van Ruytenburch"
+    },
+    {
+      "id": "NW013",
+      "title": "The Captain's Red Sash",
+      "category": "characters",
+      "poi": "captain",
+      "level": 1,
+      "requires_all": [
+        "NW011"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The captain's red sash cuts brightly across his black clothes, making him easier to spot in the crowd.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The diagonal red sash separates Banninck Cocq from the dark surrounding costumes and reinforces the forward movement of his body.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The vermilion-rich sash functions as both status marker and chromatic counterweight to the lieutenant's yellows, one element in Rembrandt's distributed color grouping.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW081"
+      ],
+      "poi_label": "Captain Frans Banninck Cocq"
+    },
+    {
+      "id": "NW014",
+      "title": "The Lieutenant's Yellow Costume",
+      "category": "characters",
+      "poi": "costume_detail",
+      "level": 1,
+      "requires_all": [
+        "NW012"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Look closely at the lieutenant's yellow clothes: leather, cloth, metal, and gold all seem to catch light differently.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Van Ruytenburch wears yellow leather breeches, a buff jerkin with embroidered borders, striped sleeves, armor, and an elaborate hat.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The costume combines buff leather, textiles, metallic elements, embroidery, and accessories. Rembrandt differentiated these surfaces through layered pigment mixtures, impasto, glazes, and controlled reflections.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW029",
+        "NW057",
+        "NW075",
+        "NW076"
+      ],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW015",
+      "title": "The Standard Bearer",
+      "category": "characters",
+      "poi": "standard",
+      "level": 1,
+      "requires_all": [
+        "NW005"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The man lifting the great flag is the standard bearer. His banner identifies and celebrates the company.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The standard bearer raises the company's flag above the crowd, extending the composition upward and announcing collective civic identity.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The ensign's elevated banner joins portraiture to corporate display. Its diagonal and folds counter the forest of weapons while marking the company's ceremonial identity.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW035"
+      ],
+      "poi_label": "Standard bearer and flag"
+    },
+    {
+      "id": "NW016",
+      "title": "The Illuminated Girl",
+      "category": "characters",
+      "poi": "girl",
+      "level": 1,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "COSTUME",
+          "pages": "3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A small girl glows among the soldiers. She is not marching like them, so she feels mysterious.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The brightly illuminated girl appears within the company but outside its military hierarchy. Her light, dress, and attached objects make her both visible and enigmatic.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        },
+        "expert": {
+          "text": "The girl functions as a concentrated pictorial and iconographic accent. Her precise identity and symbolic role remain debated; interpretations should therefore be presented as hypotheses, not settled biography.",
+          "words": 28,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW017",
+        "NW018",
+        "NW019"
+      ],
+      "poi_label": "Illuminated girl"
+    },
+    {
+      "id": "NW017",
+      "title": "A Girl, Not a Literal Mascot?",
+      "category": "characters",
+      "poi": "girl",
+      "level": 2,
+      "requires_all": [],
+      "requires_any": [
+        "NW016"
+      ],
+      "status": "contested",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "People have guessed that the girl is a mascot or symbol. We cannot be certain exactly who Rembrandt meant her to be.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "general": {
+          "text": "The girl has often been interpreted as a symbolic or mascot-like figure connected with the company, but her exact status remains uncertain.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "Readings of the girl as company mascot, allegorical figure, or actual participant are interpretive. The painting supports symbolic associations, but the available evidence does not fix a single identity.",
+          "words": 29,
+          "estimated_seconds_at_135_wpm": 13
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Illuminated girl"
+    },
+    {
+      "id": "NW018",
+      "title": "The Chicken at Her Belt",
+      "category": "characters",
+      "poi": "girl",
+      "level": 2,
+      "requires_all": [
+        "NW016"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A bird hangs from the girl's belt. Its claws may be a playful clue linked to the musketeers' company.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The dead chicken and its claws have been connected to the arquebusiers' emblematic identity, helping explain why the girl may carry symbolic meaning.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The bird and visible claws have traditionally been read as emblematic attributes of the Kloveniers. This is a plausible iconographic interpretation rather than an independently documented portrait attribute.",
+          "words": 28,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Illuminated girl"
+    },
+    {
+      "id": "NW019",
+      "title": "The Girl's Light",
+      "category": "characters",
+      "poi": "girl",
+      "level": 2,
+      "requires_all": [
+        "NW016"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The girl is small, but Rembrandt uses bright light to make her compete with the much larger soldiers.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Strong illumination makes the girl a secondary visual center despite her small scale and position behind the foreground company.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Her high value contrast and warm yellows create salience disproportionate to scale. The effect demonstrates how tonal organization can override spatial hierarchy.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Illuminated girl"
+    },
+    {
+      "id": "NW020",
+      "title": "The Drummer",
+      "category": "characters",
+      "poi": "drummer",
+      "level": 1,
+      "requires_all": [
+        "NW005"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "SHEAR",
+          "pages": "1-3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "At the right, a drummer beats a large drum, adding a sound we can almost imagine.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The drummer at the right contributes to the sense that the company is assembling and that the silent painting contains implied noise.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The drummer extends the event beyond purely visual action. His instrument establishes an implied acoustic cue and a compositional counterweight at the right boundary.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW036",
+        "NW087"
+      ],
+      "poi_label": "Drummer and drum"
+    },
+    {
+      "id": "NW021",
+      "title": "The Dog Reacts",
+      "category": "characters",
+      "poi": "dog",
+      "level": 1,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A small dog barks beside the drummer. It makes the busy scene feel even louder and more alive.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The barking dog reinforces the painting's implied sound and commotion, responding to the movement or drum at the edge of the company.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The dog is a genre-like incident embedded within formal portraiture. Its alert posture contributes temporal immediacy without requiring a single fixed narrative explanation.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW043"
+      ],
+      "poi_label": "Dog in the lower right"
+    },
+    {
+      "id": "NW022",
+      "title": "The Firing Musketeer",
+      "category": "characters",
+      "poi": "musketeer_center",
+      "level": 1,
+      "requires_all": [
+        "NW005"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Behind the lieutenant, a soldier fires his weapon. Look for the flash and smoke.",
+          "words": 14,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "A musketeer behind Van Ruytenburch fires an arquebus, inserting a momentary flash and implied report into the crowded scene.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The discharged weapon supplies a transient event within the group portrait. Its partially obscured placement rewards close inspection while intensifying atmospheric depth.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW031",
+        "NW037"
+      ],
+      "poi_label": "Musketeer firing behind the lieutenant"
+    },
+    {
+      "id": "NW023",
+      "title": "The Loading Musketeer",
+      "category": "characters",
+      "poi": "musketeer_left",
+      "level": 1,
+      "requires_all": [
+        "NW005"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "On the left, a soldier pours powder into his gun. He shows one step in preparing the weapon.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The musketeer at the left loads his firearm, one of several figures who collectively demonstrate stages of arquebus use.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The loading action contributes procedural sequence across spatially separated figures, allowing Rembrandt to embed technical military activity in a portrait ensemble.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW031"
+      ],
+      "poi_label": "Musketeer loading at the left"
+    },
+    {
+      "id": "NW024",
+      "title": "The Musketeer Clearing the Pan",
+      "category": "characters",
+      "poi": "musketeer_right",
+      "level": 1,
+      "requires_all": [
+        "NW005"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Another soldier blows powder from the firing pan. Together, the musketeers show how their weapons worked.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "At the right, a musketeer clears the firing pan. With the loading and firing figures, he forms a distributed sequence of weapon handling.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The three arquebus actions are not necessarily one literal chronological episode, but they create intelligible procedural variety and reinforce the company's identity.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW031"
+      ],
+      "poi_label": "Musketeer clearing the pan at the right"
+    },
+    {
+      "id": "NW025",
+      "title": "Faces in the Crowd",
+      "category": "characters",
+      "poi": "right_group",
+      "level": 1,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Some faces are bright and complete; others are only partly visible. Try finding someone peeking through a gap.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt varied the visibility of individual faces, allowing some sitters to emerge clearly while others remain embedded in shadow and overlap.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Unequal visibility challenges the expectation that every paying sitter in a group portrait should receive equivalent pictorial prominence, although it does not prove patron dissatisfaction.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Right-side company"
+    },
+    {
+      "id": "NW026",
+      "title": "The Man in the Metal Helmet",
+      "category": "characters",
+      "poi": "right_group",
+      "level": 1,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A shiny helmet catches small highlights. Rembrandt uses reflected light to make hard metal feel different from cloth.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Localized highlights distinguish polished armor from softer fabrics and help articulate figures that would otherwise merge into the dark crowd.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Specular accents and cool reflected tones differentiate metallic surfaces while preserving the broader tonal grouping of the right-side figures.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Right-side company"
+    },
+    {
+      "id": "NW027",
+      "title": "The Captain's Gesture",
+      "category": "characters",
+      "poi": "captain",
+      "level": 1,
+      "requires_all": [
+        "NW011"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The captain reaches forward as if giving an order. His hand seems to set the whole group in motion.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Banninck Cocq's extended hand reads as a command or directional gesture, helping convert posed portraiture into coordinated action.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The captain's hand is both narrative gesture and formal device: brightly isolated against Van Ruytenburch, it links authority, depth, and the painting's central light structure.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW029",
+        "NW049"
+      ],
+      "poi_label": "Captain Frans Banninck Cocq"
+    },
+    {
+      "id": "NW028",
+      "title": "The Lieutenant's Partisan",
+      "category": "characters",
+      "poi": "lieutenant",
+      "level": 1,
+      "requires_all": [
+        "NW012"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The lieutenant carries a long ceremonial weapon called a partisan, marking his military position.",
+          "words": 14,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "Van Ruytenburch's long partisan contributes to his officer's identity while joining the network of diagonals across the composition.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The partisan operates simultaneously as attribute, status marker, and compositional vector. Its orientation helps bind the central pair to the surrounding company.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant Willem van Ruytenburch"
+    },
+    {
+      "id": "NW029",
+      "title": "The Captain's Shadow Profile",
+      "category": "characters",
+      "poi": "hand_shadow",
+      "level": 2,
+      "requires_all": [
+        "NW027",
+        "NW014"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "12-13"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The captain's hand casts a shadow across the lieutenant's yellow coat. The shadow makes the two men seem to share the same space.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "general": {
+          "text": "The cast shadow of Banninck Cocq's hand falls across Van Ruytenburch's embroidered jerkin, spatially connecting the two officers.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Technical study indicates that Rembrandt planned the shadow within the costume's layered construction rather than simply adding a dark shape over completed embroidery.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Captain's hand and shadow on the lieutenant"
+    },
+    {
+      "id": "NW030",
+      "title": "Individuals and Company",
+      "category": "characters",
+      "poi": "central",
+      "level": 2,
+      "requires_all": [
+        "NW007"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Every soldier is different, but their overlapping bodies, weapons, and glances turn them into one busy company.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt balances individual likeness with collective action, sometimes sacrificing complete visibility so the company reads as an interdependent event.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The work negotiates two portrait functions: preserving recognizable sitters and constructing a unified corporate body. Its formal hierarchy makes those aims deliberately unequal.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW031",
+      "title": "Loading, Firing, Clearing",
+      "category": "actions",
+      "poi": "weapons",
+      "level": 2,
+      "requires_all": [
+        "NW022",
+        "NW023",
+        "NW024"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Three soldiers show different things an arquebusier does: load the gun, fire it, and clear the firing pan.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Across the painting, three musketeers display loading, firing, and clearing actions, turning the company's weapon into a sequence of discoveries.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The spatial distribution of arquebus operations creates procedural legibility without functioning as a literal instructional diagram or a continuous action by one person.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW043"
+      ],
+      "poi_label": "Diagonal weapons and pikes"
+    },
+    {
+      "id": "NW032",
+      "title": "A Forest of Weapons",
+      "category": "actions",
+      "poi": "weapons",
+      "level": 1,
+      "requires_all": [
+        "NW005"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Pikes, guns, and staffs point in many directions. They make the crowd feel energetic instead of neatly arranged.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The crossing weapons establish diagonals that connect scattered figures, animate the upper field, and complicate the painting's depth.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The weapon vectors interrupt stable vertical and horizontal organization. Their overlaps operate as spatial cues while producing controlled compositional turbulence.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW053"
+      ],
+      "poi_label": "Diagonal weapons and pikes"
+    },
+    {
+      "id": "NW033",
+      "title": "The Captain Steps Forward",
+      "category": "actions",
+      "poi": "captain",
+      "level": 1,
+      "requires_all": [
+        "NW011"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The captain's raised foot and forward body make him look as if he is walking out toward us.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Banninck Cocq's forward stride helps project the central pair beyond the massed company and toward the viewer's space.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The low viewpoint, leg placement, and overlap with surrounding figures create a repoussoir-like emergence that activates the boundary between represented and viewing space.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW044",
+        "NW052"
+      ],
+      "poi_label": "Captain Frans Banninck Cocq"
+    },
+    {
+      "id": "NW034",
+      "title": "The Lieutenant Turns",
+      "category": "actions",
+      "poi": "lieutenant",
+      "level": 1,
+      "requires_all": [
+        "NW012"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The lieutenant walks beside the captain but turns slightly, making their movement feel like a conversation.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Van Ruytenburch's body and head do not simply repeat the captain's direction; their difference makes the central movement more complex.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The lieutenant's torsion avoids a rigid paired procession. It differentiates rank and response while preserving the central officers as a coordinated unit.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant Willem van Ruytenburch"
+    },
+    {
+      "id": "NW035",
+      "title": "The Flag Above the Crowd",
+      "category": "actions",
+      "poi": "standard",
+      "level": 1,
+      "requires_all": [
+        "NW015"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The great flag waves above the people, where it can be seen even when many bodies overlap.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The standard rises into the architecture, expanding the company's presence and connecting the crowded lower register with the open upper field.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The banner's folds and oblique staff mediate between architectural stability and bodily movement, creating a high-level rhythmic accent.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Standard bearer and flag"
+    },
+    {
+      "id": "NW036",
+      "title": "The Drum We Can Almost Hear",
+      "category": "actions",
+      "poi": "drummer",
+      "level": 1,
+      "requires_all": [
+        "NW020"
+      ],
+      "requires_any": [],
+      "status": "visual_prompt",
+      "sources": [
+        {
+          "source_id": "SHEAR",
+          "pages": "1-3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Imagine the drumbeat, gunshot, barking dog, and voices. Rembrandt fills a silent painting with suggested sound.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The drum, firing weapon, dog, and animated gestures invite viewers to construct an acoustic environment around the silent image.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Implied sound is produced through represented causes and reactions rather than notation. This cross-modal suggestion contributes to the work's temporal and immersive character.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Drummer and drum"
+    },
+    {
+      "id": "NW037",
+      "title": "Smoke in the Crowd",
+      "category": "actions",
+      "poi": "musketeer_center",
+      "level": 2,
+      "requires_all": [
+        "NW022"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A pale cloud around the firing soldier makes the gunshot feel like something that happened only a moment ago.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The firing musketeer's smoke interrupts clear contours and makes a transient event visible within the deep crowd.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The smoke functions atmospherically and temporally, softening local boundaries while distinguishing discharged weapon action from the harder-edged foreground figures.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Musketeer firing behind the lieutenant"
+    },
+    {
+      "id": "NW038",
+      "title": "Glances Crossing",
+      "category": "actions",
+      "poi": "central",
+      "level": 1,
+      "requires_all": [
+        "NW007"
+      ],
+      "requires_any": [],
+      "status": "visual_prompt",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Follow where people are looking. Their eyes do not meet ours in one neat row; they cross the scene in many directions.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "general": {
+          "text": "Diverging glances generate relationships within the group, encouraging the viewer to travel between figures rather than confront a uniform portrait line.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The dispersed eyelines resist frontal seriality. Along with gesture and overlap, they organize local interactions that remain subordinate to the broader company action.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW039",
+      "title": "Overlapping Bodies",
+      "category": "actions",
+      "poi": "central",
+      "level": 1,
+      "requires_all": [
+        "NW007"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Many people hide parts of one another. Those overlaps make the crowd feel deep and packed together.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt uses dense overlap rather than evenly spaced figures, creating depth and making the company appear to gather from behind the officers.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "Occlusion is a principal depth cue, but it also produces social and pictorial hierarchy because some commissioned likenesses remain more legible than others.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW050"
+      ],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW040",
+      "title": "The Crowd Emerges from the Arch",
+      "category": "actions",
+      "poi": "architecture",
+      "level": 2,
+      "requires_all": [
+        "NW008"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The dark arch feels like a doorway from which the bright figures are emerging.",
+          "words": 14,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "The architectural background frames the company and supports the impression that figures move from shadow into the foreground light.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The arch is not merely setting. Its tonal mass and opening structure organize emergence, while shallow spatial cues keep the company compressed near the picture plane.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW054"
+      ],
+      "poi_label": "Arch and architectural background"
+    },
+    {
+      "id": "NW041",
+      "title": "A Moment Before Departure",
+      "category": "actions",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW007"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The company seems caught between gathering and marching, as if Rembrandt chose the most exciting moment before everyone leaves.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The painting suspends the company in mobilization: orders, preparations, weapon handling, and movement coexist without resolving into a single instant.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The represented actions generate an expanded pictorial present. Their partial simultaneity is more useful compositionally than a strictly reconstructable narrative moment.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW042",
+      "title": "Ceremony and Readiness",
+      "category": "actions",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW005",
+        "NW007"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The soldiers look festive and serious at once: their fine clothes belong to ceremony, while their weapons show readiness.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rich costume, civic display, and military equipment combine ceremonial self-representation with the company's defensive identity.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "The work blends corporate portraiture, civic ceremony, and military action. Treating it as either documentary drill or pure pageantry would oversimplify its representational function.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW043",
+      "title": "Small Incidents, Large Event",
+      "category": "actions",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW021",
+        "NW031"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A barking dog, a firing gun, and a raised flag are tiny stories inside the larger gathering.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt distributes small incidents through the company, rewarding exploration while preserving the central officers as the dominant event.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Local episodes create narrative density and attentional renewal. They remain hierarchically organized through contrast, scale, and placement rather than competing equally.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW056"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW044",
+      "title": "The Viewer at the Edge of the Company",
+      "category": "actions",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW033"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Because the officers step toward us, it can feel as if we are standing in the company's path.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The low viewpoint and forward movement draw the observer into an implied space immediately before the company.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Foreground projection creates a participatory viewing position, although the painting does not prescribe one exact narrative role for the observer.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW045",
+      "title": "Chiaroscuro",
+      "category": "style",
+      "poi": "whole",
+      "level": 1,
+      "requires_all": [
+        "NW001"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "1-3"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Chiaroscuro means using strong differences between light and dark. Rembrandt uses it to guide us through the crowd.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt's chiaroscuro does more than model bodies: contrasts of light and dark establish hierarchy, depth, atmosphere, and movement.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "In this work, chiaroscuro is a compositional system rather than isolated spotlighting. Tonal groups coordinate materially varied passages across a crowded, shallow space.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW046",
+        "NW047",
+        "NW048",
+        "NW049",
+        "NW051",
+        "NW054",
+        "NW060",
+        "NW100"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW046",
+      "title": "Light Selects the Leaders",
+      "category": "style",
+      "poi": "central",
+      "level": 2,
+      "requires_all": [
+        "NW006",
+        "NW045"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "1-3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The brightest light helps us find the lieutenant, while the captain's dark clothes make his hand and sash stand out.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "The officers are differentiated through complementary tonal strategies: Van Ruytenburch is brightly illuminated, while Banninck Cocq is dark but sharply accented.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The central pair demonstrates that salience need not equal overall brightness. Edge contrast, color accents, cast shadow, and adjacent tonal fields jointly establish authority.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW056"
+      ],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW047",
+      "title": "Light Is Not Evenly Shared",
+      "category": "style",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW045"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "1-3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Some people shine while others almost disappear. Rembrandt makes our eyes choose a path instead of seeing everyone equally.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Illumination is intentionally unequal. Selected faces, costumes, and gestures emerge while other members remain subordinate within shadow.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The uneven distribution of light produces pictorial unity and hierarchy but complicates the conventional commemorative function of a commissioned group portrait.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW048",
+      "title": "Warm and Cool Color Groups",
+      "category": "style",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW045"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3,16"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Red, yellow, blue, and green appear in different places, helping separate people while holding the busy scene together.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Rembrandt repeated and distributed color families across the painting, balancing the captain's red and lieutenant's yellow with cooler accents elsewhere.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Technical mapping supports systematic pigment grouping by pictorial segment. Color distribution works with value structure to unify materials that were painted with different mixtures.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW060"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW049",
+      "title": "The Hand as a Bright Bridge",
+      "category": "style",
+      "poi": "hand_shadow",
+      "level": 2,
+      "requires_all": [
+        "NW027",
+        "NW045"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "12-13"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The captain's pale hand bridges his black clothes and the lieutenant's yellow coat.",
+          "words": 13,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "Banninck Cocq's illuminated hand links the dark captain to the bright lieutenant, combining gesture, depth, and tonal transition.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The hand is a high-contrast hinge in the central design. Its cast shadow reinforces the shared spatial field while preserving differentiation between the officers.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Captain's hand and shadow on the lieutenant"
+    },
+    {
+      "id": "NW050",
+      "title": "Depth Through Overlap",
+      "category": "style",
+      "poi": "central",
+      "level": 2,
+      "requires_all": [
+        "NW039"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A face behind a shoulder and a weapon behind a hat tell us which things are closer.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Repeated occlusions allow Rembrandt to construct depth even though the company occupies a relatively shallow architectural space.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Occlusion, scale change, atmospheric softening, and tonal recession create depth without a fully explicit or geometrically continuous setting.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [
+        "NW051"
+      ],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW051",
+      "title": "Sharp Foreground, Soft Distance",
+      "category": "style",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW045",
+        "NW050"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Nearby costumes and hands look stronger, while distant faces melt into softer shadow.",
+          "words": 13,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "Rembrandt varies edge clarity and detail, giving foreground figures material presence while allowing background faces to recede atmospherically.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Selective focus is painterly rather than optical transcription. Controlled edge loss integrates subordinate figures into the tonal environment and directs attention.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW052",
+      "title": "A Low Viewpoint",
+      "category": "style",
+      "poi": "central",
+      "level": 2,
+      "requires_all": [
+        "NW033"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "We seem to look slightly upward, which makes the central officers feel larger and more commanding.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "A relatively low viewpoint increases the monumentality of the foreground officers and brings their forward movement into the viewer's space.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The viewpoint coordinates near-life-size scale and foreground projection. Its effect depends on the work's original hanging context, which cannot be reconstructed from the image alone.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Central officers and surrounding group"
+    },
+    {
+      "id": "NW053",
+      "title": "Diagonals Create Energy",
+      "category": "style",
+      "poi": "weapons",
+      "level": 2,
+      "requires_all": [
+        "NW032"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Follow the slanting guns, pikes, flag, sash, and arms. They keep your eyes moving.",
+          "words": 14,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "A network of diagonals counters the architecture's stable verticals and horizontals, spreading motion beyond the walking officers.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Directional vectors are distributed rather than converging on one mathematical vanishing point. Their rhythm integrates otherwise discontinuous local actions.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [
+        "NW059"
+      ],
+      "poi_label": "Diagonal weapons and pikes"
+    },
+    {
+      "id": "NW054",
+      "title": "The Dark Architecture",
+      "category": "style",
+      "poi": "architecture",
+      "level": 2,
+      "requires_all": [
+        "NW040",
+        "NW045"
+      ],
+      "requires_any": [],
+      "status": "visual_observation",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The shadowy arch acts like a dark stage behind the brighter people.",
+          "words": 12,
+          "estimated_seconds_at_135_wpm": 5
+        },
+        "general": {
+          "text": "The architecture provides a broad dark field against which selected figures and weapons become legible.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "The background's low-value mass supports contrast and spatial compression. Technical imaging also shows that the painted architecture underwent changes during execution.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Arch and architectural background"
+    },
+    {
+      "id": "NW055",
+      "title": "The Later Name Cartouche",
+      "category": "style",
+      "poi": "cartouche",
+      "level": 1,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "432-433,443,452"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A curved name panel above the arch identifies company members. Evidence shows that it was added after Rembrandt finished the main scene.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "general": {
+          "text": "The cartouche above the gateway carries eighteen company names. Technical evidence and its absence from an early copy indicate that it was probably added around 1650.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        },
+        "expert": {
+          "text": "Architecture continues beneath the cartouche, and a varnish layer separates it from the underlying paint. The Corpus therefore treats it as a shortly later addition, probably around 1650.",
+          "words": 28,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Name cartouche above the arch"
+    },
+    {
+      "id": "NW056",
+      "title": "Many Centers, One Hierarchy",
+      "category": "style",
+      "poi": "whole",
+      "level": 3,
+      "requires_all": [
+        "NW043",
+        "NW046"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "16"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The girl, gunshot, flag, and dog catch attention, but the two officers remain the main center.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The painting offers numerous local attractions while maintaining hierarchy through the central officers' placement, contrast, scale, and movement.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Pictorial unity does not eliminate attentional competition. Instead, subordinate salience events are rhythmically distributed around a dominant central structure.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [
+        "NW060"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW057",
+      "title": "Brushwork Changes with Material",
+      "category": "style",
+      "poi": "costume_detail",
+      "level": 2,
+      "requires_all": [
+        "NW014"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3-16"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Thick touches can sparkle like metal or embroidery, while smoother paint can look like soft shadow.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Rembrandt adjusted thickness, texture, and layering to differentiate reflective embroidery, leather, metal, textile, skin, and shadow.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "Material differentiation depends on the interaction of pigment composition, particle size, layer sequence, impasto, glaze, and the viewer's integration of abbreviated marks.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW058",
+      "title": "The Painting Rewards Distance and Closeness",
+      "category": "style",
+      "poi": "whole",
+      "level": 1,
+      "requires_all": [],
+      "requires_any": [],
+      "status": "visual_prompt",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3-16"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "From far away, the crowd becomes one event. Up close, brushstrokes and tiny stories appear.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The composition is legible at a distance, while close inspection reveals material effects, partial figures, and small narrative incidents.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The work coordinates macroscopic tonal organization with microscale material variation, making viewing distance a meaningful interpretive variable.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [
+        "NW100"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW059",
+      "title": "Movement Without Animation",
+      "category": "style",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW007",
+        "NW053"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "8-17"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Nothing really moves, yet steps, smoke, fabric, gestures, and glances make us imagine what happens next.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Rembrandt evokes movement through unstable poses, directional lines, transient effects, and actions that appear incomplete.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "Contemporary praise of Rembrandt often emphasized expression, gesture, movement, and light. The painting converts those history-painting ambitions into civic portraiture.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW096"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW060",
+      "title": "Pictorial Unity",
+      "category": "style",
+      "poi": "whole",
+      "level": 3,
+      "requires_all": [
+        "NW045",
+        "NW048",
+        "NW056"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "1,16"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Hundreds of different colors and textures still feel like one world because Rembrandt groups them through light and color.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Despite its variety, the painting achieves unity through repeated pigment groups, tonal relationships, and coordinated passages of light and shadow.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Recent chemical imaging supports a systematic palette strategy in which locally tailored mixtures remain integrated through tonal grouping and distributed chromatic relationships.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW061",
+      "title": "Amsterdam in 1642",
+      "category": "history",
+      "poi": "whole",
+      "level": 1,
+      "requires_all": [
+        "NW005"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "SLIVE",
+          "pages": "2-4"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Rembrandt painted this during Amsterdam's seventeenth-century growth, when civic groups displayed pride through large public paintings.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The commission belongs to Amsterdam's prosperous seventeenth-century civic culture, in which militia companies decorated their headquarters with group portraits.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The work emerged from a specific urban system of corporate patronage, civic institutions, and competitive display rather than from an autonomous modern exhibition context.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW062",
+      "title": "The Arquebusiers' Headquarters",
+      "category": "history",
+      "poi": "architecture",
+      "level": 1,
+      "requires_all": [
+        "NW008"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The Kloveniersdoelen was the headquarters of citizens trained to use firearms called arquebuses.",
+          "words": 13,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "The Kloveniersdoelen served Amsterdam's arquebusiers. Its great hall displayed several militia portraits, making Rembrandt's work part of a larger decorative ensemble.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The original room and neighboring paintings conditioned scale and comparison. Interpreting the canvas as an isolated masterpiece loses part of its corporate and architectural function.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW065"
+      ],
+      "poi_label": "Arch and architectural background"
+    },
+    {
+      "id": "NW063",
+      "title": "A Commission by Officers and Men",
+      "category": "history",
+      "poi": "whole",
+      "level": 1,
+      "requires_all": [
+        "NW008"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1"
+        },
+        {
+          "source_id": "SLIVE",
+          "pages": "5-7"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The people in the company helped pay for a painting that would preserve their faces and status.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The officers and men commissioned the group portrait, combining individual commemoration with the public representation of their company.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The patronage structure created potential tension between equal portrait visibility and Rembrandt's hierarchical narrative design, though dissatisfaction cannot simply be assumed.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW064",
+        "NW093"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW064",
+      "title": "Militia Portrait Tradition",
+      "category": "history",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW063",
+        "NW007"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        },
+        {
+          "source_id": "SLIVE",
+          "pages": "5-7"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Many group portraits arranged people clearly. Rembrandt chose a more crowded and active solution.",
+          "words": 14,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "Compared with more static militia portraits, The Night Watch subordinates orderly presentation to overlapping movement, atmosphere, and dramatic hierarchy.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Its innovation lies not in inventing group portraiture but in importing compositional ambitions associated with history painting into a civic corporate commission.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW093"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW065",
+      "title": "Seven Paintings in the Hall",
+      "category": "history",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW062"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Rembrandt's painting originally hung with six other militia portraits, not alone as it appears today.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The Night Watch was one of seven militia portraits displayed in the Kloveniersdoelen, where viewers would have compared their different solutions.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The original ensemble complicates singular-masterpiece narratives: scale, lighting, and compositional choices participated in a room-wide program of corporate representation.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW066",
+      "title": "The 1715 Move",
+      "category": "history",
+      "poi": "cropped_edge",
+      "level": 1,
+      "requires_all": [
+        "NW009"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The painting moved to Amsterdam Town Hall, but the new wall was too small, so its edges were cut.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "In 1715 the painting was transferred to the Town Hall's Small War Council Room and reduced to fit its new architectural location.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The relocation transformed the artifact materially and contextually. The present composition is therefore not identical to the one Rembrandt delivered in 1642.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW067",
+        "NW069"
+      ],
+      "poi_label": "Edges removed in 1715"
+    },
+    {
+      "id": "NW067",
+      "title": "What Was Lost at the Left?",
+      "category": "history",
+      "poi": "cropped_edge",
+      "level": 2,
+      "requires_all": [
+        "NW009",
+        "NW066"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The largest missing piece was on the left, where extra figures and more space once balanced the crowd.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The substantial left-hand reduction removed figures and spatial breathing room, bringing surviving figures closer to the edge.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Copies made before the alteration help reconstruct the lost strip. They demonstrate how the cut changed spacing and compositional balance, even though they cannot restore Rembrandt's surface.",
+          "words": 27,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW068"
+      ],
+      "poi_label": "Edges removed in 1715"
+    },
+    {
+      "id": "NW068",
+      "title": "Copies as Evidence",
+      "category": "history",
+      "poi": "cropped_edge",
+      "level": 2,
+      "requires_all": [
+        "NW067"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "7"
+        },
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "An old copy shows parts removed from the original, like a visual clue to the painting's earlier shape.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Seventeenth-century copies preserve evidence of the painting before its 1715 reduction and also indicate that the composition circulated and attracted interest.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Copies are historical witnesses rather than exact substitutes. Their differences must be considered when reconstructing lost figures, colors, and edge relationships.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW094"
+      ],
+      "poi_label": "Edges removed in 1715"
+    },
+    {
+      "id": "NW069",
+      "title": "The Painting in the Rijksmuseum",
+      "category": "history",
+      "poi": "whole",
+      "level": 1,
+      "requires_all": [
+        "NW066"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The Night Watch has hung in the Rijksmuseum since 1885, except when it was protected during the Second World War.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "The painting entered its familiar Rijksmuseum setting in 1885. During the Second World War it was removed and hidden for safety.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Museum display transformed a civic commission into a national and international masterpiece, while wartime evacuation emphasized its symbolic and material vulnerability.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW070",
+        "NW071"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW070",
+      "title": "Hidden During War",
+      "category": "history",
+      "poi": "canvas",
+      "level": 2,
+      "requires_all": [
+        "NW069"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1-3"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "During the Second World War, the huge canvas was rolled and hidden in several safe places.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "To protect it during the war, the painting was removed, rolled, and stored in multiple shelters before returning to Amsterdam in 1945.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "Wartime handling imposed structural stresses visible after unrolling. The episode became part of the conservation history that later treatments attempted to address.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW085"
+      ],
+      "poi_label": "Canvas surface and seams"
+    },
+    {
+      "id": "NW071",
+      "title": "A Civic Image Becomes a National Icon",
+      "category": "history",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW069"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1-12"
+        },
+        {
+          "source_id": "SLIVE",
+          "pages": "5-17"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A portrait made for one Amsterdam company eventually became one of the Netherlands' best-known works of art.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Over centuries, the painting's meaning expanded from corporate commemoration to museum masterpiece and national cultural symbol.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "The transformation reflects relocation, reproduction, criticism, conservation spectacle, and institutional framing, not an unchanged status inherited directly from 1642.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [
+        "NW072",
+        "NW098"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW072",
+      "title": "Why the Painting Still Changes",
+      "category": "history",
+      "poi": "whole",
+      "level": 3,
+      "requires_all": [
+        "NW010",
+        "NW071"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2-17"
+        },
+        {
+          "source_id": "COSTUME",
+          "pages": "1-16"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "New scans and conservation research keep changing what scholars know about how Rembrandt made the painting and what happened to it.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "The painting's interpretation is not finished: new imaging separates present appearance, original technique, later alteration, and degradation more precisely.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Technical art history makes the object temporally layered. Material evidence can revise accounts derived from visible inspection, archives, or older restoration assumptions.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW099"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW073",
+      "title": "A Quartz-Clay Ground",
+      "category": "materials",
+      "poi": "paint_sample",
+      "level": 2,
+      "requires_all": [
+        "NW010"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "16"
+        },
+        {
+          "source_id": "LEAD",
+          "pages": "3-10"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Under the paint lies a quartz-and-clay ground that helped prepare the enormous canvas for painting.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The Night Watch uses a quartz-clay ground, an unusual preparation layer beneath the visible composition.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "The ground contains quartz and clay minerals with earth components. Its selection relates to the material preparation of an exceptionally large canvas and differs from many earlier Rembrandt grounds.",
+          "words": 29,
+          "estimated_seconds_at_135_wpm": 13
+        }
+      },
+      "unlocks": [
+        "NW074"
+      ],
+      "poi_label": "Microscopic paint and ground layers"
+    },
+    {
+      "id": "NW074",
+      "title": "An Unexpected Lead Layer",
+      "category": "materials",
+      "poi": "paint_sample",
+      "level": 3,
+      "requires_all": [
+        "NW073"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "LEAD",
+          "pages": "1,8-12"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Powerful X-ray imaging found a thin lead-rich layer hidden below the ground, where nobody expected it.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Correlated X-ray fluorescence and nano-tomography revealed a previously unknown lead-containing layer beneath the quartz-clay ground.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "The lead distribution is interpreted as an impregnation or preparatory layer applied before the ground, possibly helping protect the canvas; its exact original function remains inferential.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Microscopic paint and ground layers"
+    },
+    {
+      "id": "NW075",
+      "title": "Painting from Back to Front",
+      "category": "materials",
+      "poi": "costume_detail",
+      "level": 2,
+      "requires_all": [
+        "NW014"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3,5"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Rembrandt planned the background first and left spaces where important foreground people would later appear.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Evidence indicates that Rembrandt generally worked from background toward foreground, reserving silhouettes for major figures and adjusting contours during painting.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Lead maps reveal reserves and contour modifications around Van Ruytenburch. The process was systematic but not mechanically fixed; revisions occurred as spatial relationships developed.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW076",
+      "title": "A Palette Hidden in Light",
+      "category": "materials",
+      "poi": "costume_detail",
+      "level": 2,
+      "requires_all": [
+        "NW014",
+        "NW010"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "10-17"
+        },
+        {
+          "source_id": "COSTUME",
+          "pages": "1"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Special cameras distinguish pigments that our eyes blend together in the finished costume.",
+          "words": 13,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "Reflectance imaging spectroscopy maps spectral signatures associated with pigments, revealing how different mixtures create apparently unified colors.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "VNIR and SWIR datasets support spatial mapping of earths, vermilion, lead-tin yellow, azurite, realgar, smalt, and other components, with identification strengthened by complementary methods.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW077",
+        "NW078",
+        "NW079",
+        "NW080",
+        "NW081",
+        "NW082",
+        "NW099"
+      ],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW077",
+      "title": "Smalt: Blue Glass in Paint",
+      "category": "materials",
+      "poi": "costume_detail",
+      "level": 3,
+      "requires_all": [
+        "NW076"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "6-7"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "12"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Some blue paint contains smalt, a pigment made from tiny pieces of cobalt-colored glass.",
+          "words": 14,
+          "estimated_seconds_at_135_wpm": 6
+        },
+        "general": {
+          "text": "Scientists identified smalt, a cobalt-containing glass pigment, in areas including Van Ruytenburch's costume and other paint mixtures.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Smalt's spectral response and microscopic particles reveal its use not only for overt blue but also within underpaint and mixtures affecting tone, handling, and drying.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW078",
+      "title": "Painting Gold without Gold",
+      "category": "materials",
+      "poi": "costume_detail",
+      "level": 3,
+      "requires_all": [
+        "NW076"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "10-12"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The golden embroidery is painted with colored pigments, not made from real gold. Rembrandt imitated how gold reflects warm light.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "Rembrandt evoked gold embroidery through layered yellows, earth colors, highlights, shadows, and arsenic sulfide pigments rather than metallic gold.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Orpiment- and realgar-related arsenic pigments were concentrated in warm reflections. Their use accords with period recipes for imitating gold and was integrated with broader tonal grouping.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW079",
+      "title": "Lead-Tin Yellow",
+      "category": "materials",
+      "poi": "costume_detail",
+      "level": 3,
+      "requires_all": [
+        "NW076"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "8-14"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "11-17"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A historical pigment called lead-tin yellow helps create some of the lieutenant's bright yellow passages.",
+          "words": 15,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Lead-tin yellow contributes to illuminated yellow passages and participates in mixtures whose present condition differs from their original appearance.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Crystalline analysis distinguishes original lead-tin yellow from associated alteration products. Material identification therefore informs both technique and degradation history.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW080",
+      "title": "Earth Colors in Light and Shadow",
+      "category": "materials",
+      "poi": "costume_detail",
+      "level": 3,
+      "requires_all": [
+        "NW076"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "9-12"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Simple earth colors help build both glowing cloth and deep shadow when they are mixed and layered carefully.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Yellow and red earth pigments appear throughout Van Ruytenburch's costume, particularly in modulated shadows and warm transitions.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Goethite- and hematite-bearing earth pigments were mapped spectroscopically. Their systematic placement shows that convincing luminosity depends on controlled shadow mixtures, not bright pigments alone.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Lieutenant's yellow costume and embroidery"
+    },
+    {
+      "id": "NW081",
+      "title": "Vermilion and Red Accents",
+      "category": "materials",
+      "poi": "captain",
+      "level": 2,
+      "requires_all": [
+        "NW013",
+        "NW076"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "COSTUME",
+          "pages": "3"
+        },
+        {
+          "source_id": "RIS",
+          "pages": "11-17"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Vermilion gives strong red accents such as the captain's sash, helping his dark figure stand out.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The intense red of Banninck Cocq's sash is associated with vermilion, positioned as a major chromatic accent within the central group.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Vermilion participates in a distributed palette rather than an isolated local color. Its high chromatic contrast reinforces both costume description and compositional hierarchy.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Captain Frans Banninck Cocq"
+    },
+    {
+      "id": "NW082",
+      "title": "Azurite and Blue Accents",
+      "category": "materials",
+      "poi": "right_group",
+      "level": 3,
+      "requires_all": [
+        "NW076"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "11-17"
+        },
+        {
+          "source_id": "COSTUME",
+          "pages": "3"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Blue pigments appear in small places across the crowd, cooling and balancing the warm reds and yellows.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Azurite and smalt contribute blue and cool accents that balance the painting's dominant warm and dark fields.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Spectral imaging distinguishes different blue-bearing passages and demonstrates that minor chromatic accents contribute materially to large-scale pictorial unity.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Right-side company"
+    },
+    {
+      "id": "NW083",
+      "title": "A Painting with Three Canvas Strips",
+      "category": "conservation",
+      "poi": "canvas",
+      "level": 1,
+      "requires_all": [
+        "NW004"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The enormous support was made by joining three horizontal strips of canvas.",
+          "words": 12,
+          "estimated_seconds_at_135_wpm": 5
+        },
+        "general": {
+          "text": "Rembrandt's painting was constructed on three horizontally arranged canvas strips, an important fact for understanding its scale and structural history.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The original support comprises three horizontal canvas pieces. Seams, later linings, tension, and deformations must be considered as a coupled mechanical system.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW084",
+        "NW086",
+        "NW087",
+        "NW088"
+      ],
+      "poi_label": "Canvas surface and seams"
+    },
+    {
+      "id": "NW084",
+      "title": "What Is Relining?",
+      "category": "conservation",
+      "poi": "canvas",
+      "level": 2,
+      "requires_all": [
+        "NW083"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "3-4"
+        },
+        {
+          "source_id": "SHEAR",
+          "pages": "1-2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Restorers once strengthened the painting by attaching another canvas to its back with wax and resin.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Wax-resin relining impregnated the structure and bonded an additional canvas behind the original to strengthen the large support.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Relining altered the composite stiffness, mass, permeability, and future treatment options. The procedure reflects historical conservation priorities rather than a neutral return to an original state.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [
+        "NW085",
+        "NW090"
+      ],
+      "poi_label": "Canvas surface and seams"
+    },
+    {
+      "id": "NW085",
+      "title": "The 1945-47 Restoration",
+      "category": "conservation",
+      "poi": "canvas",
+      "level": 2,
+      "requires_all": [
+        "NW070",
+        "NW084"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1-8"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "After the war, conservators repaired, relined, cleaned, and studied the painting during a major public restoration.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Following wartime storage, the 1945-47 treatment replaced an older lining, removed coatings, applied new varnish, and documented the work extensively.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The campaign combined structural intervention, solvent cleaning, retouching, and emerging technical documentation. Its public visibility anticipates aspects of Operation Night Watch.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [
+        "NW092"
+      ],
+      "poi_label": "Canvas surface and seams"
+    },
+    {
+      "id": "NW086",
+      "title": "The 1975 Knife Attack",
+      "category": "conservation",
+      "poi": "captain_breeches",
+      "level": 2,
+      "requires_all": [
+        "NW083"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "SHEAR",
+          "pages": "1-3"
+        },
+        {
+          "source_id": "ACID",
+          "pages": "2"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "In 1975, a visitor slashed the painting many times. Conservators repaired the cuts and strengthened the canvas again.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "A vandal made twelve slashes in 1975, including long cuts through Banninck Cocq's breeches. The subsequent treatment repaired and relined the support.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "The 1975-76 campaign used thread bridging, fills, retouching, and wax-resin relining. Later imaging can identify repair materials and assess their structural behavior.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW090"
+      ],
+      "poi_label": "Repaired slashes in the captain's breeches"
+    },
+    {
+      "id": "NW087",
+      "title": "The Drum's Canvas Insert",
+      "category": "conservation",
+      "poi": "drum_repair",
+      "level": 3,
+      "requires_all": [
+        "NW020",
+        "NW083"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "SHEAR",
+          "pages": "1-3,8-10"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The drum contains an old repaired area where a piece of canvas was inserted into the support.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "A historical canvas insert in the drum was replaced during the 1975-76 treatment and later examined from the reverse.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Shearography detected different in-plane and out-of-plane behavior around the patched drum canvas, providing evidence relevant to future monitoring.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Historical canvas insert in the drum"
+    },
+    {
+      "id": "NW088",
+      "title": "The 1990 Acid Attack",
+      "category": "conservation",
+      "poi": "acid_region",
+      "level": 2,
+      "requires_all": [
+        "NW083"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "ACID",
+          "pages": "1-3"
+        },
+        {
+          "source_id": "REST",
+          "pages": "7"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "In 1990, someone sprayed concentrated sulfuric acid onto the painting. Guards and conservators immediately washed the area with water.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "On 6 April 1990, The Night Watch was attacked with concentrated sulfuric acid. Rapid rinsing limited visible damage, but later analysis found chemical consequences.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        },
+        "expert": {
+          "text": "Multimodal reassessment detected sulfate-related products and extensive lead-soap formation in affected areas, showing that limited visible change does not imply absence of chemical alteration.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW089",
+        "NW092"
+      ],
+      "poi_label": "Area affected by the 1990 acid attack"
+    },
+    {
+      "id": "NW089",
+      "title": "Looking for Invisible Damage",
+      "category": "conservation",
+      "poi": "acid_region",
+      "level": 3,
+      "requires_all": [
+        "NW088"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "ACID",
+          "pages": "3-12"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Scientists used several kinds of imaging and tiny samples to find changes the eye cannot easily see.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Researchers combined large-area elemental and diffraction mapping, optical coherence tomography, and microscale analysis to reassess the acid-affected region.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Correlating MA-XRF, MA-XRPD, OCT, and synchrotron microanalysis linked macroscopic distributions to stratigraphic reaction products while preserving most of the painting from sampling.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Area affected by the 1990 acid attack"
+    },
+    {
+      "id": "NW090",
+      "title": "Shearography from the Back",
+      "category": "conservation",
+      "poi": "canvas",
+      "level": 3,
+      "requires_all": [
+        "NW084",
+        "NW086"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "SHEAR",
+          "pages": "1-10"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A camera can measure tiny changes in the canvas when it warms by only one or two degrees, helping find weak repairs without touching the front.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        },
+        "general": {
+          "text": "Three-dimensional shearography measured minute deformation gradients during safe thermal excitation, allowing conservators to inspect repairs and lining adhesion from the reverse.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Following tests on a comparable lined painting, in-situ shearography supported confidence in the 1975 repairs and planned retensioning, while also revealing interpretation limits from background variation.",
+          "words": 26,
+          "estimated_seconds_at_135_wpm": 12
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Canvas surface and seams"
+    },
+    {
+      "id": "NW091",
+      "title": "Scanning an Eighteen-Square-Meter Surface",
+      "category": "conservation",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW010"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2-9"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Scanning this painting is like photographing a wall one tiny piece at a time while keeping every piece perfectly aligned.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "Because the surface covers about eighteen square meters, researchers built a moving platform and carefully registered thousands of hyperspectral measurements.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The acquisition system compensated for surface deviations of up to several centimeters, instrument focus, illumination, calibration, and the registration of VNIR and SWIR line-scan cubes.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW092",
+      "title": "Conservation Changes What We See",
+      "category": "conservation",
+      "poi": "whole",
+      "level": 3,
+      "requires_all": [
+        "NW085",
+        "NW088"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "4-12"
+        },
+        {
+          "source_id": "COSTUME",
+          "pages": "2,16"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Varnish, cleaning, damage, repairs, and aging can all change colors and textures, so today's painting is not exactly what Rembrandt saw.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "The present appearance combines Rembrandt's materials with aging, pigment alteration, varnish history, cleaning, retouching, damage, and structural treatment.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "Technical interpretation must distinguish original execution, natural aging, treatment-induced change, and active degradation. None can be inferred reliably from surface appearance alone.",
+          "words": 22,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW093",
+      "title": "The Myth of Rejected Patrons",
+      "category": "reception",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW063",
+        "NW064"
+      ],
+      "requires_any": [],
+      "status": "historical_myth",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "5-7"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "A famous story says the guards hated the painting, but historians have not found solid proof that they rejected it.",
+          "words": 20,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "general": {
+          "text": "The popular tale that outraged patrons rejected The Night Watch and ruined Rembrandt's career is not supported by concrete contemporary evidence.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Slive demonstrated that the romantic rejection narrative relies heavily on later biography. Copies, continued display, and documentary evidence complicate claims of immediate scandal.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [
+        "NW094",
+        "NW095"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW094",
+      "title": "Copies Suggest Interest",
+      "category": "reception",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW068",
+        "NW093"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "7"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "People copied the painting during the seventeenth century. Copies usually suggest that an artwork attracted attention and value.",
+          "words": 18,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Contemporary copies and records indicate that the painting remained visible and of interest, challenging the idea that it was immediately hidden or despised.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "Copying is not proof of unanimous approval, but it is positive evidence of circulation and reception that must be weighed against unsupported later anecdotes.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW095",
+      "title": "Rembrandt's Reputation Did Not Collapse Overnight",
+      "category": "reception",
+      "poi": "whole",
+      "level": 3,
+      "requires_all": [
+        "NW093"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "5-17"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Rembrandt's life became difficult later, but one painting did not suddenly make everyone stop admiring him.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "The decline of Rembrandt's fortunes cannot be explained simply as punishment for The Night Watch. His career and reputation followed a more complicated path.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        },
+        "expert": {
+          "text": "Contemporary testimony documents continued admiration even as taste and patronage changed. Biographical, financial, and stylistic developments should not be reduced to a single rejected commission.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW096",
+      "title": "What Contemporary Critics Admired",
+      "category": "reception",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW059"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "8-17"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Writers admired Rembrandt's ability to show feelings, gestures, movement, and dramatic light.",
+          "words": 12,
+          "estimated_seconds_at_135_wpm": 5
+        },
+        "general": {
+          "text": "Contemporary and near-contemporary commentary praised Rembrandt's expression, natural movement, gesture, and effects of light, qualities central to this painting's later fame.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "The surviving critical record is sparse and uneven, but it positions movement, affect, and chiaroscuro within period debates over history painting and artistic judgment.",
+          "words": 24,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [
+        "NW097"
+      ],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW097",
+      "title": "Changing Taste",
+      "category": "reception",
+      "poi": "whole",
+      "level": 3,
+      "requires_all": [
+        "NW096"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "SLIVE",
+          "pages": "16-17"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Artists can remain important even when fashions change. Later viewers did not always value Rembrandt in the same way.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Later seventeenth-century taste could favor smoother, clearer, and more classically ordered painting, complicating the reception of Rembrandt's roughness and dramatic shadow.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        },
+        "expert": {
+          "text": "Changing taste offers a stronger historical framework than a single-scandal narrative, but it should not be treated as uniform opinion across all patrons and critics.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW098",
+      "title": "From Civic Portrait to Masterpiece",
+      "category": "reception",
+      "poi": "whole",
+      "level": 2,
+      "requires_all": [
+        "NW071"
+      ],
+      "requires_any": [],
+      "status": "scholarly_interpretation",
+      "sources": [
+        {
+          "source_id": "REST",
+          "pages": "1-12"
+        },
+        {
+          "source_id": "SLIVE",
+          "pages": "5-17"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "The painting began as a portrait for one company and gradually became famous around the world.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "general": {
+          "text": "Relocation, museum display, reproduction, scholarship, and conservation transformed a local civic commission into a canonical masterpiece.",
+          "words": 16,
+          "estimated_seconds_at_135_wpm": 7
+        },
+        "expert": {
+          "text": "Canonization is an historical process. The object's changing titles, locations, audiences, treatments, and national associations contributed to meanings not present in the original commission alone.",
+          "words": 25,
+          "estimated_seconds_at_135_wpm": 11
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    },
+    {
+      "id": "NW099",
+      "title": "Science Revises Art History",
+      "category": "reception",
+      "poi": "paint_sample",
+      "level": 3,
+      "requires_all": [
+        "NW072",
+        "NW076"
+      ],
+      "requires_any": [],
+      "status": "documented",
+      "sources": [
+        {
+          "source_id": "RIS",
+          "pages": "2-17"
+        },
+        {
+          "source_id": "COSTUME",
+          "pages": "1-16"
+        },
+        {
+          "source_id": "LEAD",
+          "pages": "1-12"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "New machines let scientists see materials under the surface, sometimes changing old ideas about how Rembrandt worked.",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "Chemical imaging and microscopic analysis test historical claims against material evidence, revealing preparation layers, pigment groupings, revisions, and degradation.",
+          "words": 19,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "expert": {
+          "text": "The strongest interpretation emerges from correlation: visible form, archival evidence, macro-imaging, crystallography, spectroscopy, and nanoscale tomography answer different questions and have different uncertainties.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Microscopic paint and ground layers"
+    },
+    {
+      "id": "NW100",
+      "title": "Look Again",
+      "category": "reception",
+      "poi": "whole",
+      "level": 1,
+      "requires_all": [],
+      "requires_any": [
+        "NW007",
+        "NW045",
+        "NW058"
+      ],
+      "status": "visual_prompt",
+      "sources": [
+        {
+          "source_id": "CORPUS",
+          "pages": "430-485"
+        }
+      ],
+      "texts": {
+        "child": {
+          "text": "Step back, then move close again. Which person, action, color, or secret layer do you notice now?",
+          "words": 17,
+          "estimated_seconds_at_135_wpm": 8
+        },
+        "general": {
+          "text": "The painting is designed for repeated looking. Distance reveals collective movement; proximity reveals individual stories, materials, alterations, and evidence of its long history.",
+          "words": 23,
+          "estimated_seconds_at_135_wpm": 10
+        },
+        "expert": {
+          "text": "Non-linear inspection mirrors the object's complexity: pictorial hierarchy, historical context, material stratigraphy, and reception cannot be exhausted by one prescribed sequence.",
+          "words": 21,
+          "estimated_seconds_at_135_wpm": 9
+        }
+      },
+      "unlocks": [],
+      "poi_label": "Entire painting / overview"
+    }
+  ]
+}
