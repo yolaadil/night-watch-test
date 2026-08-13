@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "coordinate_system": {
+    "origin": "top-left",
+    "x_range": [0, 1],
+    "y_range": [0, 1],
+    "note": "Provisional normalized coordinates. Register and review against the exact gigapixel master before deployment."
+  },
+  "shapes": {
+    "whole": {"type": "rect", "x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0, "confidence": "registered_semantic"},
+    "central": {"type": "ellipse", "cx": 0.50, "cy": 0.57, "rx": 0.21, "ry": 0.34, "confidence": "provisional_visual"},
+    "captain": {"type": "ellipse", "cx": 0.43, "cy": 0.60, "rx": 0.095, "ry": 0.30, "confidence": "provisional_visual"},
+    "lieutenant": {"type": "ellipse", "cx": 0.555, "cy": 0.58, "rx": 0.10, "ry": 0.31, "confidence": "provisional_visual"},
+    "hand_shadow": {"type": "ellipse", "cx": 0.495, "cy": 0.555, "rx": 0.065, "ry": 0.075, "confidence": "provisional_visual"},
+    "girl": {"type": "ellipse", "cx": 0.385, "cy": 0.50, "rx": 0.070, "ry": 0.19, "confidence": "provisional_visual"},
+    "dog": {"type": "ellipse", "cx": 0.79, "cy": 0.825, "rx": 0.075, "ry": 0.065, "confidence": "provisional_visual"},
+    "drummer": {"type": "ellipse", "cx": 0.875, "cy": 0.59, "rx": 0.085, "ry": 0.29, "confidence": "provisional_visual"},
+    "standard": {"type": "polygon", "points": [[0.48,0.03],[0.68,0.08],[0.65,0.41],[0.52,0.40]], "confidence": "provisional_visual"},
+    "musketeer_left": {"type": "ellipse", "cx": 0.275, "cy": 0.61, "rx": 0.085, "ry": 0.23, "confidence": "provisional_visual"},
+    "musketeer_center": {"type": "ellipse", "cx": 0.51, "cy": 0.405, "rx": 0.075, "ry": 0.14, "confidence": "provisional_visual"},
+    "musketeer_right": {"type": "ellipse", "cx": 0.675, "cy": 0.53, "rx": 0.08, "ry": 0.20, "confidence": "provisional_visual"},
+    "left_group": {"type": "polygon", "points": [[0.00,0.22],[0.34,0.24],[0.35,0.91],[0.00,0.94]], "confidence": "provisional_visual"},
+    "right_group": {"type": "polygon", "points": [[0.63,0.21],[1.00,0.18],[1.00,0.96],[0.65,0.94]], "confidence": "provisional_visual"},
+    "weapons": {"type": "polygon", "points": [[0.06,0.12],[0.91,0.06],[0.90,0.55],[0.10,0.60]], "confidence": "provisional_visual"},
+    "architecture": {"type": "polygon", "points": [[0.15,0.02],[0.89,0.02],[0.83,0.43],[0.25,0.44]], "confidence": "provisional_visual"},
+    "cartouche": {"type": "ellipse", "cx": 0.665, "cy": 0.305, "rx": 0.095, "ry": 0.065, "confidence": "provisional_visual"},
+    "canvas": {"type": "rect", "x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0, "confidence": "registered_semantic"},
+    "captain_breeches": {"type": "ellipse", "cx": 0.43, "cy": 0.77, "rx": 0.075, "ry": 0.14, "confidence": "requires_conservation_registration"},
+    "acid_region": {"type": "ellipse", "cx": 0.48, "cy": 0.64, "rx": 0.075, "ry": 0.10, "confidence": "requires_conservation_registration"},
+    "drum_repair": {"type": "ellipse", "cx": 0.84, "cy": 0.63, "rx": 0.075, "ry": 0.115, "confidence": "requires_conservation_registration"},
+    "cropped_edge": {"type": "polygon", "points": [[0.0,0.0],[0.09,0.0],[0.09,1.0],[0.0,1.0]], "confidence": "conceptual_missing_area", "note": "Represents the affected present left edge, not the physical extent of the lost strip."},
+    "costume_detail": {"type": "polygon", "points": [[0.49,0.34],[0.64,0.36],[0.63,0.82],[0.49,0.84]], "confidence": "provisional_visual"},
+    "paint_sample": {"type": "ellipse", "cx": 0.56, "cy": 0.61, "rx": 0.055, "ry": 0.075, "confidence": "conceptual_material", "note": "A visible anchor for microscopic material narration, not a unique sampling location."}
+  }
+}
