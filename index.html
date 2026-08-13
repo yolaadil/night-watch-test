@@ -5,6 +5,49 @@
 <meta charset="utf-8">
 <title>The night watch</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+<script type="module">
+import {
+  DwellController,
+  createVisitorState,
+  markNarrationCompleted,
+  selectRecommendation,
+  makeEvent
+} from './integration/nightwatch_runtime.mjs';
+
+window.MarcoRuntimeReady = (async () => {
+  const [corpusResponse, poiResponse] = await Promise.all([
+    fetch('./corpus/nightwatch_nodes.json'),
+    fetch('./integration/nightwatch_pois.json')
+  ]);
+
+  if (!corpusResponse.ok) {
+    throw new Error(`Failed to load corpus: ${corpusResponse.status}`);
+  }
+  if (!poiResponse.ok) {
+    throw new Error(`Failed to load POIs: ${poiResponse.status}`);
+  }
+
+  const corpus = await corpusResponse.json();
+  const pois = await poiResponse.json();
+
+  const api = {
+    DwellController,
+    createVisitorState,
+    markNarrationCompleted,
+    selectRecommendation,
+    makeEvent,
+    corpus,
+    pois
+  };
+
+  window.MarcoRuntime = api;
+  console.log(`[Marco runtime] loaded ${corpus.nodes.length} nodes and ${Object.keys(pois.shapes).length} POIs`);
+  return api;
+})().catch(error => {
+  console.error('[Marco runtime] initialization failed', error);
+  throw error;
+});
+</script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
   schema: {
@@ -355,36 +398,63 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
 });
 
 AFRAME.registerComponent('quest-gaze-select', {
-  schema: { dwell: {type: 'number', default: 2000} },
   init() {
-    this.active = null;
-    this.timer = null;
+    this.hitTarget = null;
+    this.lastQuaternion = new THREE.Quaternion();
+    this.lastSampleMs = performance.now();
+    this.angularVelocity = 0;
+
     this.el.addEventListener('raycaster-intersection', e => {
       const intersections = (e.detail && e.detail.intersections) || [];
-      const hit = intersections.find(i => i.object && i.object.el && i.object.el.classList.contains('hotspot'));
-      const target = hit && hit.object.el;
-      if (!target || target === this.active) return;
-      this.cancel();
-      this.active = target;
-      this.timer = setTimeout(() => {
-        if (!this.active || !window.TourEngine) return;
-        const id = this.active.id;
-        if (this.active.classList.contains('captainDetail')) {
-          playNarration(id, standardNarration(id));
-        } else {
-          window.TourEngine.confirmGaze(id);
-        }
-        this.cancel();
-      }, this.data.dwell);
+      const hit = intersections.find(i =>
+        i.object &&
+        i.object.el &&
+        i.object.el.classList.contains('hotspot')
+      );
+      this.hitTarget = hit && hit.object.el ? hit.object.el : null;
     });
-    const clear = () => this.cancel();
+
+    const clear = () => {
+      this.hitTarget = null;
+    };
     this.el.addEventListener('raycaster-intersection-cleared', clear);
     this.el.addEventListener('mouseleave', clear);
   },
-  cancel() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-    this.active = null;
+
+  tick(time) {
+    if (!window.TourEngine || !window.SAGEIntegration) return;
+
+    // Estimate headset angular velocity so Marco's dwell controller can
+    // reject transient passes across the ROI.
+    const camera = document.querySelector('#mainCamera');
+    const object3D = camera && camera.object3D;
+    if (object3D) {
+      const q = object3D.getWorldQuaternion(new THREE.Quaternion());
+      const dt = Math.max(1, time - this.lastSampleMs) / 1000;
+      const dot = Math.min(1, Math.max(-1, Math.abs(q.dot(this.lastQuaternion))));
+      const angle = 2 * Math.acos(dot);
+      this.angularVelocity = THREE.MathUtils.radToDeg(angle) / dt;
+      this.lastQuaternion.copy(q);
+      this.lastSampleMs = time;
+    }
+
+    const targetId = window.TourEngine.target;
+    if (!targetId) return;
+
+    const hitId = this.hitTarget && this.hitTarget.id;
+    const insideInner = hitId === targetId;
+
+    // V1 uses the existing validated hotspot as both inner and outer ROI.
+    // Marco's departureGraceMs still provides short hysteresis. A separately
+    // expanded outer geometry can be added after the normalized POIs are
+    // registered against the gigapixel master.
+    window.SAGEIntegration.updateDwell({
+      nowMs: performance.now(),
+      domTargetId: targetId,
+      insideOuter: insideInner,
+      insideInner,
+      angularVelocityDegPerSec: this.angularVelocity
+    });
   }
 });
 </script>
@@ -464,7 +534,7 @@ AFRAME.registerComponent('quest-gaze-select', {
     <a-camera id="mainCamera" position="0 1.6 0">
       <a-cursor
         id="gazeCursor"
-        quest-gaze-select="dwell: 2000"
+        quest-gaze-select
         visible="false"
         fuse="true"
         fuse-timeout="2000"
@@ -498,6 +568,289 @@ const TILE_OVERLAP = 1;
 const TILE_FOLDER = 'tiles';
 const MAX_LEVEL = 14;
 const GAZE_MS = 2000;
+
+// ---------------------------------------------------------------------------
+// Marco narrative/runtime integration
+// ---------------------------------------------------------------------------
+
+// Map Marco's normalized semantic POIs onto the currently validated SAGE
+// rendering targets. Unsupported provisional POIs remain in the corpus but
+// are temporarily marked non-guideable until their geometry is registered
+// against the exact gigapixel master.
+const MARCO_POI_TO_DOM = Object.freeze({
+  captain: 'captain',
+  lieutenant: 'lieutenant',
+  girl: 'girl',
+  dog: 'dog',
+  drummer: 'drummer',
+  standard: 'flag',
+  musketeer_left: 'musketeer',
+  left_group: 'leftGroup',
+  right_group: 'rightGroup',
+  architecture: 'backgroundArch'
+});
+
+const SAGEIntegration = {
+  runtime: null,
+  corpus: null,
+  pois: null,
+  visitorState: null,
+  dwell: null,
+  activeRecommendation: null,
+  profile: 'general',
+  log: [],
+  recommendationToken: 0,
+  ready: false,
+
+  async init() {
+    const runtime = await window.MarcoRuntimeReady;
+    this.runtime = runtime;
+    this.corpus = runtime.corpus;
+    this.pois = runtime.pois;
+    this.visitorState = runtime.createVisitorState(this.profile);
+    this.dwell = new runtime.DwellController({
+      orientationMs: 400,
+      activationMs: 2200,
+      departureGraceMs: 400,
+      maxAngularVelocityDegPerSec: 15
+    });
+    this.ready = true;
+    console.log('[SAGE integration] Marco runtime ready');
+    return this;
+  },
+
+  record(type, data = {}) {
+    const event = this.runtime && this.runtime.makeEvent
+      ? this.runtime.makeEvent(type, data)
+      : {type, timestamp_ms: performance.now(), ...data};
+    this.log.push(event);
+    console.log('[SAGE event]', event);
+    return event;
+  },
+
+  poiCenter(shape) {
+    if (!shape) return null;
+    if (shape.type === 'ellipse') return {x: shape.cx, y: shape.cy};
+    if (shape.type === 'rect') return {
+      x: shape.x + shape.width / 2,
+      y: shape.y + shape.height / 2
+    };
+    if (shape.type === 'polygon' && shape.points && shape.points.length) {
+      const sum = shape.points.reduce((a, p) => ({x: a.x + p[0], y: a.y + p[1]}), {x: 0, y: 0});
+      return {x: sum.x / shape.points.length, y: sum.y / shape.points.length};
+    }
+    return null;
+  },
+
+  angularFeatures(poiId) {
+    const shape = this.pois && this.pois.shapes && this.pois.shapes[poiId];
+    const center = this.poiCenter(shape);
+    if (!center || !mainCamera || !paintingRoot) {
+      return {angle: 90, visibility: 0, convenience: 0};
+    }
+
+    // Normalized painting coordinate -> paintingRoot local coordinate.
+    const local = new THREE.Vector3(
+      (center.x - 0.5) * WORLD_WIDTH,
+      (0.5 - center.y) * WORLD_HEIGHT,
+      0
+    );
+    paintingRoot.object3D.localToWorld(local);
+
+    const cameraPos = new THREE.Vector3();
+    const cameraQuat = new THREE.Quaternion();
+    mainCamera.object3D.getWorldPosition(cameraPos);
+    mainCamera.object3D.getWorldQuaternion(cameraQuat);
+
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cameraQuat).normalize();
+    const toTarget = local.sub(cameraPos).normalize();
+    const angle = THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(forward.dot(toTarget), -1, 1)));
+
+    const visibility = angle <= 32 ? 1 : angle <= 55 ? 0.55 : 0.2;
+    const convenience = THREE.MathUtils.clamp(1 - angle / 90, 0, 1);
+    return {angle, visibility, convenience};
+  },
+
+  buildSpatialState() {
+    const spatial = {};
+    const shapes = (this.pois && this.pois.shapes) || {};
+
+    Object.keys(shapes).forEach(poiId => {
+      const domId = MARCO_POI_TO_DOM[poiId];
+      const supported = !!(domId && REGION[domId] && document.querySelector('#' + domId));
+      const features = this.angularFeatures(poiId);
+
+      spatial[poiId] = {
+        zoomValid: supported,
+        angularSizeValid: supported,
+        currentlyIntersected: false,
+        inCooldown: false,
+        guideable: supported,
+        currentVisibility: features.visibility,
+        spatialConvenience: features.convenience,
+        targetEccentricityDeg: features.angle
+      };
+    });
+    return spatial;
+  },
+
+  featureProvider(node, poiSpatial) {
+    return {
+      currentVisibility: poiSpatial.currentVisibility ?? 0,
+      spatialConvenience: poiSpatial.spatialConvenience ?? 0,
+      guidanceFatigue: 0
+    };
+  },
+
+  async recommendNext() {
+    if (!this.ready) await this.init();
+    if (this.activeRecommendation || TourEngine.state === State.STORY || TourEngine.state === State.ZOOMING) {
+      return null;
+    }
+
+    const token = ++this.recommendationToken;
+    const spatial = this.buildSpatialState();
+    const result = this.runtime.selectRecommendation(
+      this.corpus.nodes,
+      this.visitorState,
+      spatial,
+      (node, poiSpatial) => this.featureProvider(node, poiSpatial)
+    );
+
+    this.record('candidate_set_computed', {
+      candidate_count: result.candidates.length,
+      candidates: result.candidates.map(c => ({
+        node_id: c.node.id,
+        poi: c.node.poi,
+        score: c.score,
+        contributions: c.contributions
+      }))
+    });
+
+    if (!result.selected) {
+      console.warn('[SAGE integration] no eligible supported recommendation');
+      TourEngine.target = null;
+      TourEngine.setState(State.FREE);
+      return null;
+    }
+
+    const selected = result.selected;
+    const domId = MARCO_POI_TO_DOM[selected.node.poi];
+    if (!domId || token !== this.recommendationToken) return null;
+
+    this.activeRecommendation = {
+      node: selected.node,
+      domId,
+      score: selected.score,
+      contributions: selected.contributions,
+      onsetMs: performance.now(),
+      eccentricityDeg: spatial[selected.node.poi]?.targetEccentricityDeg ?? null
+    };
+
+    this.visitorState.activeNode = selected.node.id;
+    this.visitorState.lastGuidanceTime = performance.now() / 1000;
+
+    this.record('recommendation_selected', {
+      node_id: selected.node.id,
+      poi: selected.node.poi,
+      dom_target: domId,
+      score: selected.score,
+      contributions: selected.contributions,
+      target_eccentricity_deg: this.activeRecommendation.eccentricityDeg
+    });
+
+    this.dwell.reset();
+    await TourEngine.startCue(domId);
+
+    this.record('guidance_onset', {
+      node_id: selected.node.id,
+      poi: selected.node.poi,
+      dom_target: domId,
+      target_eccentricity_deg: this.activeRecommendation.eccentricityDeg
+    });
+
+    return this.activeRecommendation;
+  },
+
+  updateDwell({nowMs, domTargetId, insideOuter, insideInner, angularVelocityDegPerSec}) {
+    if (!this.ready || !this.activeRecommendation || !this.dwell) return;
+    if (domTargetId !== this.activeRecommendation.domId) return;
+    if (TourEngine.state !== State.CUE && TourEngine.state !== State.WAIT_GAZE) return;
+
+    const result = this.dwell.update({
+      nowMs,
+      poi: this.activeRecommendation.node.poi,
+      insideOuter,
+      insideInner,
+      angularVelocityDegPerSec
+    });
+
+    for (const event of result.events) {
+      this.record(event.type, {
+        node_id: this.activeRecommendation.node.id,
+        poi: this.activeRecommendation.node.poi,
+        dom_target: this.activeRecommendation.domId,
+        controller_at_ms: event.at,
+        angular_velocity_deg_s: angularVelocityDegPerSec
+      });
+
+      if (event.type === 'orientation_confirmed') {
+        // SAGE's guidance task ends here.
+        QuestCue.hideAll();
+
+        const acquisitionMs = nowMs - this.activeRecommendation.onsetMs;
+        this.record('target_acquired', {
+          node_id: this.activeRecommendation.node.id,
+          poi: this.activeRecommendation.node.poi,
+          acquisition_ms: acquisitionMs,
+          target_eccentricity_deg: this.activeRecommendation.eccentricityDeg
+        });
+      }
+
+      if (event.type === 'activation_started') {
+        this.visitorState.narrationState = 'activating';
+      }
+
+      if (event.type === 'activation_completed') {
+        const rec = this.activeRecommendation;
+        this.visitorState.started.add(rec.node.id);
+        this.visitorState.narrationState = 'playing';
+        TourEngine.openRecommendedTarget(rec.domId, rec.node);
+      }
+    }
+  },
+
+  narrationCompleted(node) {
+    const seconds = performance.now() / 1000;
+    this.runtime.markNarrationCompleted(this.visitorState, node, seconds);
+
+    this.record('narration_completed', {
+      node_id: node.id,
+      poi: node.poi,
+      profile: this.profile
+    });
+
+    this.activeRecommendation = null;
+    if (this.dwell) this.dwell.reset();
+  },
+
+  narrationText(node) {
+    const profile = this.profile in node.texts ? this.profile : 'general';
+    return node.texts[profile].text;
+  },
+
+  async scheduleNext(delayMs = 8000) {
+    const token = this.recommendationToken;
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    if (token !== this.recommendationToken) return;
+    if (TourEngine.state === State.FREE || TourEngine.state === State.WAIT_GAZE) {
+      this.recommendNext().catch(console.error);
+    }
+  }
+};
+
+window.SAGEIntegration = SAGEIntegration;
+window.SAGE_EVENT_LOG = SAGEIntegration.log;
 
 const hotspotTexts = {
   captain: {
@@ -1257,6 +1610,54 @@ const TourEngine = {
     }
   },
 
+  async openRecommendedTarget(id, node) {
+    this.pulseToken += 1;
+    this.setState(State.ZOOMING);
+    clearTimeout(this.autoTimer);
+    setBlurOpacity(0, 250);
+    QuestCue.hideAll();
+    showPrimaryHotspots(false);
+    await loadFocusTiles(id);
+
+    const hotspot = document.querySelector('#' + id);
+    if (!hotspot) {
+      console.error('[SAGE integration] missing DOM hotspot for', id);
+      return;
+    }
+    const pos = hotspot.getAttribute('position');
+
+    setTimeout(() => {
+      const localX = pos.x;
+      const localY = pos.y - 1.6;
+      const zoomScale = 1.85;
+      const targetX = -localX * zoomScale;
+      const targetY = 1.6 - localY * zoomScale;
+      paintingRoot.setAttribute('animation__zoompos', `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`);
+      paintingRoot.setAttribute('animation__zoomscale', `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`);
+    }, 120);
+
+    setTimeout(() => {
+      this.setState(State.STORY);
+      showNestedDetails(id);
+      backButton.style.display = 'block';
+
+      const narration = SAGEIntegration.narrationText(node);
+
+      // Use the corpus node ID so old per-character MP3s do not accidentally
+      // override Marco's audience-specific narration. Speech synthesis remains
+      // the current fallback until node-specific recordings are added.
+      playNarration(node.id, narration, () => {
+        SAGEIntegration.narrationCompleted(node);
+
+        this.autoTimer = setTimeout(() => {
+          if (this.state === State.STORY && this.target === id) {
+            this.returnFromTarget(false, true);
+          }
+        }, 900);
+      });
+    }, 850);
+  },
+
   async openTarget(id, orderedStory) {
     this.pulseToken += 1;
     this.setState(State.ZOOMING);
@@ -1303,7 +1704,7 @@ const TourEngine = {
     }, 850);
   },
 
-  returnFromTarget(advanceStory) {
+  returnFromTarget(advanceStory, marcoContinue = false) {
     if (
       this.state !== State.STORY &&
       this.state !== State.ZOOMING
@@ -1348,6 +1749,10 @@ const TourEngine = {
       } else {
         this.setState(State.FREE);
         this.target = null;
+
+        if (marcoContinue) {
+          SAGEIntegration.scheduleNext(8000).catch(console.error);
+        }
       }
     }, 830);
   },
@@ -1372,6 +1777,30 @@ function addHotspot(id) {
     if (!pageReady || !currentLanguage) return;
     if (el.classList.contains('captainDetail')) {
       playNarration(id, standardNarration(id));
+    } else if (SAGEIntegration.activeRecommendation && id === TourEngine.target) {
+      // Desktop convenience: simulate a complete stable acquisition.
+      const now = performance.now();
+      SAGEIntegration.updateDwell({
+        nowMs: now,
+        domTargetId: id,
+        insideOuter: true,
+        insideInner: true,
+        angularVelocityDegPerSec: 0
+      });
+      SAGEIntegration.updateDwell({
+        nowMs: now + 450,
+        domTargetId: id,
+        insideOuter: true,
+        insideInner: true,
+        angularVelocityDegPerSec: 0
+      });
+      SAGEIntegration.updateDwell({
+        nowMs: now + 2700,
+        domTargetId: id,
+        insideOuter: true,
+        insideInner: true,
+        angularVelocityDegPerSec: 0
+      });
     } else {
       TourEngine.confirmGaze(id);
     }
@@ -1397,13 +1826,13 @@ function startIntro() {
   const introText = 'Welcome to The Night Watch.';
   playNarration('intro', introText, () => {
     // Let the visitor absorb the full painting before the first cue begins.
-    setTimeout(() => {
-      TourEngine.index = 0;
-      TourEngine.startCue(STORY_ORDER[0]);
-
-      setTimeout(() => {
-        CueCache.ensure(STORY_ORDER[1]).catch(console.warn);
-      }, 900);
+    setTimeout(async () => {
+      try {
+        await SAGEIntegration.init();
+        await SAGEIntegration.recommendNext();
+      } catch (error) {
+        console.error('[SAGE integration] could not start recommendation flow', error);
+      }
     }, 2000);
   }, { isIntro: true });
 }
@@ -1445,7 +1874,7 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  console.log('[Dichoptic cue] Approach B active: cue tiles visible to left eye only.');
+  console.log('[Dichoptic cue] SAGE adaptive eye mode active: cue eye follows target side relative to current view.');
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
