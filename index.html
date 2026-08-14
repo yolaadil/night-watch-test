@@ -475,7 +475,7 @@ AFRAME.registerComponent('quest-gaze-select', {
 <div id="languageOverlay" style="display:none">
   <div id="languageBox">
     <h1>The Night Watch</h1>
-    <p>Tap to begin the audio experience</p>
+    <p>Tap to begin the Night Watch experience</p>
     <button id="startExperienceButton" class="languageButton">Begin</button>
   </div>
 </div>
@@ -1830,18 +1830,51 @@ function startIntro() {
   introStarted = true;
   hideAudioStartOverlay();
 
-  const introText = 'Welcome to The Night Watch.';
-  playNarration('intro', introText, () => {
-    // Let the visitor absorb the full painting before the first cue begins.
-    setTimeout(async () => {
-      try {
-        await SAGEIntegration.init();
-        await SAGEIntegration.recommendNext();
-      } catch (error) {
-        console.error('[SAGE integration] could not start recommendation flow', error);
-      }
-    }, 2000);
-  }, { isIntro: true });
+  // NW001 is the corpus overview narration ("Meet The Night Watch").
+  // Using the prerecorded node audio avoids dependence on the old intro.mp3.
+  const introNodeId = 'NW001';
+
+  (async () => {
+    try {
+      await SAGEIntegration.init();
+
+      const introNode = SAGEIntegration.corpus.nodes.find(n => n.id === introNodeId);
+      const introText = introNode
+        ? SAGEIntegration.narrationText(introNode)
+        : 'Welcome to The Night Watch.';
+
+      playNarration(introNodeId, introText, () => {
+        // Treat the overview narration as completed so the recommendation graph
+        // can progress normally and NW001 is not repeated later.
+        if (introNode && !SAGEIntegration.visitorState.completed.has(introNodeId)) {
+          SAGEIntegration.runtime.markNarrationCompleted(
+            SAGEIntegration.visitorState,
+            introNode,
+            performance.now() / 1000
+          );
+          SAGEIntegration.record('narration_completed', {
+            node_id: introNode.id,
+            poi: introNode.poi,
+            profile: SAGEIntegration.profile,
+            role: 'intro'
+          });
+        }
+
+        // Give the visitor two seconds with the full painting before guidance.
+        setTimeout(() => {
+          SAGEIntegration.recommendNext().catch(error => {
+            console.error('[SAGE integration] could not start recommendation flow', error);
+          });
+        }, 2000);
+      });
+    } catch (error) {
+      console.error('[SAGE integration] intro initialization failed', error);
+      // Keep the app from silently stalling if runtime files cannot load.
+      languageOverlay.style.display = 'flex';
+      const p = document.querySelector('#languageBox p');
+      if (p) p.textContent = 'The experience could not load its runtime files. Check the browser console.';
+    }
+  })();
 }
 
 function beginExperience() {
