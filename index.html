@@ -747,6 +747,11 @@ const SAGEIntegration = {
       eccentricityDeg: spatial[selected.node.poi]?.targetEccentricityDeg ?? null
     };
 
+    // Preload the prerecorded General narration during guidance.
+    const narrationPreload = new Audio(`audio/${selected.node.id}.mp3`);
+    narrationPreload.preload = 'auto';
+    narrationPreload.load();
+
     this.visitorState.activeNode = selected.node.id;
     this.visitorState.lastGuidanceTime = performance.now() / 1000;
 
@@ -1423,12 +1428,14 @@ function playNarration(id, text, onEnd = null, options = {}) {
     if (typeof onEnd === 'function') onEnd();
   };
 
-  const file = AUDIO_FILES[id];
+  const file = /^NW\d{3}$/.test(id)
+    ? `audio/${id}.mp3`
+    : AUDIO_FILES[id];
   if (file) {
     narrator.src = file;
     narrator.onended = finish;
     narrator.onerror = () => {
-      console.error('Audio file failed to load:', file);
+      console.error('[Narration] audio file failed to load:', file, 'for id:', id);
       if (options.isIntro) {
         showAudioStartOverlay();
       } else if ('speechSynthesis' in window) {
