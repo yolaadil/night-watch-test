@@ -5,6 +5,21 @@
 <meta charset="utf-8">
 <title>The Night Watch — SAGE Guided Tour</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+<script type="module">
+import {
+  createVisitorState,
+  selectRecommendation,
+  markNarrationCompleted,
+  makeEvent
+} from './integration/nightwatch_runtime.mjs';
+
+window.MarcoRuntimeReady = Promise.resolve({
+  createVisitorState,
+  selectRecommendation,
+  markNarrationCompleted,
+  makeEvent
+});
+</script>
 <script>
 AFRAME.registerComponent('blurred-copy', {
   schema: {
@@ -646,38 +661,51 @@ const hotspotTexts = {
   }
 };
 
-// Deterministic SAGE POI tour.
-// SAGE guides once to each spatial POI. After zooming, at most two corpus nodes
-// assigned to that POI are played in sequence before returning to overview.
-const POI_TOUR = [
-  { poi: 'captain',        dom: 'captain' },
-  { poi: 'lieutenant',     dom: 'lieutenant' },
-  { poi: 'girl',           dom: 'girl' },
-  { poi: 'drummer',        dom: 'drummer' },
-  { poi: 'standard',       dom: 'flag' },
-  { poi: 'musketeer_left', dom: 'musketeer' },
-  { poi: 'dog',            dom: 'dog' },
-  { poi: 'right_group',    dom: 'rightGroup' },
-  { poi: 'architecture',   dom: 'backgroundArch' }
-];
+// ---------------------------------------------------------------------------
+// Marco recommendation layer
+// ---------------------------------------------------------------------------
+// We keep the existing, visually validated SAGE hotspots for this build.
+// Marco's runtime chooses which supported spatial POI should be visited next.
+// The normalized nightwatch_pois.json geometry is deliberately NOT used yet.
 
-const INTRO_NODE_IDS = ['NW001', 'NW002'];
+const SUPPORTED_POIS = Object.freeze({
+  captain:        'captain',
+  lieutenant:     'lieutenant',
+  girl:           'girl',
+  drummer:        'drummer',
+  standard:       'flag',
+  musketeer_left: 'musketeer',
+  dog:            'dog',
+  right_group:    'rightGroup',
+  architecture:   'backgroundArch'
+});
+
+const INTRO_NODE_IDS = ['NW001'];
 
 const CorpusTour = {
   corpus: null,
   nodesById: new Map(),
   nodesByPoi: new Map(),
+  runtime: null,
+  visitorState: null,
   ready: false,
+  log: [],
 
   async init() {
     if (this.ready) return this;
 
-    const response = await fetch('./corpus/nightwatch_nodes.json');
+    const [response, runtime] = await Promise.all([
+      fetch('./corpus/nightwatch_nodes.json'),
+      window.MarcoRuntimeReady
+    ]);
+
     if (!response.ok) {
       throw new Error(`Could not load corpus/nightwatch_nodes.json (${response.status})`);
     }
 
     this.corpus = await response.json();
+    this.runtime = runtime;
+    this.visitorState = runtime.createVisitorState('general');
 
     for (const node of this.corpus.nodes || []) {
       this.nodesById.set(node.id, node);
@@ -688,8 +716,6 @@ const CorpusTour = {
       this.nodesByPoi.get(node.poi).push(node);
     }
 
-    // Keep a deterministic, narratively sensible order:
-    // lower information level first, then corpus/node order.
     for (const nodes of this.nodesByPoi.values()) {
       nodes.sort((a, b) => {
         const levelDiff = (a.level ?? 0) - (b.level ?? 0);
@@ -699,17 +725,18 @@ const CorpusTour = {
     }
 
     this.ready = true;
-
     console.log(
-      `[CorpusTour] loaded ${this.corpus.nodes.length} nodes across ${this.nodesByPoi.size} POIs`
+      `[CorpusTour] loaded ${this.corpus.nodes.length} nodes; Marco recommendation active`
     );
-
-    POI_TOUR.forEach(stop => {
-      const ids = this.getNodesForPoi(stop.poi).map(n => n.id);
-      console.log(`[CorpusTour] ${stop.poi}: ${ids.join(', ') || '(no nodes)'}`);
-    });
-
     return this;
+  },
+
+  record(type, data = {}) {
+    const event = this.runtime && this.runtime.makeEvent
+      ? this.runtime.makeEvent(type, data)
+      : {type, timestamp_ms: performance.now(), ...data};
+    this.log.push(event);
+    console.log('[Marco recommendation]', event);
   },
 
   getNode(id) {
@@ -720,23 +747,163 @@ const CorpusTour = {
     return this.nodesByPoi.get(poi) || [];
   },
 
-  getNodesForPoi(poi) {
-    // Study version: play at most two narrations at each spatial POI.
-    return this.getAllNodesForPoi(poi).slice(0, 2);
-  },
-
   textForNode(node) {
     if (!node || !node.texts) return '';
     const general = node.texts.general;
     return general && general.text ? general.text : '';
   },
 
-  playableStops() {
-    return POI_TOUR.filter(stop => this.getNodesForPoi(stop.poi).length > 0);
+  markCompleted(node) {
+    if (!node || this.visitorState.completed.has(node.id)) return;
+    this.runtime.markNarrationCompleted(
+      this.visitorState,
+      node,
+      performance.now() / 1000
+    );
+    this.record('narration_completed', {
+      node_id: node.id,
+      poi: node.poi,
+      category: node.category
+    });
+  },
+
+  // Estimate recommendation features from the current headset direction and
+  // the existing SAGE hotspot position. This avoids using unvalidated POI JSON.
+  spatialForSupportedPois() {
+    const spatial = {};
+
+    for (const [poi, domId] of Object.entries(SUPPORTED_POIS)) {
+      const el = document.querySelector('#' + domId);
+
+      if (!el || !mainCamera) {
+        spatial[poi] = {
+          zoomValid: false,
+          angularSizeValid: false,
+          guideable: false
+        };
+        continue;
+      }
+
+      const targetWorld = new THREE.Vector3();
+      const cameraWorld = new THREE.Vector3();
+      const cameraQuat = new THREE.Quaternion();
+
+      el.object3D.getWorldPosition(targetWorld);
+      mainCamera.object3D.getWorldPosition(cameraWorld);
+      mainCamera.object3D.getWorldQuaternion(cameraQuat);
+
+      const forward = new THREE.Vector3(0, 0, -1)
+        .applyQuaternion(cameraQuat)
+        .normalize();
+      const toward = targetWorld.clone().sub(cameraWorld).normalize();
+
+      const angle = THREE.MathUtils.radToDeg(
+        Math.acos(
+          THREE.MathUtils.clamp(forward.dot(toward), -1, 1)
+        )
+      );
+
+      spatial[poi] = {
+        zoomValid: true,
+        angularSizeValid: true,
+        currentlyIntersected: false,
+        inCooldown: false,
+        guideable: true,
+        currentVisibility: angle <= 32 ? 1 : angle <= 55 ? 0.55 : 0.20,
+        spatialConvenience: THREE.MathUtils.clamp(1 - angle / 90, 0, 1),
+        targetEccentricityDeg: angle
+      };
+    }
+
+    // Explicitly disable every corpus POI that is not currently represented
+    // by a validated SAGE hotspot.
+    for (const poi of Object.keys(this.corpus.pois || {})) {
+      if (!(poi in spatial)) {
+        spatial[poi] = {
+          zoomValid: false,
+          angularSizeValid: false,
+          guideable: false
+        };
+      }
+    }
+
+    return spatial;
+  },
+
+  featureProvider(node, poiSpatial) {
+    return {
+      currentVisibility: poiSpatial.currentVisibility ?? 0,
+      spatialConvenience: poiSpatial.spatialConvenience ?? 0,
+      guidanceFatigue: 0
+    };
+  },
+
+  recommendNextPoi() {
+    const spatial = this.spatialForSupportedPois();
+
+    // Ensure recommendation is allowed after a previous narration block.
+    this.visitorState.activeNode = null;
+    this.visitorState.narrationState = 'idle';
+
+    const result = this.runtime.selectRecommendation(
+      this.corpus.nodes,
+      this.visitorState,
+      spatial,
+      (node, poiSpatial) => this.featureProvider(node, poiSpatial)
+    );
+
+    this.record('candidate_set_computed', {
+      candidate_count: result.candidates.length,
+      candidates: result.candidates.map(c => ({
+        node_id: c.node.id,
+        poi: c.node.poi,
+        score: c.score
+      }))
+    });
+
+    if (!result.selected) return null;
+
+    const selected = result.selected;
+    const poi = selected.node.poi;
+    const dom = SUPPORTED_POIS[poi];
+    if (!dom) return null;
+
+    // Up to two narrations for the recommended POI:
+    // selected node first, then the next highest-scoring eligible node
+    // at the same POI (if one exists).
+    const samePoiCandidates = result.candidates
+      .filter(c => c.node.poi === poi)
+      .map(c => c.node);
+
+    const nodes = [
+      selected.node,
+      ...samePoiCandidates.filter(n => n.id !== selected.node.id)
+    ].slice(0, 2);
+
+    this.visitorState.activeNode = selected.node.id;
+    this.visitorState.lastGuidanceTime = performance.now() / 1000;
+
+    this.record('recommendation_selected', {
+      node_id: selected.node.id,
+      poi,
+      dom_target: dom,
+      score: selected.score,
+      target_eccentricity_deg: spatial[poi]?.targetEccentricityDeg ?? null,
+      narration_nodes: nodes.map(n => n.id)
+    });
+
+    return {
+      poi,
+      dom,
+      selectedNode: selected.node,
+      nodes,
+      score: selected.score
+    };
   }
 };
 
 window.CorpusTour = CorpusTour;
+window.SAGE_EVENT_LOG = CorpusTour.log;
 
 const REGION = {
   captain:        { cueW: 0.52, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.56, focusH: 0.90 },
@@ -1253,7 +1420,10 @@ function playIntroSequence(onComplete = null) {
     .map(id => CorpusTour.getNode(id))
     .filter(Boolean);
 
-  playCorpusNodeSequence(nodes, onComplete);
+  playCorpusNodeSequence(nodes, () => {
+    nodes.forEach(node => CorpusTour.markCompleted(node));
+    if (typeof onComplete === 'function') onComplete();
+  });
 }
 
 function makeCanvasTexture(text, language, width = 520, height = 190) {
@@ -1360,12 +1530,10 @@ function showNestedDetails(id) {
 
 const TourEngine = {
   state: State.IDLE,
-  index: 0,
   target: null,
   currentStop: null,
   pulseToken: 0,
   autoTimer: null,
-  stops: [],
 
   setState(next) {
     this.state = next;
@@ -1374,20 +1542,20 @@ const TourEngine = {
 
   async prepare() {
     await CorpusTour.init();
-    this.stops = CorpusTour.playableStops();
-    console.log(`[TourEngine] ${this.stops.length} playable SAGE POIs`);
   },
 
-  async startCurrentStop() {
-    if (!this.stops.length) await this.prepare();
+  async recommendAndCue() {
+    await this.prepare();
 
-    if (this.index >= this.stops.length) {
+    const recommendation = CorpusTour.recommendNextPoi();
+
+    if (!recommendation) {
       this.finishTour();
       return;
     }
 
-    this.currentStop = this.stops[this.index];
-    await this.startCue(this.currentStop.dom);
+    this.currentStop = recommendation;
+    await this.startCue(recommendation.dom);
   },
 
   async startCue(id) {
@@ -1401,9 +1569,15 @@ const TourEngine = {
     setBlurOpacity(0, 150);
 
     console.log(
-      `[SAGE cue] stop ${this.index + 1}/${this.stops.length}:`,
-      this.currentStop ? this.currentStop.poi : id
+      `[SAGE cue] Marco selected POI=${this.currentStop?.poi}, ` +
+      `nodes=${this.currentStop?.nodes.map(n => n.id).join(', ')}`
     );
+
+    CorpusTour.record('guidance_onset', {
+      poi: this.currentStop?.poi,
+      dom_target: id,
+      node_ids: this.currentStop?.nodes.map(n => n.id) || []
+    });
 
     await QuestCue.show(id);
     if (token !== this.pulseToken) return;
@@ -1436,7 +1610,12 @@ const TourEngine = {
     ) {
       console.log(`[Marco state] orientation_confirmed: ${id}`);
 
-      // Guidance ends as soon as the visitor has oriented to the target.
+      CorpusTour.record('orientation_confirmed', {
+        poi: this.currentStop?.poi,
+        dom_target: id
+      });
+
+      // SAGE's guidance role ends here.
       QuestCue.hideAll();
       this.setState(State.WAIT_GAZE);
     }
@@ -1448,6 +1627,12 @@ const TourEngine = {
       id === this.target
     ) {
       console.log(`[Marco state] activation_completed: ${id}`);
+
+      CorpusTour.record('activation_completed', {
+        poi: this.currentStop?.poi,
+        dom_target: id
+      });
+
       this.openCurrentStop();
       return;
     }
@@ -1458,7 +1643,7 @@ const TourEngine = {
   },
 
   confirmGaze(id) {
-    // Desktop click fallback: simulate a completed acquisition/activation.
+    // Desktop click fallback.
     this.onOrientationConfirmed(id);
     this.onActivationCompleted(id);
   },
@@ -1468,18 +1653,16 @@ const TourEngine = {
 
     const id = this.currentStop.dom;
     const poi = this.currentStop.poi;
-    const nodes = CorpusTour.getNodesForPoi(poi);
+    const nodes = this.currentStop.nodes.slice(0, 2);
 
     this.pulseToken += 1;
     this.setState(State.ZOOMING);
     clearTimeout(this.autoTimer);
 
-    // The guidance cue has done its job; remove it before zoom.
     QuestCue.hideAll();
     setBlurOpacity(0, 250);
     showPrimaryHotspots(false);
 
-    // Load the full-resolution Level-14 tiles for the currently visited region.
     await loadFocusTiles(id);
 
     const hotspot = document.querySelector('#' + id);
@@ -1516,7 +1699,15 @@ const TourEngine = {
         `[POI narration] ${poi}: ${nodes.map(n => n.id).join(', ')}`
       );
 
+      // Runtime only blocks future recommendations while the current block
+      // is active; each played node is marked completed when the block ends.
+      CorpusTour.visitorState.narrationState = 'playing';
+
       playCorpusNodeSequence(nodes, () => {
+        nodes.forEach(node => CorpusTour.markCompleted(node));
+        CorpusTour.visitorState.activeNode = null;
+        CorpusTour.visitorState.narrationState = 'idle';
+
         this.autoTimer = setTimeout(() => {
           if (this.state === State.STORY && this.target === id) {
             this.returnFromTarget(true);
@@ -1544,8 +1735,14 @@ const TourEngine = {
       const zoomScale = 1.85;
       const targetX = -localX * zoomScale;
       const targetY = 1.6 - localY * zoomScale;
-      paintingRoot.setAttribute('animation__zoompos', `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`);
-      paintingRoot.setAttribute('animation__zoomscale', `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`);
+      paintingRoot.setAttribute(
+        'animation__zoompos',
+        `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`
+      );
+      paintingRoot.setAttribute(
+        'animation__zoomscale',
+        `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`
+      );
     }, 120);
 
     setTimeout(() => {
@@ -1556,7 +1753,7 @@ const TourEngine = {
     }, 900);
   },
 
-  returnFromTarget(advanceStory) {
+  returnFromTarget(continueRecommendations) {
     if (
       this.state !== State.STORY &&
       this.state !== State.ZOOMING
@@ -1581,23 +1778,15 @@ const TourEngine = {
     setTimeout(() => {
       clearFocusTiles();
       showPrimaryHotspots(true);
+      this.target = null;
+      this.currentStop = null;
 
-      if (advanceStory) {
-        this.index += 1;
-        this.target = null;
-        this.currentStop = null;
-
-        if (this.index >= this.stops.length) {
-          this.finishTour();
-        } else {
-          // Give the visitor a short reset before the next visual cue.
-          this.autoTimer = setTimeout(() => {
-            this.startCurrentStop().catch(console.error);
-          }, 1800);
-        }
+      if (continueRecommendations) {
+        this.setState(State.IDLE);
+        this.autoTimer = setTimeout(() => {
+          this.recommendAndCue().catch(console.error);
+        }, 1800);
       } else {
-        this.target = null;
-        this.currentStop = null;
         this.setState(State.FREE);
       }
     }, 830);
@@ -1610,18 +1799,12 @@ const TourEngine = {
     QuestCue.hideAll();
     setBlurOpacity(0, 250);
     showPrimaryHotspots(true);
-    console.log('[TourEngine] guided corpus POI tour complete');
+    console.log('[TourEngine] no further supported eligible recommendations');
   },
 
   manualBack() {
-    // During the guided tour, Back advances to the next POI rather than
-    // abandoning the deterministic sequence.
-    const guided = this.index < this.stops.length && this.state !== State.FREE;
-    this.returnFromTarget(guided);
-  },
-
-  wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    const recommendedFlow = !!this.currentStop && this.state !== State.FREE;
+    this.returnFromTarget(recommendedFlow);
   }
 };
 
@@ -1662,11 +1845,10 @@ function startIntro() {
     try {
       await TourEngine.prepare();
 
-      // Opening overview: play only NW001 and NW002 over the full painting.
+      // Opening overview: play NW001 only over the full painting.
       playIntroSequence(() => {
         setTimeout(() => {
-          TourEngine.index = 0;
-          TourEngine.startCurrentStop().catch(console.error);
+          TourEngine.recommendAndCue().catch(console.error);
         }, 2000);
       });
     } catch (error) {
