@@ -207,7 +207,12 @@ AFRAME.registerShader('tile-glow', {
       float dist = length(d);
       float mask = 1.0 - smoothstep(0.45, 1.0, dist);
       float glow = opacity * mask;
-      vec3 lifted = tex.rgb * 1.18 + vec3(0.055, 0.040, 0.010);
+
+      // Stronger museum-style luminance lift that remains visible on dark paint.
+      // Mix toward a warm highlight rather than merely multiplying the source.
+      vec3 warmLift = vec3(1.00, 0.86, 0.46);
+      vec3 lifted = mix(tex.rgb, warmLift, 0.34) * 1.12 + vec3(0.06, 0.045, 0.018);
+
       gl_FragColor = vec4(lifted, tex.a * glow);
     }
   `
@@ -1181,7 +1186,7 @@ const QuestCue = {
       plane.setAttribute('material', {
         shader: 'tile-glow',
         src: tile.url,
-        opacity: 0.03,
+        opacity: 0.08,
         center: `${centerUv.x} ${centerUv.y}`,
         radius: `${radiusUv.x} ${radiusUv.y}`,
         tileRect: `${u0} ${v0} ${u1} ${v1}`,
@@ -1203,9 +1208,9 @@ const QuestCue = {
     planes.forEach((plane, index) => {
       plane.setAttribute(`animation__continuousglow${index}`, {
         property: 'material.opacity',
-        from: 0.08,
-        to: 0.48,
-        dur: 900,
+        from: 0.16,
+        to: 0.72,
+        dur: 1050,
         easing: 'easeInOutSine',
         dir: 'alternate',
         loop: true
@@ -1615,8 +1620,8 @@ const TourEngine = {
         dom_target: id
       });
 
-      // SAGE's guidance role ends here.
-      QuestCue.hideAll();
+      // Keep the SAGE cue visible during the continued 2.2 s dwell.
+      // The cue is removed only when activation is fully locked.
       this.setState(State.WAIT_GAZE);
     }
   },
@@ -1633,6 +1638,8 @@ const TourEngine = {
         dom_target: id
       });
 
+      // Gaze is now fully locked: remove the guidance cue, then zoom/open.
+      QuestCue.hideAll();
       this.openCurrentStop();
       return;
     }
