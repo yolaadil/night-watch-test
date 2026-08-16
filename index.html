@@ -355,36 +355,108 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
 });
 
 AFRAME.registerComponent('quest-gaze-select', {
-  schema: { dwell: {type: 'number', default: 2000} },
+  schema: {
+    orientationMs: {type: 'number', default: 400},
+    activationMs: {type: 'number', default: 2200},
+    departureGraceMs: {type: 'number', default: 400}
+  },
+
   init() {
     this.active = null;
-    this.timer = null;
+    this.enteredAt = 0;
+    this.orientedAt = 0;
+    this.orientationConfirmed = false;
+    this.activationCompleted = false;
+    this.departureTimer = null;
+
     this.el.addEventListener('raycaster-intersection', e => {
       const intersections = (e.detail && e.detail.intersections) || [];
-      const hit = intersections.find(i => i.object && i.object.el && i.object.el.classList.contains('hotspot'));
+      const hit = intersections.find(i =>
+        i.object &&
+        i.object.el &&
+        i.object.el.classList.contains('hotspot')
+      );
+
       const target = hit && hit.object.el;
-      if (!target || target === this.active) return;
-      this.cancel();
-      this.active = target;
-      this.timer = setTimeout(() => {
-        if (!this.active || !window.TourEngine) return;
-        const id = this.active.id;
-        if (this.active.classList.contains('captainDetail')) {
-          playNarration(id, standardNarration(id));
-        } else {
-          window.TourEngine.confirmGaze(id);
-        }
-        this.cancel();
-      }, this.data.dwell);
+      if (!target) return;
+
+      if (target !== this.active) {
+        this.beginCandidate(target);
+      } else {
+        this.cancelDepartureTimer();
+      }
     });
-    const clear = () => this.cancel();
-    this.el.addEventListener('raycaster-intersection-cleared', clear);
-    this.el.addEventListener('mouseleave', clear);
+
+    const leave = () => this.handleDeparture();
+    this.el.addEventListener('raycaster-intersection-cleared', leave);
+    this.el.addEventListener('mouseleave', leave);
   },
-  cancel() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
+
+  beginCandidate(target) {
+    this.cancelDepartureTimer();
+
+    this.active = target;
+    this.enteredAt = performance.now();
+    this.orientedAt = 0;
+    this.orientationConfirmed = false;
+    this.activationCompleted = false;
+
+    if (window.TourEngine) {
+      window.TourEngine.onCandidateEntered(target.id);
+    }
+  },
+
+  handleDeparture() {
+    if (!this.active) return;
+
+    this.cancelDepartureTimer();
+
+    this.departureTimer = setTimeout(() => {
+      if (window.TourEngine && this.active) {
+        window.TourEngine.onCandidateDeparted(this.active.id);
+      }
+      this.resetCandidate();
+    }, this.data.departureGraceMs);
+  },
+
+  cancelDepartureTimer() {
+    if (this.departureTimer) {
+      clearTimeout(this.departureTimer);
+      this.departureTimer = null;
+    }
+  },
+
+  tick() {
+    if (!this.active || !window.TourEngine) return;
+
+    const now = performance.now();
+    const id = this.active.id;
+
+    if (!this.orientationConfirmed) {
+      if (now - this.enteredAt >= this.data.orientationMs) {
+        this.orientationConfirmed = true;
+        this.orientedAt = now;
+        window.TourEngine.onOrientationConfirmed(id);
+      }
+      return;
+    }
+
+    if (!this.activationCompleted) {
+      if (now - this.orientedAt >= this.data.activationMs) {
+        this.activationCompleted = true;
+        window.TourEngine.onActivationCompleted(id);
+        this.resetCandidate();
+      }
+    }
+  },
+
+  resetCandidate() {
+    this.cancelDepartureTimer();
     this.active = null;
+    this.enteredAt = 0;
+    this.orientedAt = 0;
+    this.orientationConfirmed = false;
+    this.activationCompleted = false;
   }
 });
 </script>
@@ -464,7 +536,7 @@ AFRAME.registerComponent('quest-gaze-select', {
     <a-camera id="mainCamera" position="0 1.6 0">
       <a-cursor
         id="gazeCursor"
-        quest-gaze-select="dwell: 2000"
+        quest-gaze-select="orientationMs: 400; activationMs: 2200; departureGraceMs: 400"
         visible="false"
         fuse="true"
         fuse-timeout="2000"
@@ -575,7 +647,7 @@ const hotspotTexts = {
 };
 
 // Deterministic SAGE POI tour.
-// SAGE guides once to each spatial POI. After zooming, all corpus nodes
+// SAGE guides once to each spatial POI. After zooming, at most two corpus nodes
 // assigned to that POI are played in sequence before returning to overview.
 const POI_TOUR = [
   { poi: 'captain',        dom: 'captain' },
@@ -644,8 +716,13 @@ const CorpusTour = {
     return this.nodesById.get(id) || null;
   },
 
-  getNodesForPoi(poi) {
+  getAllNodesForPoi(poi) {
     return this.nodesByPoi.get(poi) || [];
+  },
+
+  getNodesForPoi(poi) {
+    // Study version: play at most two narrations at each spatial POI.
+    return this.getAllNodesForPoi(poi).slice(0, 2);
   },
 
   textForNode(node) {
@@ -1334,19 +1411,56 @@ const TourEngine = {
     this.setState(State.WAIT_GAZE);
   },
 
-  confirmGaze(id) {
+  onCandidateEntered(id) {
     if (
       (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
       id === this.target
     ) {
+      console.log(`[Marco state] candidate: ${id}`);
+    }
+  },
+
+  onCandidateDeparted(id) {
+    if (
+      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
+      id === this.target
+    ) {
+      console.log(`[Marco state] departure_reset: ${id}`);
+    }
+  },
+
+  onOrientationConfirmed(id) {
+    if (
+      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
+      id === this.target
+    ) {
+      console.log(`[Marco state] orientation_confirmed: ${id}`);
+
+      // Guidance ends as soon as the visitor has oriented to the target.
+      QuestCue.hideAll();
+      this.setState(State.WAIT_GAZE);
+    }
+  },
+
+  onActivationCompleted(id) {
+    if (
+      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
+      id === this.target
+    ) {
+      console.log(`[Marco state] activation_completed: ${id}`);
       this.openCurrentStop();
       return;
     }
 
-    // Free exploration remains available after the guided tour.
     if (this.state === State.FREE) {
       this.openFreeTarget(id);
     }
+  },
+
+  confirmGaze(id) {
+    // Desktop click fallback: simulate a completed acquisition/activation.
+    this.onOrientationConfirmed(id);
+    this.onActivationCompleted(id);
   },
 
   async openCurrentStop() {
@@ -1604,7 +1718,7 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  console.log('[Dichoptic cue] Approach B active: cue tiles visible to left eye only.');
+  console.log('[Dichoptic cue] Adaptive eye mode active; cue eye follows target side.');
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
