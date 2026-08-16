@@ -193,10 +193,7 @@ AFRAME.registerShader('tile-glow', {
     opacity: {type: 'number', is: 'uniform', default: 0.0},
     uvMin: {type: 'vec2', is: 'uniform', default: {x: 0, y: 0}},
     uvMax: {type: 'vec2', is: 'uniform', default: {x: 1, y: 1}},
-    lift: {type: 'number', is: 'uniform', default: 0.58},
-    // x=left, y=right, z=top, w=bottom. Only outer-region edges are flagged.
-    edgeFlags: {type: 'vec4', is: 'uniform', default: {x: 0, y: 0, z: 0, w: 0}},
-    feather: {type: 'number', is: 'uniform', default: 0.14}
+    lift: {type: 'number', is: 'uniform', default: 0.58}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -211,8 +208,6 @@ AFRAME.registerShader('tile-glow', {
     uniform vec2 uvMin;
     uniform vec2 uvMax;
     uniform float lift;
-    uniform vec4 edgeFlags;
-    uniform float feather;
     varying vec2 vUv;
 
     void main() {
@@ -230,16 +225,7 @@ AFRAME.registerShader('tile-glow', {
       vec3 lifted = mix(tex.rgb, gammaLift, lift);
       lifted = clamp(lifted * 1.07 + vec3(0.012), 0.0, 1.0);
 
-      // Feather only the OUTER perimeter of the combined cue region.
-      // Interior tile/patch edges are intentionally untouched, so there
-      // are no visible seams between adjacent Level-14 patches.
-      float edgeMask = 1.0;
-      if (edgeFlags.x > 0.5) edgeMask *= smoothstep(0.0, feather, vUv.x);
-      if (edgeFlags.y > 0.5) edgeMask *= smoothstep(0.0, feather, 1.0 - vUv.x);
-      if (edgeFlags.z > 0.5) edgeMask *= smoothstep(0.0, feather, 1.0 - vUv.y);
-      if (edgeFlags.w > 0.5) edgeMask *= smoothstep(0.0, feather, vUv.y);
-
-      gl_FragColor = vec4(lifted, tex.a * opacity * edgeMask);
+      gl_FragColor = vec4(lifted, tex.a * opacity);
     }
   `
 });
@@ -663,7 +649,7 @@ const hotspotTexts = {
 
 const MARCO_CONFIG = Object.freeze({
   orientationMs: 2000,
-  activationMs: 2200, // retained for runtime compatibility; not used in v9 flow
+  activationMs: 2200,
   departureGraceMs: 400,
   maxAngularVelocityDegPerSec: 15,
   samePoiCooldownMs: 30000,
@@ -684,7 +670,6 @@ const MARCO_CONFIG = Object.freeze({
   cueOpacityMax: 0.48,
   cuePulseMs: 900,
   cueLift: 0.62,
-  cueFeatherFraction: 0.14,
   // Provisional visual POIs are allowed for engineering/pilot work only.
   allowProvisionalVisual: true,
   allowConservationRegistrationPois: false,
@@ -1245,9 +1230,7 @@ const SAGEIntegration = {
           target_eccentricity_deg: rec.eccentricityDeg
         });
 
-        // v9 simplified interaction:
-        // 2 seconds of stable orientation is itself the activation.
-        // Remove SAGE and zoom immediately; no second activation dwell.
+        // Recovery build: 2-second stable orientation IS the activation.
         clearTimeout(this.guidanceTimer);
         QuestCue.hideAll();
 
@@ -1260,8 +1243,7 @@ const SAGEIntegration = {
           stable_orientation_ms: MARCO_CONFIG.orientationMs
         });
 
-        // Reset Marco dwell state because we intentionally skip the
-        // subsequent "activating" stage in this SAGE variant.
+        // Stop the dwell state machine here; no second dwell stage.
         this.dwell.reset();
         TourEngine.openRecommendedTarget(rec.poi, rec.node);
         return;
@@ -1716,14 +1698,6 @@ const QuestCue = {
       const uvMinY = (p.iy0 - g.fileY) / g.fileH;
       const uvMaxY = (p.iy1 - g.fileY) / g.fileH;
 
-      // Only patches touching the complete cue's perimeter receive feathering.
-      // This keeps internal tile boundaries seamless.
-      const eps = 0.75; // pixel tolerance for floating-point comparisons
-      const edgeLeft   = Math.abs(p.ix0 - leftPx)   <= eps ? 1 : 0;
-      const edgeRight  = Math.abs(p.ix1 - rightPx)  <= eps ? 1 : 0;
-      const edgeTop    = Math.abs(p.iy0 - topPx)    <= eps ? 1 : 0;
-      const edgeBottom = Math.abs(p.iy1 - bottomPx) <= eps ? 1 : 0;
-
       const plane = document.createElement('a-plane');
       plane.setAttribute('width', worldW);
       plane.setAttribute('height', worldH);
@@ -1736,8 +1710,6 @@ const QuestCue = {
         uvMin: `${uvMinX} ${uvMinY}`,
         uvMax: `${uvMaxX} ${uvMaxY}`,
         lift: MARCO_CONFIG.cueLift,
-        edgeFlags: `${edgeLeft} ${edgeRight} ${edgeTop} ${edgeBottom}`,
-        feather: MARCO_CONFIG.cueFeatherFraction,
         transparent: true,
         depthTest: false,
         depthWrite: false,
@@ -1764,8 +1736,7 @@ const QuestCue = {
       poi: poiId,
       patch_count: available.length,
       cue_bounds: bounds,
-      cue_bounds_scale: MARCO_CONFIG.cueBoundsScale,
-      edge_feather_fraction: MARCO_CONFIG.cueFeatherFraction
+      cue_bounds_scale: MARCO_CONFIG.cueBoundsScale
     });
   }
 };
