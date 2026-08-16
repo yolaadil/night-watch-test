@@ -8,16 +8,26 @@
 <script type="module">
 import {
   createVisitorState,
+  hydrateVisitorState,
+  serializeVisitorState,
   selectRecommendation,
   markNarrationCompleted,
-  makeEvent
+  DwellController,
+  pointInShape,
+  makeEvent,
+  DEFAULT_WEIGHTS
 } from './integration/nightwatch_runtime.mjs';
 
 window.MarcoRuntimeReady = Promise.resolve({
   createVisitorState,
+  hydrateVisitorState,
+  serializeVisitorState,
   selectRecommendation,
   markNarrationCompleted,
-  makeEvent
+  DwellController,
+  pointInShape,
+  makeEvent,
+  DEFAULT_WEIGHTS
 });
 </script>
 <script>
@@ -176,10 +186,14 @@ body {
 
 <script>
 AFRAME.registerShader('tile-glow', {
-  // FROZEN SAGE CUE — do not change during the study.
+  // SAGE cue: a cropped patch from the real Level-14 tile.
+  // The patch preserves hue and lifts dark/mid luminance without a colored tint.
   schema: {
     src: {type: 'map', is: 'uniform'},
-    opacity: {type: 'number', is: 'uniform', default: 0.0}
+    opacity: {type: 'number', is: 'uniform', default: 0.0},
+    uvMin: {type: 'vec2', is: 'uniform', default: {x: 0, y: 0}},
+    uvMax: {type: 'vec2', is: 'uniform', default: {x: 1, y: 1}},
+    lift: {type: 'number', is: 'uniform', default: 0.58}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -191,21 +205,30 @@ AFRAME.registerShader('tile-glow', {
   fragmentShader: `
     uniform sampler2D src;
     uniform float opacity;
+    uniform vec2 uvMin;
+    uniform vec2 uvMax;
+    uniform float lift;
     varying vec2 vUv;
 
     void main() {
-      vec4 tex = texture2D(src, vUv);
+      // uvMin/uvMax are expressed from the tile's top-left image coordinates.
+      vec2 sampleUv = vec2(
+        mix(uvMin.x, uvMax.x, vUv.x),
+        mix(uvMax.y, uvMin.y, vUv.y)
+      );
 
-      // Frozen technique: illuminate the selected tiles themselves.
-      // Preserve hue; gently lift luminance so dark paint remains visible.
-      vec3 lifted = tex.rgb * 1.30 + vec3(0.045);
+      vec4 tex = texture2D(src, sampleUv);
 
-      // No oval, ring, radial mask, or yellow tint.
+      // Gamma-like luminance lift: dark regions brighten clearly while hue
+      // remains close to the painting. No yellow overlay and no oval mask.
+      vec3 gammaLift = sqrt(max(tex.rgb, vec3(0.0)));
+      vec3 lifted = mix(tex.rgb, gammaLift, lift);
+      lifted = clamp(lifted * 1.07 + vec3(0.012), 0.0, 1.0);
+
       gl_FragColor = vec4(lifted, tex.a * opacity);
     }
   `
 });
-
 
 
 // Render an entity on a dedicated Three.js camera layer.
@@ -363,108 +386,62 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
 });
 
 AFRAME.registerComponent('quest-gaze-select', {
-  schema: {
-    orientationMs: {type: 'number', default: 400},
-    activationMs: {type: 'number', default: 2200},
-    departureGraceMs: {type: 'number', default: 400}
-  },
-
   init() {
-    this.active = null;
-    this.enteredAt = 0;
-    this.orientedAt = 0;
-    this.orientationConfirmed = false;
-    this.activationCompleted = false;
-    this.departureTimer = null;
+    this.paintingUv = null;
+    this.lastQuaternion = new THREE.Quaternion();
+    this.lastSampleMs = performance.now();
+    this.angularVelocity = 0;
 
     this.el.addEventListener('raycaster-intersection', e => {
       const intersections = (e.detail && e.detail.intersections) || [];
-      const hit = intersections.find(i =>
-        i.object &&
-        i.object.el &&
-        i.object.el.classList.contains('hotspot')
+      const paintingHit = intersections.find(i =>
+        i.object && i.object.el && i.object.el.id === 'paintingLow' && i.uv
       );
 
-      const target = hit && hit.object.el;
-      if (!target) return;
-
-      if (target !== this.active) {
-        this.beginCandidate(target);
-      } else {
-        this.cancelDepartureTimer();
+      if (paintingHit && paintingHit.uv) {
+        // Marco POIs use top-left origin; Three.js texture UV uses bottom-left.
+        this.paintingUv = {
+          x: THREE.MathUtils.clamp(paintingHit.uv.x, 0, 1),
+          y: THREE.MathUtils.clamp(1 - paintingHit.uv.y, 0, 1)
+        };
       }
     });
 
-    const leave = () => this.handleDeparture();
-    this.el.addEventListener('raycaster-intersection-cleared', leave);
-    this.el.addEventListener('mouseleave', leave);
+    const clear = () => {
+      this.paintingUv = null;
+    };
+    this.el.addEventListener('raycaster-intersection-cleared', clear);
+    this.el.addEventListener('mouseleave', clear);
   },
 
-  beginCandidate(target) {
-    this.cancelDepartureTimer();
+  tick(time) {
+    if (!window.SAGEIntegration) return;
 
-    this.active = target;
-    this.enteredAt = performance.now();
-    this.orientedAt = 0;
-    this.orientationConfirmed = false;
-    this.activationCompleted = false;
+    const camera = document.querySelector('#mainCamera');
+    const object3D = camera && camera.object3D;
+    if (!object3D) return;
 
-    if (window.TourEngine) {
-      window.TourEngine.onCandidateEntered(target.id);
-    }
-  },
+    const q = object3D.getWorldQuaternion(new THREE.Quaternion());
+    const dt = Math.max(1, time - this.lastSampleMs) / 1000;
+    const dot = Math.min(1, Math.max(-1, Math.abs(q.dot(this.lastQuaternion))));
+    const angle = 2 * Math.acos(dot);
+    this.angularVelocity = THREE.MathUtils.radToDeg(angle) / dt;
+    this.lastQuaternion.copy(q);
+    this.lastSampleMs = time;
 
-  handleDeparture() {
-    if (!this.active) return;
+    const pos = new THREE.Vector3();
+    object3D.getWorldPosition(pos);
+    const rot = object3D.rotation;
 
-    this.cancelDepartureTimer();
-
-    this.departureTimer = setTimeout(() => {
-      if (window.TourEngine && this.active) {
-        window.TourEngine.onCandidateDeparted(this.active.id);
+    window.SAGEIntegration.onHeadSample({
+      nowMs: performance.now(),
+      uv: this.paintingUv,
+      angularVelocityDegPerSec: this.angularVelocity,
+      headPose: {
+        position: {x: pos.x, y: pos.y, z: pos.z},
+        rotation: {x: rot.x, y: rot.y, z: rot.z}
       }
-      this.resetCandidate();
-    }, this.data.departureGraceMs);
-  },
-
-  cancelDepartureTimer() {
-    if (this.departureTimer) {
-      clearTimeout(this.departureTimer);
-      this.departureTimer = null;
-    }
-  },
-
-  tick() {
-    if (!this.active || !window.TourEngine) return;
-
-    const now = performance.now();
-    const id = this.active.id;
-
-    if (!this.orientationConfirmed) {
-      if (now - this.enteredAt >= this.data.orientationMs) {
-        this.orientationConfirmed = true;
-        this.orientedAt = now;
-        window.TourEngine.onOrientationConfirmed(id);
-      }
-      return;
-    }
-
-    if (!this.activationCompleted) {
-      if (now - this.orientedAt >= this.data.activationMs) {
-        this.activationCompleted = true;
-        window.TourEngine.onActivationCompleted(id);
-        this.resetCandidate();
-      }
-    }
-  },
-
-  resetCandidate() {
-    this.cancelDepartureTimer();
-    this.active = null;
-    this.enteredAt = 0;
-    this.orientedAt = 0;
-    this.orientationConfirmed = false;
-    this.activationCompleted = false;
+    });
   }
 });
 </script>
@@ -480,6 +457,8 @@ AFRAME.registerComponent('quest-gaze-select', {
     style="display:none">
     ← Back
   </button>
+  <button id="exportLogButton" class="tileButton" style="display:none">Export Log</button>
+  <button id="resetSessionButton" class="tileButton" style="display:none">Reset Session</button>
 </div>
 
 <div id="languageOverlay" style="display:none">
@@ -489,6 +468,11 @@ AFRAME.registerComponent('quest-gaze-select', {
     <button class="languageButton profileButton" data-profile="child">Child</button>
     <button class="languageButton profileButton" data-profile="general">General</button>
     <button class="languageButton profileButton" data-profile="expert">Expert</button>
+    <p style="margin-top:18px">Guidance condition</p>
+    <select id="guidanceModeSelect" class="languageButton" style="padding:10px 14px">
+      <option value="sage" selected>SAGE cue</option>
+      <option value="baseline">Unguided baseline</option>
+    </select>
   </div>
 </div>
 
@@ -499,6 +483,7 @@ AFRAME.registerComponent('quest-gaze-select', {
   <a-entity id="paintingRoot" position="0 1.6 -3">
     <a-image
       id="paintingLow"
+      class="paintingTarget"
       src="painting_low.jpg?v=2"
       width="4"
       height="3.45"
@@ -546,11 +531,11 @@ AFRAME.registerComponent('quest-gaze-select', {
     <a-camera id="mainCamera" position="0 1.6 0">
       <a-cursor
         id="gazeCursor"
-        quest-gaze-select="orientationMs: 400; activationMs: 2200; departureGraceMs: 400"
+        quest-gaze-select
         visible="false"
         fuse="true"
         fuse-timeout="2000"
-        raycaster="objects: .hotspot, .navButton"
+        raycaster="objects: .paintingTarget"
         color="black">
       </a-cursor>
     </a-camera>
@@ -581,16 +566,7 @@ const TILE_FOLDER = 'tiles';
 const MAX_LEVEL = 14;
 const GAZE_MS = 2000;
 
-// Frozen visual-cue specification for the study.
-const SAGE_CUE_SPEC = Object.freeze({
-  technique: 'level14_tile_luminance_pulse',
-  luminanceMultiplier: 1.30,
-  luminanceOffset: 0.045,
-  opacityMin: 0.10,
-  opacityMax: 0.40,
-  pulseDurationMs: 1000,
-  mask: 'none'
-});
+
 
 const hotspotTexts = {
   captain: {
@@ -668,201 +644,418 @@ const hotspotTexts = {
 };
 
 // ---------------------------------------------------------------------------
-// Marco recommendation layer
+// Full Marco runtime integration
 // ---------------------------------------------------------------------------
-// We keep the existing, visually validated SAGE hotspots for this build.
-// Marco's runtime chooses which supported spatial POI should be visited next.
-// The normalized nightwatch_pois.json geometry is deliberately NOT used yet.
 
-const SUPPORTED_POIS = Object.freeze({
-  captain:        'captain',
-  lieutenant:     'lieutenant',
-  girl:           'girl',
-  drummer:        'drummer',
-  standard:       'flag',
-  musketeer_left: 'musketeer',
-  dog:            'dog',
-  right_group:    'rightGroup',
-  architecture:   'backgroundArch'
+const MARCO_CONFIG = Object.freeze({
+  orientationMs: 400,
+  activationMs: 2200,
+  departureGraceMs: 400,
+  maxAngularVelocityDegPerSec: 15,
+  samePoiCooldownMs: 30000,
+  globalGuidanceRestMs: 10000,
+  guidanceTimeoutMs: 20000,
+  sustainedNarrationDepartureMs: 4500,
+  narrationCompletionFraction: 0.90,
+  maxNarrationsPerPoi: 2,
+  guideableAngleDeg: 65,
+  minimumAngularSizeDeg: 2.0,
+  outerRoiExpansion: 0.16,
+  cueBoundsScale: 0.58,
+  cueMaxWidthNorm: 0.075,
+  cueMaxHeightNorm: 0.11,
+  cueMinWidthNorm: 0.035,
+  cueMinHeightNorm: 0.045,
+  cueOpacityMin: 0.16,
+  cueOpacityMax: 0.48,
+  cuePulseMs: 900,
+  cueLift: 0.62,
+  // Provisional visual POIs are allowed for engineering/pilot work only.
+  allowProvisionalVisual: true,
+  allowConservationRegistrationPois: false,
+  allowConceptualPois: false,
+  cueEndsAt: 'orientation'
 });
 
 const INTRO_NODE_IDS = ['NW001'];
+let selectedProfile = 'general';
+let selectedGuidanceMode = 'sage';
 
-const CorpusTour = {
-  corpus: null,
-  nodesById: new Map(),
-  nodesByPoi: new Map(),
+const SAGEIntegration = {
   runtime: null,
+  corpus: null,
+  pois: null,
   visitorState: null,
-  visitedPois: new Set(),
-  ready: false,
+  dwell: null,
+  activeRecommendation: null,
   log: [],
+  ready: false,
+  lastUv: null,
+  lastHeadPose: null,
+  angularVelocity: 0,
+  lastHeadLogMs: 0,
+  roiInside: {outer: false, inner: false},
+  poiCooldownUntil: new Map(),
+  poiNarrationCounts: new Map(),
+  narrationProgress: new Map(),
+  resumeCounts: new Map(),
+  narrationDepartureStartedMs: null,
+  guidanceTimer: null,
+  restTimer: null,
+  recommendationToken: 0,
+  sessionStartedAt: performance.now(),
 
-  async init() {
-    if (this.ready) return this;
-
-    const [response, runtime] = await Promise.all([
-      fetch('./corpus/nightwatch_nodes.json'),
-      window.MarcoRuntimeReady
-    ]);
-
-    if (!response.ok) {
-      throw new Error(`Could not load corpus/nightwatch_nodes.json (${response.status})`);
-    }
-
-    this.corpus = await response.json();
+  async init({profile = selectedProfile, forceNew = false} = {}) {
+    const runtime = await window.MarcoRuntimeReady;
     this.runtime = runtime;
-    this.visitorState = runtime.createVisitorState(selectedProfile);
-    console.log(`[Profile] ${selectedProfile}`);
 
-    for (const node of this.corpus.nodes || []) {
-      this.nodesById.set(node.id, node);
+    const [corpusResponse, poiResponse] = await Promise.all([
+      fetch('./corpus/nightwatch_nodes.json'),
+      fetch('./integration/nightwatch_pois.json')
+    ]);
+    if (!corpusResponse.ok) throw new Error(`Corpus load failed: ${corpusResponse.status}`);
+    if (!poiResponse.ok) throw new Error(`POI load failed: ${poiResponse.status}`);
 
-      if (!this.nodesByPoi.has(node.poi)) {
-        this.nodesByPoi.set(node.poi, []);
-      }
-      this.nodesByPoi.get(node.poi).push(node);
+    this.corpus = await corpusResponse.json();
+    this.pois = await poiResponse.json();
+
+    const persisted = !forceNew ? this.loadPersistedState(profile) : null;
+    this.visitorState = persisted
+      ? runtime.hydrateVisitorState(persisted.visitorState)
+      : runtime.createVisitorState(profile);
+
+    if (persisted) {
+      this.poiCooldownUntil = new Map(persisted.poiCooldownUntil || []);
+      this.poiNarrationCounts = new Map(persisted.poiNarrationCounts || []);
+      this.narrationProgress = new Map(persisted.narrationProgress || []);
+      this.resumeCounts = new Map(persisted.resumeCounts || []);
+      this.log = persisted.log || [];
+      window.SAGE_EVENT_LOG = this.log;
+    } else {
+      this.poiCooldownUntil = new Map();
+      this.poiNarrationCounts = new Map();
+      this.narrationProgress = new Map();
+      this.resumeCounts = new Map();
+      this.log = [];
+      window.SAGE_EVENT_LOG = this.log;
     }
 
-    for (const nodes of this.nodesByPoi.values()) {
-      nodes.sort((a, b) => {
-        const levelDiff = (a.level ?? 0) - (b.level ?? 0);
-        if (levelDiff !== 0) return levelDiff;
-        return a.id.localeCompare(b.id, undefined, { numeric: true });
-      });
-    }
+    this.dwell = new runtime.DwellController({
+      orientationMs: MARCO_CONFIG.orientationMs,
+      activationMs: MARCO_CONFIG.activationMs,
+      departureGraceMs: MARCO_CONFIG.departureGraceMs,
+      maxAngularVelocityDegPerSec: MARCO_CONFIG.maxAngularVelocityDegPerSec
+    });
 
     this.ready = true;
-    console.log(
-      `[CorpusTour] loaded ${this.corpus.nodes.length} nodes; Marco recommendation active`
-    );
+    this.record('session_initialized', {
+      profile,
+      guidance_mode: selectedGuidanceMode,
+      config: MARCO_CONFIG,
+      weights: runtime.DEFAULT_WEIGHTS,
+      resumed: !!persisted,
+      poi_coordinate_note: this.pois.coordinate_system?.note || null
+    });
+
     return this;
+  },
+
+  storageKey(profile = selectedProfile) {
+    return `nightwatch-sage-marco-v8:${profile}:${selectedGuidanceMode}`;
+  },
+
+  persist() {
+    if (!this.runtime || !this.visitorState) return;
+    const payload = {
+      visitorState: this.runtime.serializeVisitorState(this.visitorState),
+      poiCooldownUntil: [...this.poiCooldownUntil.entries()],
+      poiNarrationCounts: [...this.poiNarrationCounts.entries()],
+      narrationProgress: [...this.narrationProgress.entries()],
+      resumeCounts: [...this.resumeCounts.entries()],
+      log: this.log.slice(-5000)
+    };
+    localStorage.setItem(this.storageKey(), JSON.stringify(payload));
+  },
+
+  loadPersistedState(profile) {
+    try {
+      const raw = localStorage.getItem(this.storageKey(profile));
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.warn('[Persistence] ignored invalid state', error);
+      return null;
+    }
+  },
+
+  resetSession() {
+    localStorage.removeItem(this.storageKey());
+    location.reload();
   },
 
   record(type, data = {}) {
     const event = this.runtime && this.runtime.makeEvent
-      ? this.runtime.makeEvent(type, data)
-      : {type, timestamp_ms: performance.now(), ...data};
+      ? this.runtime.makeEvent(type, {
+          profile: selectedProfile,
+          guidance_mode: selectedGuidanceMode,
+          ...data
+        })
+      : {schema_version: '1.0', type, timestamp_ms: performance.now(), ...data};
     this.log.push(event);
-    console.log('[Marco recommendation]', event);
+    this.persist();
+    console.log('[SAGE event]', event);
+    return event;
   },
 
-  getNode(id) {
-    return this.nodesById.get(id) || null;
-  },
-
-  getAllNodesForPoi(poi) {
-    return this.nodesByPoi.get(poi) || [];
-  },
-
-  textForNode(node) {
-    if (!node || !node.texts) return '';
-    const variant = node.texts[selectedProfile] || node.texts.general;
-    return variant && variant.text ? variant.text : '';
-  },
-
-  markCompleted(node) {
-    if (!node || this.visitorState.completed.has(node.id)) return;
-    this.runtime.markNarrationCompleted(
-      this.visitorState,
-      node,
-      performance.now() / 1000
-    );
-    this.record('narration_completed', {
+  exportLog() {
+    const payload = {
+      exported_at: new Date().toISOString(),
       profile: selectedProfile,
-      node_id: node.id,
-      poi: node.poi,
-      category: node.category
-    });
+      guidance_mode: selectedGuidanceMode,
+      config: MARCO_CONFIG,
+      weights: this.runtime?.DEFAULT_WEIGHTS || null,
+      visitor_state: this.runtime && this.visitorState
+        ? this.runtime.serializeVisitorState(this.visitorState)
+        : null,
+      events: this.log
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nightwatch_sage_log_${selectedProfile}_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   },
 
-  // Estimate recommendation features from the current headset direction and
-  // the existing SAGE hotspot position. This avoids using unvalidated POI JSON.
-  spatialForSupportedPois() {
-    const spatial = {};
+  shapeBounds(shape) {
+    if (!shape) return null;
+    if (shape.type === 'rect') {
+      return {x0: shape.x, y0: shape.y, x1: shape.x + shape.width, y1: shape.y + shape.height};
+    }
+    if (shape.type === 'ellipse') {
+      return {x0: shape.cx - shape.rx, y0: shape.cy - shape.ry, x1: shape.cx + shape.rx, y1: shape.cy + shape.ry};
+    }
+    if (shape.type === 'polygon') {
+      const xs = shape.points.map(p => p[0]);
+      const ys = shape.points.map(p => p[1]);
+      return {x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys)};
+    }
+    return null;
+  },
 
-    for (const [poi, domId] of Object.entries(SUPPORTED_POIS)) {
-      const el = document.querySelector('#' + domId);
+  shapeCenter(shape) {
+    const b = this.shapeBounds(shape);
+    return b ? {x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2} : null;
+  },
 
-      if (!el || !mainCamera) {
-        spatial[poi] = {
-          zoomValid: false,
-          angularSizeValid: false,
-          guideable: false
-        };
-        continue;
-      }
+  shrinkBounds(bounds, scale) {
+    const cx = (bounds.x0 + bounds.x1) / 2;
+    const cy = (bounds.y0 + bounds.y1) / 2;
 
-      const targetWorld = new THREE.Vector3();
-      const cameraWorld = new THREE.Vector3();
-      const cameraQuat = new THREE.Quaternion();
+    // Guidance should be a compact illuminated patch, not the entire character
+    // or a visibly huge Deep-Zoom block. The ROI used for activation remains
+    // Marco's full shape; only the visual cue is capped to this smaller patch.
+    const targetW = THREE.MathUtils.clamp(
+      (bounds.x1 - bounds.x0) * scale,
+      MARCO_CONFIG.cueMinWidthNorm,
+      MARCO_CONFIG.cueMaxWidthNorm
+    );
+    const targetH = THREE.MathUtils.clamp(
+      (bounds.y1 - bounds.y0) * scale,
+      MARCO_CONFIG.cueMinHeightNorm,
+      MARCO_CONFIG.cueMaxHeightNorm
+    );
+    const hw = targetW / 2;
+    const hh = targetH / 2;
 
-      el.object3D.getWorldPosition(targetWorld);
-      mainCamera.object3D.getWorldPosition(cameraWorld);
-      mainCamera.object3D.getWorldQuaternion(cameraQuat);
+    return {
+      x0: THREE.MathUtils.clamp(cx - hw, 0, 1),
+      y0: THREE.MathUtils.clamp(cy - hh, 0, 1),
+      x1: THREE.MathUtils.clamp(cx + hw, 0, 1),
+      y1: THREE.MathUtils.clamp(cy + hh, 0, 1)
+    };
+  },
 
-      const forward = new THREE.Vector3(0, 0, -1)
-        .applyQuaternion(cameraQuat)
-        .normalize();
-      const toward = targetWorld.clone().sub(cameraWorld).normalize();
-
-      const angle = THREE.MathUtils.radToDeg(
-        Math.acos(
-          THREE.MathUtils.clamp(forward.dot(toward), -1, 1)
-        )
-      );
-
-      spatial[poi] = {
-        zoomValid: true,
-        angularSizeValid: true,
-        currentlyIntersected: false,
-        inCooldown: false,
-        guideable: true,
-        currentVisibility: angle <= 32 ? 1 : angle <= 55 ? 0.55 : 0.20,
-        spatialConvenience: THREE.MathUtils.clamp(1 - angle / 90, 0, 1),
-        targetEccentricityDeg: angle
+  expandShape(shape, amount = MARCO_CONFIG.outerRoiExpansion) {
+    if (!shape) return null;
+    if (shape.type === 'ellipse') {
+      return {...shape, rx: Math.min(0.5, shape.rx * (1 + amount)), ry: Math.min(0.5, shape.ry * (1 + amount))};
+    }
+    if (shape.type === 'rect') {
+      const dx = shape.width * amount / 2;
+      const dy = shape.height * amount / 2;
+      return {
+        ...shape,
+        x: Math.max(0, shape.x - dx),
+        y: Math.max(0, shape.y - dy),
+        width: Math.min(1, shape.width + 2 * dx),
+        height: Math.min(1, shape.height + 2 * dy)
       };
     }
-
-    // Explicitly disable every corpus POI that is not currently represented
-    // by a validated SAGE hotspot.
-    for (const poi of Object.keys(this.corpus.pois || {})) {
-      if (!(poi in spatial)) {
-        spatial[poi] = {
-          zoomValid: false,
-          angularSizeValid: false,
-          guideable: false
-        };
-      }
+    if (shape.type === 'polygon') {
+      const c = this.shapeCenter(shape);
+      return {
+        ...shape,
+        points: shape.points.map(([x, y]) => [
+          THREE.MathUtils.clamp(c.x + (x - c.x) * (1 + amount), 0, 1),
+          THREE.MathUtils.clamp(c.y + (y - c.y) * (1 + amount), 0, 1)
+        ])
+      };
     }
+    return shape;
+  },
+
+  confidenceGuideable(shape) {
+    if (!shape) return false;
+    const confidence = shape.confidence || '';
+    if (confidence === 'registered_semantic') return true;
+    if (confidence === 'provisional_visual') return MARCO_CONFIG.allowProvisionalVisual;
+    if (confidence === 'requires_conservation_registration') return MARCO_CONFIG.allowConservationRegistrationPois;
+    if (confidence.startsWith('conceptual')) return MARCO_CONFIG.allowConceptualPois;
+    return false;
+  },
+
+  normalizedToWorld(x, y) {
+    const local = new THREE.Vector3(
+      (x - 0.5) * WORLD_WIDTH,
+      (0.5 - y) * WORLD_HEIGHT,
+      0
+    );
+    paintingRoot.object3D.localToWorld(local);
+    return local;
+  },
+
+  angularMetrics(poiId) {
+    const shape = this.pois?.shapes?.[poiId];
+    const bounds = this.shapeBounds(shape);
+    const center = this.shapeCenter(shape);
+    if (!shape || !bounds || !center || !mainCamera) {
+      return {eccentricity: 180, angularSize: 0, visibility: 0, convenience: 0};
+    }
+
+    const targetWorld = this.normalizedToWorld(center.x, center.y);
+    const cameraPos = new THREE.Vector3();
+    const cameraQuat = new THREE.Quaternion();
+    mainCamera.object3D.getWorldPosition(cameraPos);
+    mainCamera.object3D.getWorldQuaternion(cameraQuat);
+
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(cameraQuat).normalize();
+    const toTarget = targetWorld.clone().sub(cameraPos);
+    const distance = Math.max(0.001, toTarget.length());
+    toTarget.normalize();
+
+    const eccentricity = THREE.MathUtils.radToDeg(
+      Math.acos(THREE.MathUtils.clamp(forward.dot(toTarget), -1, 1))
+    );
+
+    const worldW = (bounds.x1 - bounds.x0) * WORLD_WIDTH * paintingRoot.object3D.scale.x;
+    const worldH = (bounds.y1 - bounds.y0) * WORLD_HEIGHT * paintingRoot.object3D.scale.y;
+    const characteristic = Math.max(worldW, worldH);
+    const angularSize = THREE.MathUtils.radToDeg(2 * Math.atan2(characteristic / 2, distance));
+
+    const visibility = eccentricity <= 28 ? 1 : eccentricity <= 45 ? 0.65 : eccentricity <= MARCO_CONFIG.guideableAngleDeg ? 0.30 : 0;
+    const convenience = THREE.MathUtils.clamp(1 - eccentricity / MARCO_CONFIG.guideableAngleDeg, 0, 1);
+
+    return {eccentricity, angularSize, visibility, convenience};
+  },
+
+  currentIntersectedPoi(poiId) {
+    const shape = this.pois?.shapes?.[poiId];
+    return !!(shape && this.lastUv && this.runtime.pointInShape(this.lastUv.x, this.lastUv.y, shape));
+  },
+
+  poiInCooldown(poiId, nowMs = performance.now()) {
+    return (this.poiCooldownUntil.get(poiId) || 0) > Date.now();
+  },
+
+  nodeCountReached(poiId) {
+    return (this.poiNarrationCounts.get(poiId) || 0) >= MARCO_CONFIG.maxNarrationsPerPoi;
+  },
+
+  buildSpatialState() {
+    const spatial = {};
+    const shapes = this.pois?.shapes || {};
+    const now = performance.now();
+
+    Object.entries(shapes).forEach(([poiId, shape]) => {
+      const m = this.angularMetrics(poiId);
+      const semanticallyUseful =
+        !['whole', 'canvas'].includes(poiId) &&
+        shape.confidence !== 'conceptual_missing_area';
+
+      const guideable =
+        semanticallyUseful &&
+        this.confidenceGuideable(shape) &&
+        !this.nodeCountReached(poiId) &&
+        m.eccentricity <= MARCO_CONFIG.guideableAngleDeg;
+
+      spatial[poiId] = {
+        zoomValid: guideable,
+        angularSizeValid: m.angularSize >= MARCO_CONFIG.minimumAngularSizeDeg,
+        currentlyIntersected: this.currentIntersectedPoi(poiId),
+        inCooldown: this.poiInCooldown(poiId, now),
+        guideable,
+        currentVisibility: m.visibility,
+        spatialConvenience: m.convenience,
+        targetEccentricityDeg: m.eccentricity,
+        angularSizeDeg: m.angularSize,
+        confidence: shape.confidence
+      };
+    });
 
     return spatial;
   },
 
+  historyRelevance(node) {
+    const recent = this.visitorState?.recentNodes || [];
+    if (!recent.length) return 0.25;
+
+    const recentNodes = recent
+      .map(id => this.corpus.nodes.find(n => n.id === id))
+      .filter(Boolean);
+
+    const latest = recentNodes[0];
+    if (!latest) return 0.25;
+
+    const direct =
+      (latest.unlocks || []).includes(node.id) ||
+      (node.requires_all || []).includes(latest.id) ||
+      (node.requires_any || []).includes(latest.id);
+    if (direct) return 1.0;
+
+    const anyLinked = recentNodes.some(r =>
+      (r.unlocks || []).includes(node.id) ||
+      (node.requires_all || []).includes(r.id) ||
+      (node.requires_any || []).includes(r.id)
+    );
+    if (anyLinked) return 0.75;
+    if (latest.category === node.category) return 0.45;
+    return 0.20;
+  },
+
+  guidanceFatigue(nowMs = performance.now()) {
+    const lastSec = this.visitorState?.lastGuidanceTime;
+    if (!Number.isFinite(lastSec)) return 0;
+    const elapsed = Date.now() / 1000 - lastSec;
+    return THREE.MathUtils.clamp(1 - elapsed / 30, 0, 1);
+  },
+
   featureProvider(node, poiSpatial) {
     return {
+      historyRelevance: this.historyRelevance(node),
       currentVisibility: poiSpatial.currentVisibility ?? 0,
       spatialConvenience: poiSpatial.spatialConvenience ?? 0,
-      guidanceFatigue: 0
+      guidanceFatigue: this.guidanceFatigue()
     };
   },
 
-  recommendNextPoi() {
-    const spatial = this.spatialForSupportedPois();
+  async recommendNext() {
+    if (!this.ready) await this.init();
+    if (this.activeRecommendation || !['IDLE', 'FREE'].includes(TourEngine.state)) return null;
 
-    // Ensure recommendation is allowed after a previous narration block.
-    this.visitorState.activeNode = null;
-    this.visitorState.narrationState = 'idle';
-
-    // Recommend among unvisited spatial POIs only.
-    // Multiple narrative nodes may share a POI, but SAGE guides to that region
-    // only once during this session.
-    const unvisitedNodes = this.corpus.nodes.filter(
-      node => !this.visitedPois.has(node.poi)
-    );
-
+    const spatial = this.buildSpatialState();
     const result = this.runtime.selectRecommendation(
-      unvisitedNodes,
+      this.corpus.nodes,
       this.visitorState,
       spatial,
       (node, poiSpatial) => this.featureProvider(node, poiSpatial)
@@ -873,54 +1066,324 @@ const CorpusTour = {
       candidates: result.candidates.map(c => ({
         node_id: c.node.id,
         poi: c.node.poi,
-        score: c.score
+        level: c.node.level,
+        category: c.node.category,
+        score: c.score,
+        features: c.features,
+        contributions: c.contributions,
+        spatial: spatial[c.node.poi]
       }))
     });
 
-    if (!result.selected) return null;
+    if (!result.selected) {
+      this.record('recommendation_none', {});
+      TourEngine.finishTour();
+      return null;
+    }
 
     const selected = result.selected;
-    const poi = selected.node.poi;
-    const dom = SUPPORTED_POIS[poi];
-    if (!dom) return null;
+    const poiId = selected.node.poi;
+    const metrics = spatial[poiId];
 
-    // Up to two narrations for the recommended POI:
-    // selected node first, then the next highest-scoring eligible node
-    // at the same POI (if one exists).
-    const samePoiCandidates = result.candidates
-      .filter(c => c.node.poi === poi)
-      .map(c => c.node);
-
-    const nodes = [
-      selected.node,
-      ...samePoiCandidates.filter(n => n.id !== selected.node.id)
-    ].slice(0, 2);
+    this.activeRecommendation = {
+      node: selected.node,
+      poi: poiId,
+      score: selected.score,
+      contributions: selected.contributions,
+      features: selected.features,
+      onsetMs: performance.now(),
+      eccentricityDeg: metrics?.targetEccentricityDeg ?? null,
+      angularSizeDeg: metrics?.angularSizeDeg ?? null
+    };
 
     this.visitorState.activeNode = selected.node.id;
-    this.visitorState.lastGuidanceTime = performance.now() / 1000;
+    this.visitorState.lastGuidanceTime = Date.now() / 1000;
+    this.visitorState.narrationState = 'idle';
+    this.dwell.reset();
+    this.roiInside = {outer: false, inner: false};
+
+    const progress = this.narrationProgress.get(selected.node.id);
+    const preload = new Audio(`audio/${selectedProfile}/${selected.node.id}.mp3`);
+    preload.preload = 'auto';
+    if (progress?.currentTime) preload.currentTime = progress.currentTime;
+    preload.load();
 
     this.record('recommendation_selected', {
-      profile: selectedProfile,
       node_id: selected.node.id,
-      poi,
-      dom_target: dom,
+      poi: poiId,
       score: selected.score,
-      target_eccentricity_deg: spatial[poi]?.targetEccentricityDeg ?? null,
-      narration_nodes: nodes.map(n => n.id)
+      features: selected.features,
+      contributions: selected.contributions,
+      target_eccentricity_deg: this.activeRecommendation.eccentricityDeg,
+      roi_angular_size_deg: this.activeRecommendation.angularSizeDeg,
+      poi_confidence: this.pois.shapes[poiId]?.confidence
     });
 
-    return {
-      poi,
-      dom,
-      selectedNode: selected.node,
-      nodes,
-      score: selected.score
-    };
+    await TourEngine.startCue(poiId);
+
+    this.record(selectedGuidanceMode === 'baseline' ? 'latent_guidance_onset' : 'guidance_onset', {
+      node_id: selected.node.id,
+      poi: poiId,
+      target_eccentricity_deg: this.activeRecommendation.eccentricityDeg,
+      roi_angular_size_deg: this.activeRecommendation.angularSizeDeg
+    });
+
+    clearTimeout(this.guidanceTimer);
+    this.guidanceTimer = setTimeout(() => this.guidanceTimeout(), MARCO_CONFIG.guidanceTimeoutMs);
+    this.persist();
+    return this.activeRecommendation;
+  },
+
+  guidanceTimeout() {
+    const rec = this.activeRecommendation;
+    if (!rec || !['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) return;
+
+    QuestCue.hideAll();
+    this.visitorState.dismissed.add(rec.node.id);
+    this.startPoiCooldown(rec.poi, 'guidance_timeout');
+
+    this.record('guidance_timeout', {
+      node_id: rec.node.id,
+      poi: rec.poi,
+      elapsed_ms: performance.now() - rec.onsetMs
+    });
+    this.record('dismissal', {node_id: rec.node.id, poi: rec.poi, reason: 'timeout'});
+
+    this.activeRecommendation = null;
+    this.visitorState.activeNode = null;
+    this.visitorState.narrationState = 'idle';
+    this.dwell.reset();
+    TourEngine.setState(State.FREE);
+    this.startGlobalRest('guidance_timeout');
+  },
+
+  onHeadSample({nowMs, uv, angularVelocityDegPerSec, headPose}) {
+    if (!this.ready) return;
+    this.lastUv = uv;
+    this.angularVelocity = angularVelocityDegPerSec;
+    this.lastHeadPose = headPose;
+
+    if (nowMs - this.lastHeadLogMs >= 250 && ['CUE', 'WAIT_GAZE', 'STORY'].includes(TourEngine.state)) {
+      this.lastHeadLogMs = nowMs;
+      this.record('head_pose_sample', {
+        head_pose: headPose,
+        angular_velocity_deg_s: angularVelocityDegPerSec,
+        painting_uv: uv,
+        zoom_scale: paintingRoot?.object3D?.scale?.x ?? 1
+      });
+    }
+
+    if (this.activeRecommendation && ['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) {
+      this.updateDwell(nowMs, uv, angularVelocityDegPerSec);
+    }
+
+    if (this.activeRecommendation && TourEngine.state === 'STORY') {
+      this.monitorNarrationDeparture(nowMs, uv);
+    }
+  },
+
+  updateDwell(nowMs, uv, angularVelocityDegPerSec) {
+    const rec = this.activeRecommendation;
+    const shape = this.pois?.shapes?.[rec.poi];
+    if (!shape) return;
+
+    const outer = this.expandShape(shape);
+    const insideInner = !!(uv && this.runtime.pointInShape(uv.x, uv.y, shape));
+    const insideOuter = !!(uv && this.runtime.pointInShape(uv.x, uv.y, outer));
+
+    if (insideOuter !== this.roiInside.outer) {
+      this.record(insideOuter ? 'roi_outer_enter' : 'roi_outer_exit', {
+        node_id: rec.node.id, poi: rec.poi, painting_uv: uv
+      });
+      this.roiInside.outer = insideOuter;
+    }
+    if (insideInner !== this.roiInside.inner) {
+      this.record(insideInner ? 'roi_inner_enter' : 'roi_inner_exit', {
+        node_id: rec.node.id, poi: rec.poi, painting_uv: uv
+      });
+      this.roiInside.inner = insideInner;
+    }
+
+    const result = this.dwell.update({
+      nowMs,
+      poi: rec.poi,
+      insideOuter,
+      insideInner,
+      angularVelocityDegPerSec
+    });
+
+    result.events.forEach(event => {
+      this.record(event.type, {
+        node_id: rec.node.id,
+        poi: rec.poi,
+        controller_at_ms: event.at,
+        from_state: event.fromState || null,
+        angular_velocity_deg_s: angularVelocityDegPerSec
+      });
+
+      if (event.type === 'orientation_confirmed') {
+        const acquisitionMs = nowMs - rec.onsetMs;
+        this.record('target_acquired', {
+          node_id: rec.node.id,
+          poi: rec.poi,
+          acquisition_ms: acquisitionMs,
+          target_eccentricity_deg: rec.eccentricityDeg
+        });
+
+        if (MARCO_CONFIG.cueEndsAt === 'orientation') {
+          QuestCue.fadeOut(240);
+        }
+      }
+
+      if (event.type === 'activation_started') {
+        this.visitorState.narrationState = 'activating';
+      }
+
+      if (event.type === 'dwell_cancelled') {
+        this.visitorState.narrationState = 'idle';
+        this.record('activation_cancelled', {
+          node_id: rec.node.id,
+          poi: rec.poi,
+          from_state: event.fromState || null
+        });
+      }
+
+      if (event.type === 'activation_completed') {
+        clearTimeout(this.guidanceTimer);
+        QuestCue.hideAll();
+        this.visitorState.started.add(rec.node.id);
+        this.visitorState.narrationState = 'playing';
+        TourEngine.openRecommendedTarget(rec.poi, rec.node);
+      }
+    });
+  },
+
+  startPoiCooldown(poi, reason = 'narration') {
+    const until = Date.now() + MARCO_CONFIG.samePoiCooldownMs;
+    this.poiCooldownUntil.set(poi, until);
+    this.record('cooldown_started', {poi, reason, until_ms: until});
+
+    setTimeout(() => {
+      if ((this.poiCooldownUntil.get(poi) || 0) <= Date.now()) {
+        this.record('cooldown_ended', {poi, reason});
+      }
+    }, MARCO_CONFIG.samePoiCooldownMs + 20);
+  },
+
+  startGlobalRest(reason = 'narration') {
+    clearTimeout(this.restTimer);
+    this.record('global_guidance_rest_started', {
+      reason,
+      duration_ms: MARCO_CONFIG.globalGuidanceRestMs
+    });
+
+    this.restTimer = setTimeout(() => {
+      this.record('global_guidance_rest_ended', {reason});
+      if (TourEngine.state === State.FREE || TourEngine.state === State.IDLE) {
+        TourEngine.recommendAndCue().catch(console.error);
+      }
+    }, MARCO_CONFIG.globalGuidanceRestMs);
+  },
+
+  eligibleIdsNow() {
+    const spatial = this.buildSpatialState();
+    const copy = {...this.visitorState, activeNode: null, narrationState: 'idle'};
+    try {
+      // Use selection result to expose exactly what runtime eligibility sees.
+      return new Set(this.runtime.selectRecommendation(
+        this.corpus.nodes,
+        copy,
+        spatial,
+        (node, poiSpatial) => this.featureProvider(node, poiSpatial)
+      ).candidates.map(c => c.node.id));
+    } catch {
+      return new Set();
+    }
+  },
+
+  markCompletionThreshold(node) {
+    if (this.visitorState.completed.has(node.id)) return;
+    const before = this.eligibleIdsNow();
+    this.runtime.markNarrationCompleted(this.visitorState, node, performance.now() / 1000);
+    const after = this.eligibleIdsNow();
+    const newlyEligible = [...after].filter(id => !before.has(id));
+
+    const count = (this.poiNarrationCounts.get(node.poi) || 0) + 1;
+    this.poiNarrationCounts.set(node.poi, count);
+
+    this.record('narration_completion_threshold', {
+      node_id: node.id,
+      poi: node.poi,
+      fraction: MARCO_CONFIG.narrationCompletionFraction,
+      poi_narration_count: count
+    });
+
+    if (newlyEligible.length) {
+      this.record('prerequisite_state_changed', {
+        completed_node_id: node.id,
+        newly_eligible_node_ids: newlyEligible
+      });
+    }
+
+    this.persist();
+  },
+
+  monitorNarrationDeparture(nowMs, uv) {
+    const rec = this.activeRecommendation;
+    if (!rec || !NarrationManager.isPlaying()) return;
+
+    const shape = this.pois?.shapes?.[rec.poi];
+    const outer = this.expandShape(shape);
+    const insideOuter = !!(uv && outer && this.runtime.pointInShape(uv.x, uv.y, outer));
+
+    if (insideOuter) {
+      this.narrationDepartureStartedMs = null;
+      return;
+    }
+
+    if (this.narrationDepartureStartedMs === null) {
+      this.narrationDepartureStartedMs = nowMs;
+      return;
+    }
+
+    if (nowMs - this.narrationDepartureStartedMs >= MARCO_CONFIG.sustainedNarrationDepartureMs) {
+      this.narrationDepartureStartedMs = null;
+      NarrationManager.interruptForDeparture();
+    }
+  },
+
+  finishNarration(node, {interrupted = false, ended = false} = {}) {
+    const rec = this.activeRecommendation;
+
+    if (!interrupted && ended && !this.visitorState.completed.has(node.id)) {
+      this.markCompletionThreshold(node);
+    }
+
+    this.startPoiCooldown(node.poi, interrupted ? 'narration_interrupted' : 'narration_completed');
+
+    this.record(interrupted ? 'narration_interrupted' : 'narration_finished', {
+      node_id: node.id,
+      poi: node.poi,
+      completed: this.visitorState.completed.has(node.id)
+    });
+
+    this.activeRecommendation = null;
+    this.visitorState.activeNode = null;
+    this.visitorState.narrationState = interrupted ? 'paused' : 'idle';
+    this.dwell.reset();
+    this.persist();
+
+    TourEngine.returnFromTarget(false, () => this.startGlobalRest(interrupted ? 'interruption' : 'narration'));
+  },
+
+  narrationText(node) {
+    const variant = node.texts?.[selectedProfile] || node.texts?.general;
+    return variant?.text || '';
   }
 };
 
-window.CorpusTour = CorpusTour;
-window.SAGE_EVENT_LOG = CorpusTour.log;
+window.SAGEIntegration = SAGEIntegration;
+window.SAGE_EVENT_LOG = SAGEIntegration.log;
 
 const REGION = {
   captain:        { cueW: 0.52, cueH: 0.78, cueOffsetX: 0.00, cueOffsetY: 0.02, focusW: 0.56, focusH: 0.90 },
@@ -946,7 +1409,6 @@ const State = Object.freeze({
 });
 
 let currentLanguage = 'en';
-let selectedProfile = 'general';
 let pageReady = false;
 let gazeTimer = null;
 let speechUtterance = null;
@@ -1136,95 +1598,143 @@ function setBlurOpacity(target, duration = 450) {
 }
 
 const QuestCue = {
-  activeId: null,
-  token: 0,
+  activePoi: null,
   group: null,
+  token: 0,
 
   hideAll() {
     this.token += 1;
-    this.activeId = null;
+    this.activePoi = null;
     if (this.group && this.group.parentNode) this.group.parentNode.removeChild(this.group);
     this.group = null;
-    document.querySelectorAll('[id$="Halo"]').forEach(el => el.setAttribute('visible', false));
   },
 
-  async show(id) {
+  fadeOut(duration = 240) {
+    if (!this.group) return;
+    const group = this.group;
+    const token = this.token;
+    const planes = [...group.querySelectorAll('a-plane')];
+
+    planes.forEach((plane, index) => {
+      plane.removeAttribute(`animation__sagepulse${index}`);
+      plane.setAttribute(`animation__sagefade${index}`, {
+        property: 'material.opacity',
+        to: 0,
+        dur: duration,
+        easing: 'easeOutQuad'
+      });
+    });
+
+    setTimeout(() => {
+      if (token === this.token && group === this.group) this.hideAll();
+    }, duration + 30);
+  },
+
+  async show(poiId) {
     this.hideAll();
+    if (selectedGuidanceMode === 'baseline') return;
+
+    const shape = SAGEIntegration.pois?.shapes?.[poiId];
+    const fullBounds = SAGEIntegration.shapeBounds(shape);
+    if (!fullBounds) return;
+
+    const bounds = SAGEIntegration.shrinkBounds(fullBounds, MARCO_CONFIG.cueBoundsScale);
     const localToken = ++this.token;
-    this.activeId = id;
-    const cfg = REGION[id];
-    const range = tileRangeFor(id, cfg.cueW, cfg.cueH, cfg.cueOffsetX || 0, cfg.cueOffsetY || 0);
-    const dims = levelDimensions(MAX_LEVEL);
-    const center = range.center;
-    const centerUv = {
-      x: center.x / WORLD_WIDTH + 0.5,
-      y: 0.5 - center.y / WORLD_HEIGHT
-    };
-    const radiusUv = {
-      x: cfg.cueW / WORLD_WIDTH / 2,
-      y: cfg.cueH / WORLD_HEIGHT / 2
-    };
+    this.activePoi = poiId;
 
     const group = document.createElement('a-entity');
-    group.dataset.target = id;
+    group.dataset.poi = poiId;
     cueLayer.appendChild(group);
     this.group = group;
 
-    const tiles = [];
-    for (let row = range.startRow; row <= range.endRow; row++) {
-      for (let col = range.startCol; col <= range.endCol; col++) {
-        const geometry = tileGeometry(MAX_LEVEL, col, row);
-        if (!geometry) continue;
-        tiles.push({col, row, geometry, url: `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`});
+    const leftPx = bounds.x0 * IMAGE_WIDTH;
+    const rightPx = bounds.x1 * IMAGE_WIDTH;
+    const topPx = bounds.y0 * IMAGE_HEIGHT;
+    const bottomPx = bounds.y1 * IMAGE_HEIGHT;
+
+    const startCol = Math.floor(leftPx / TILE_SIZE);
+    const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
+    const startRow = Math.floor(topPx / TILE_SIZE);
+    const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+
+    const patches = [];
+
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        const g = tileGeometry(MAX_LEVEL, col, row);
+        if (!g) continue;
+
+        const ix0 = Math.max(leftPx, g.fileX);
+        const iy0 = Math.max(topPx, g.fileY);
+        const ix1 = Math.min(rightPx, g.fileX + g.fileW);
+        const iy1 = Math.min(bottomPx, g.fileY + g.fileH);
+        if (ix1 <= ix0 || iy1 <= iy0) continue;
+
+        const url = `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
+        patches.push({g, url, ix0, iy0, ix1, iy1});
       }
     }
 
-    const available = [];
-    const results = await Promise.all(tiles.map(t => preloadImage(t.url)));
-    tiles.forEach((t, i) => { if (results[i].ok) available.push(t); });
-    if (localToken !== this.token || this.activeId !== id) return;
+    const loaded = await Promise.all(patches.map(p => preloadImage(p.url)));
+    if (localToken !== this.token || this.activePoi !== poiId) return;
 
-    const planes = [];
-    for (const tile of available) {
-      const g = tile.geometry;
+    const available = patches.filter((p, i) => loaded[i].ok);
+
+    for (let index = 0; index < available.length; index++) {
+      const p = available[index];
+      const {g} = p;
+
+      const patchWpx = p.ix1 - p.ix0;
+      const patchHpx = p.iy1 - p.iy0;
+      const worldW = patchWpx / IMAGE_WIDTH * WORLD_WIDTH;
+      const worldH = patchHpx / IMAGE_HEIGHT * WORLD_HEIGHT;
+      const centerX = ((p.ix0 + patchWpx / 2) / IMAGE_WIDTH - 0.5) * WORLD_WIDTH;
+      const centerY = (0.5 - (p.iy0 + patchHpx / 2) / IMAGE_HEIGHT) * WORLD_HEIGHT;
+
+      const uvMinX = (p.ix0 - g.fileX) / g.fileW;
+      const uvMaxX = (p.ix1 - g.fileX) / g.fileW;
+      const uvMinY = (p.iy0 - g.fileY) / g.fileH;
+      const uvMaxY = (p.iy1 - g.fileY) / g.fileH;
+
       const plane = document.createElement('a-plane');
-      plane.setAttribute('width', g.worldW);
-      plane.setAttribute('height', g.worldH);
-      plane.setAttribute('position', `${g.centerX} ${g.centerY} 0.032`);
-      const u0 = g.fileX / dims.width;
-      const v0 = g.fileY / dims.height;
-      const u1 = (g.fileX + g.fileW) / dims.width;
-      const v1 = (g.fileY + g.fileH) / dims.height;
+      plane.setAttribute('width', worldW);
+      plane.setAttribute('height', worldH);
+      plane.setAttribute('position', `${centerX} ${centerY} 0.032`);
       plane.setAttribute('render-layer', 'layer: 1');
       plane.setAttribute('material', {
         shader: 'tile-glow',
-        src: tile.url,
-        opacity: SAGE_CUE_SPEC.opacityMin,
+        src: p.url,
+        opacity: MARCO_CONFIG.cueOpacityMin,
+        uvMin: `${uvMinX} ${uvMinY}`,
+        uvMax: `${uvMaxX} ${uvMaxY}`,
+        lift: MARCO_CONFIG.cueLift,
         transparent: true,
         depthTest: false,
         depthWrite: false,
         side: 'double'
       });
+
       group.appendChild(plane);
       plane.addEventListener('object3dset', () => {
         plane.object3D.traverse(object => object.layers.set(1));
       });
-      planes.push(plane);
-    }
 
-    // Keep the museum-style cue active continuously until gaze confirms
-    // the target. QuestCue.hideAll() removes this group as soon as the
-    // interaction is locked, which stops the animation automatically.
-    planes.forEach((plane, index) => {
-      plane.setAttribute(`animation__continuousglow${index}`, {
+      plane.setAttribute(`animation__sagepulse${index}`, {
         property: 'material.opacity',
-        from: SAGE_CUE_SPEC.opacityMin,
-        to: SAGE_CUE_SPEC.opacityMax,
-        dur: SAGE_CUE_SPEC.pulseDurationMs,
+        from: MARCO_CONFIG.cueOpacityMin,
+        to: MARCO_CONFIG.cueOpacityMax,
+        dur: MARCO_CONFIG.cuePulseMs,
         easing: 'easeInOutSine',
         dir: 'alternate',
         loop: true
       });
+    }
+
+    SAGEIntegration.record('cue_rendered', {
+      poi: poiId,
+      patch_count: available.length,
+      cue_bounds: bounds,
+      cue_bounds_scale: MARCO_CONFIG.cueBoundsScale
     });
   }
 };
@@ -1275,6 +1785,98 @@ async function loadFocusTiles(id) {
   console.log(`[Focus tiles] ${id}: ${planes.length}/${tiles.length} loaded`);
 }
 
+
+function normalizedBoundsWithPadding(poiId, paddingFraction = 0.08) {
+  const shape = SAGEIntegration.pois?.shapes?.[poiId];
+  const b = SAGEIntegration.shapeBounds(shape);
+  if (!b) return null;
+  const w = b.x1 - b.x0;
+  const h = b.y1 - b.y0;
+  return {
+    x0: THREE.MathUtils.clamp(b.x0 - w * paddingFraction, 0, 1),
+    y0: THREE.MathUtils.clamp(b.y0 - h * paddingFraction, 0, 1),
+    x1: THREE.MathUtils.clamp(b.x1 + w * paddingFraction, 0, 1),
+    y1: THREE.MathUtils.clamp(b.y1 + h * paddingFraction, 0, 1)
+  };
+}
+
+async function loadFocusTilesForPoi(poiId) {
+  clearFocusTiles();
+  const bounds = normalizedBoundsWithPadding(poiId, 0.08);
+  if (!bounds) return;
+
+  const leftPx = bounds.x0 * IMAGE_WIDTH;
+  const rightPx = bounds.x1 * IMAGE_WIDTH;
+  const topPx = bounds.y0 * IMAGE_HEIGHT;
+  const bottomPx = bounds.y1 * IMAGE_HEIGHT;
+
+  const startCol = Math.floor(leftPx / TILE_SIZE);
+  const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
+  const startRow = Math.floor(topPx / TILE_SIZE);
+  const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+
+  const tiles = [];
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      const geometry = tileGeometry(MAX_LEVEL, col, row);
+      if (geometry) {
+        tiles.push({col, row, geometry, url: `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`});
+      }
+    }
+  }
+
+  const results = await Promise.all(tiles.map(t => preloadImage(t.url)));
+  const available = tiles.filter((t, i) => results[i].ok);
+  const group = document.createElement('a-entity');
+  group.dataset.poi = poiId;
+  focusLayer.appendChild(group);
+
+  const promises = available.map(tile => new Promise(resolve => {
+    const plane = document.createElement('a-image');
+    plane.setAttribute('src', tile.url);
+    plane.setAttribute('width', tile.geometry.worldW);
+    plane.setAttribute('height', tile.geometry.worldH);
+    plane.setAttribute('position', `${tile.geometry.centerX} ${tile.geometry.centerY} 0.018`);
+    plane.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false; depthWrite: false; side: double; toneMapped: false');
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(plane); } };
+    plane.addEventListener('materialtextureloaded', finish, {once:true});
+    plane.addEventListener('loaded', () => setTimeout(finish, 700), {once:true});
+    group.appendChild(plane);
+  }));
+
+  const planes = await Promise.all(promises);
+  planes.forEach((plane, index) =>
+    plane.setAttribute(`animation__focusfade${index}`, 'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad')
+  );
+
+  SAGEIntegration.record('focus_tiles_loaded', {
+    poi: poiId,
+    loaded_count: planes.length,
+    requested_count: tiles.length
+  });
+}
+
+function ensureDynamicPoiAnchor() {
+  let anchor = document.querySelector('#dynamicPoiAnchor');
+  if (!anchor) {
+    anchor = document.createElement('a-entity');
+    anchor.id = 'dynamicPoiAnchor';
+    anchor.setAttribute('position', '0 0 0.04');
+    paintingRoot.appendChild(anchor);
+  }
+  return anchor;
+}
+
+function positionDynamicPoiAnchor(poiId) {
+  const shape = SAGEIntegration.pois?.shapes?.[poiId];
+  const center = SAGEIntegration.shapeCenter(shape);
+  if (!center) return;
+  const anchor = ensureDynamicPoiAnchor();
+  const x = (center.x - 0.5) * WORLD_WIDTH;
+  const y = (0.5 - center.y) * WORLD_HEIGHT;
+  anchor.setAttribute('position', `${x} ${y} 0.04`);
+}
 function refreshVoices() {
   if (!('speechSynthesis' in window)) return;
   voices = window.speechSynthesis.getVoices();
@@ -1334,71 +1936,209 @@ const AUDIO_FILES = {
 
 const narrator = new Audio();
 narrator.preload = 'auto';
-let activeNarrationToken = 0;
 
-function stopNarration() {
-  activeNarrationToken += 1;
-  narrator.pause();
-  narrator.removeAttribute('src');
-  narrator.load();
-  stopSpeech();
-}
+const NarrationManager = {
+  node: null,
+  completionRecorded: false,
+  intentionallyStopping: false,
+  onFinished: null,
 
-function estimatedNarrationMs(text) {
-  const words = String(text || '').trim().split(/\s+/).filter(Boolean).length;
-  return Math.max(4500, words * 430);
-}
+  isPlaying() {
+    return !!(this.node && !narrator.paused && !narrator.ended);
+  },
 
-function playNarration(id, text, onEnd = null, options = {}) {
-  const token = ++activeNarrationToken;
-  narrator.pause();
-  narrator.currentTime = 0;
-  stopSpeech();
+  stop(reason = 'manual_stop') {
+    if (!this.node) return;
+    this.intentionallyStopping = true;
+    const node = this.node;
+    SAGEIntegration.record('audio_stop', {
+      node_id: node.id,
+      poi: node.poi,
+      reason,
+      current_time_s: narrator.currentTime || 0
+    });
+    narrator.pause();
+    narrator.removeAttribute('src');
+    narrator.load();
+    this.node = null;
+    this.completionRecorded = false;
+    this.onFinished = null;
+    this.intentionallyStopping = false;
+  },
 
-  const finish = () => {
-    if (token !== activeNarrationToken) return;
-    if (typeof onEnd === 'function') onEnd();
-  };
+  playNode(node, onFinished = null) {
+    this.stop('replace_audio');
+    this.node = node;
+    this.onFinished = onFinished;
+    this.completionRecorded = SAGEIntegration.visitorState.completed.has(node.id);
+    this.intentionallyStopping = false;
 
-  const file = /^NW\d{3}$/.test(id)
-    ? `audio/${selectedProfile}/${id}.mp3`
-    : AUDIO_FILES[id];
-  if (file) {
+    const file = `audio/${selectedProfile}/${node.id}.mp3`;
+    const saved = SAGEIntegration.narrationProgress.get(node.id);
+    const resumeCount = SAGEIntegration.resumeCounts.get(node.id) || 0;
+
     narrator.src = file;
-    narrator.onended = finish;
-    narrator.onerror = () => {
-      console.error('Audio file failed to load:', file);
-      if (options.isIntro) {
-        showAudioStartOverlay();
-      } else if ('speechSynthesis' in window) {
-        speak(text, finish);
+    narrator.volume = 1.0;
+
+    narrator.onloadedmetadata = () => {
+      if (saved?.currentTime && resumeCount <= 1 && saved.currentTime < narrator.duration * 0.9) {
+        narrator.currentTime = saved.currentTime;
+        SAGEIntegration.record('audio_resume', {
+          node_id: node.id,
+          poi: node.poi,
+          resume_from_s: saved.currentTime,
+          resume_count: resumeCount
+        });
       } else {
-        setTimeout(finish, estimatedNarrationMs(text));
+        SAGEIntegration.record('audio_start', {
+          node_id: node.id,
+          poi: node.poi,
+          duration_s: narrator.duration
+        });
       }
+    };
+
+    narrator.ontimeupdate = () => {
+      if (!this.node || !Number.isFinite(narrator.duration) || narrator.duration <= 0) return;
+      const fraction = narrator.currentTime / narrator.duration;
+
+      SAGEIntegration.narrationProgress.set(node.id, {
+        currentTime: narrator.currentTime,
+        duration: narrator.duration,
+        fraction
+      });
+
+      if (!this.completionRecorded && fraction >= MARCO_CONFIG.narrationCompletionFraction) {
+        this.completionRecorded = true;
+        SAGEIntegration.markCompletionThreshold(node);
+      }
+    };
+
+    narrator.onpause = () => {
+      if (!this.node || this.intentionallyStopping || narrator.ended) return;
+      SAGEIntegration.record('audio_pause', {
+        node_id: node.id,
+        poi: node.poi,
+        current_time_s: narrator.currentTime || 0
+      });
+    };
+
+    narrator.onended = () => {
+      if (!this.node) return;
+      if (!this.completionRecorded) {
+        this.completionRecorded = true;
+        SAGEIntegration.markCompletionThreshold(node);
+      }
+
+      SAGEIntegration.record('audio_completion', {
+        node_id: node.id,
+        poi: node.poi,
+        listened_fraction: 1.0
+      });
+
+      const callback = this.onFinished;
+      this.node = null;
+      this.onFinished = null;
+      if (typeof callback === 'function') callback({interrupted: false, ended: true});
+    };
+
+    narrator.onerror = () => {
+      SAGEIntegration.record('audio_error', {node_id: node.id, poi: node.poi, file});
+      const text = SAGEIntegration.narrationText(node);
+      speak(text, () => {
+        if (!this.completionRecorded) {
+          this.completionRecorded = true;
+          SAGEIntegration.markCompletionThreshold(node);
+        }
+        const callback = this.onFinished;
+        this.node = null;
+        this.onFinished = null;
+        if (typeof callback === 'function') callback({interrupted: false, ended: true});
+      });
     };
 
     const promise = narrator.play();
     if (promise && typeof promise.catch === 'function') {
       promise.catch(error => {
-        console.warn('Audio playback was blocked:', error);
-        if (options.isIntro) {
-          showAudioStartOverlay();
-        } else if ('speechSynthesis' in window) {
-          speak(text, finish);
-        } else {
-          setTimeout(finish, estimatedNarrationMs(text));
-        }
+        SAGEIntegration.record('audio_blocked', {
+          node_id: node.id,
+          poi: node.poi,
+          message: String(error)
+        });
+        const text = SAGEIntegration.narrationText(node);
+        speak(text, () => {
+          if (!this.completionRecorded) {
+            this.completionRecorded = true;
+            SAGEIntegration.markCompletionThreshold(node);
+          }
+          const callback = this.onFinished;
+          this.node = null;
+          this.onFinished = null;
+          if (typeof callback === 'function') callback({interrupted: false, ended: true});
+        });
       });
     }
-    return;
-  }
+  },
 
-  // Temporary fallback while the remaining MP3 files are being added.
-  if ('speechSynthesis' in window) {
-    speak(text, finish);
-  } else {
-    setTimeout(finish, estimatedNarrationMs(text));
+  interruptForDeparture() {
+    if (!this.node || narrator.paused) return;
+    const node = this.node;
+    const currentTime = narrator.currentTime || 0;
+    const resumeCount = (SAGEIntegration.resumeCounts.get(node.id) || 0) + 1;
+    SAGEIntegration.resumeCounts.set(node.id, resumeCount);
+    SAGEIntegration.narrationProgress.set(node.id, {
+      currentTime,
+      duration: narrator.duration || 0,
+      fraction: narrator.duration ? currentTime / narrator.duration : 0
+    });
+
+    // Fade over 450 ms before pausing.
+    const startVolume = narrator.volume;
+    const started = performance.now();
+    const fade = now => {
+      const p = Math.min(1, (now - started) / 450);
+      narrator.volume = startVolume * (1 - p);
+      if (p < 1) {
+        requestAnimationFrame(fade);
+      } else {
+        narrator.pause();
+        narrator.volume = 1.0;
+
+        if (resumeCount > 1 && !SAGEIntegration.visitorState.completed.has(node.id)) {
+          SAGEIntegration.visitorState.dismissed.add(node.id);
+          SAGEIntegration.record('dismissal', {
+            node_id: node.id,
+            poi: node.poi,
+            reason: 'second_interruption'
+          });
+        }
+
+        const callback = this.onFinished;
+        this.node = null;
+        this.onFinished = null;
+        if (typeof callback === 'function') callback({interrupted: true, ended: false});
+      }
+    };
+    requestAnimationFrame(fade);
   }
+};
+
+function stopNarration() {
+  NarrationManager.stop('tour_stop');
+}
+
+function playNarration(id, text, onEnd = null, options = {}) {
+  // Legacy hotspot fallback only. Corpus narration should use NarrationManager.playNode.
+  if (/^NW\d{3}$/.test(id) && SAGEIntegration.corpus) {
+    const node = SAGEIntegration.corpus.nodes.find(n => n.id === id);
+    if (node) {
+      NarrationManager.playNode(node, () => {
+        if (typeof onEnd === 'function') onEnd();
+      });
+      return;
+    }
+  }
+  speak(text, onEnd);
 }
 
 function standardNarration(id) {
@@ -1406,37 +2146,17 @@ function standardNarration(id) {
   return raw.replace(/\n+/g, ' ');
 }
 
-function playCorpusNodeSequence(nodes, onComplete = null) {
-  const sequence = Array.isArray(nodes) ? nodes.slice() : [];
-  let index = 0;
-
-  const playNext = () => {
-    if (index >= sequence.length) {
-      if (typeof onComplete === 'function') onComplete();
-      return;
-    }
-
-    const node = sequence[index++];
-    const text = CorpusTour.textForNode(node);
-
-    console.log(`[Narration sequence] ${node.id} — ${node.title}`);
-
-    playNarration(node.id, text, () => {
-      // Small natural pause between consecutive narrations at the same POI.
-      setTimeout(playNext, 450);
-    });
-  };
-
-  playNext();
-}
-
 function playIntroSequence(onComplete = null) {
-  const nodes = INTRO_NODE_IDS
-    .map(id => CorpusTour.getNode(id))
-    .filter(Boolean);
+  const node = SAGEIntegration.corpus?.nodes?.find(n => n.id === 'NW001');
+  if (!node) {
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
 
-  playCorpusNodeSequence(nodes, () => {
-    nodes.forEach(node => CorpusTour.markCompleted(node));
+  NarrationManager.playNode(node, () => {
+    if (!SAGEIntegration.visitorState.completed.has(node.id)) {
+      SAGEIntegration.markCompletionThreshold(node);
+    }
     if (typeof onComplete === 'function') onComplete();
   });
 }
@@ -1547,7 +2267,6 @@ const TourEngine = {
   state: State.IDLE,
   target: null,
   currentStop: null,
-  pulseToken: 0,
   autoTimer: null,
 
   setState(next) {
@@ -1556,242 +2275,100 @@ const TourEngine = {
   },
 
   async prepare() {
-    await CorpusTour.init();
+    await SAGEIntegration.init({profile: selectedProfile});
+    ensureDynamicPoiAnchor();
   },
 
   async recommendAndCue() {
-    await this.prepare();
-
-    const recommendation = CorpusTour.recommendNextPoi();
-
-    if (!recommendation) {
-      this.finishTour();
-      return;
-    }
-
-    this.currentStop = recommendation;
-    await this.startCue(recommendation.dom);
+    if (!SAGEIntegration.ready) await this.prepare();
+    if (![State.IDLE, State.FREE].includes(this.state)) return;
+    return SAGEIntegration.recommendNext();
   },
 
-  async startCue(id) {
+  async startCue(poiId) {
     clearTimeout(this.autoTimer);
-    this.pulseToken += 1;
-    const token = this.pulseToken;
-
-    this.target = id;
+    this.currentStop = SAGEIntegration.activeRecommendation;
+    this.target = 'dynamicPoiAnchor';
+    positionDynamicPoiAnchor(poiId);
     this.setState(State.CUE);
+
     QuestCue.hideAll();
     setBlurOpacity(0, 150);
 
-    console.log(
-      `[SAGE cue] Marco selected POI=${this.currentStop?.poi}, ` +
-      `nodes=${this.currentStop?.nodes.map(n => n.id).join(', ')}`
-    );
-
-    CorpusTour.record('guidance_onset', {
-      poi: this.currentStop?.poi,
-      dom_target: id,
-      node_ids: this.currentStop?.nodes.map(n => n.id) || []
-    });
-
-    await QuestCue.show(id);
-    if (token !== this.pulseToken) return;
-
+    await QuestCue.show(poiId);
+    if (!SAGEIntegration.activeRecommendation || SAGEIntegration.activeRecommendation.poi !== poiId) return;
     this.setState(State.WAIT_GAZE);
   },
 
-  onCandidateEntered(id) {
-    if (
-      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
-      id === this.target
-    ) {
-      console.log(`[Marco state] candidate: ${id}`);
-    }
-  },
+  async openRecommendedTarget(poiId, node) {
+    if (!SAGEIntegration.activeRecommendation) return;
 
-  onCandidateDeparted(id) {
-    if (
-      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
-      id === this.target
-    ) {
-      console.log(`[Marco state] departure_reset: ${id}`);
-    }
-  },
-
-  onOrientationConfirmed(id) {
-    if (
-      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
-      id === this.target
-    ) {
-      console.log(`[Marco state] orientation_confirmed: ${id}`);
-
-      CorpusTour.record('orientation_confirmed', {
-        poi: this.currentStop?.poi,
-        dom_target: id
-      });
-
-      // Keep the SAGE cue visible during the continued 2.2 s dwell.
-      // The cue is removed only when activation is fully locked.
-      this.setState(State.WAIT_GAZE);
-    }
-  },
-
-  onActivationCompleted(id) {
-    if (
-      (this.state === State.CUE || this.state === State.WAIT_GAZE) &&
-      id === this.target
-    ) {
-      console.log(`[Marco state] activation_completed: ${id}`);
-
-      CorpusTour.record('activation_completed', {
-        poi: this.currentStop?.poi,
-        dom_target: id
-      });
-
-      // Gaze is now fully locked: remove the guidance cue, then zoom/open.
-      QuestCue.hideAll();
-      this.openCurrentStop();
-      return;
-    }
-
-    if (this.state === State.FREE) {
-      this.openFreeTarget(id);
-    }
-  },
-
-  confirmGaze(id) {
-    // Desktop click fallback.
-    this.onOrientationConfirmed(id);
-    this.onActivationCompleted(id);
-  },
-
-  async openCurrentStop() {
-    if (!this.currentStop) return;
-
-    const id = this.currentStop.dom;
-    const poi = this.currentStop.poi;
-    const nodes = this.currentStop.nodes.slice(0, 2);
-
-    this.pulseToken += 1;
     this.setState(State.ZOOMING);
-    clearTimeout(this.autoTimer);
-
     QuestCue.hideAll();
-    setBlurOpacity(0, 250);
     showPrimaryHotspots(false);
 
-    await loadFocusTiles(id);
+    await loadFocusTilesForPoi(poiId);
 
-    const hotspot = document.querySelector('#' + id);
-    if (!hotspot) {
-      console.error('[TourEngine] missing hotspot:', id);
-      return;
-    }
+    const shape = SAGEIntegration.pois.shapes[poiId];
+    const bounds = SAGEIntegration.shapeBounds(shape);
+    const center = SAGEIntegration.shapeCenter(shape);
+    if (!bounds || !center) return;
 
-    const pos = hotspot.getAttribute('position');
+    const localX = (center.x - 0.5) * WORLD_WIDTH;
+    const localY = (0.5 - center.y) * WORLD_HEIGHT;
+    const regionWorldW = Math.max(0.05, (bounds.x1 - bounds.x0) * WORLD_WIDTH);
+    const regionWorldH = Math.max(0.05, (bounds.y1 - bounds.y0) * WORLD_HEIGHT);
 
-    setTimeout(() => {
-      const localX = pos.x;
-      const localY = pos.y - 1.6;
-      const zoomScale = 1.85;
-      const targetX = -localX * zoomScale;
-      const targetY = 1.6 - localY * zoomScale;
+    const zoomScale = THREE.MathUtils.clamp(
+      Math.min(2.7 / regionWorldW, 2.25 / regionWorldH),
+      1.55,
+      3.2
+    );
 
-      paintingRoot.setAttribute(
-        'animation__zoompos',
-        `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`
-      );
-      paintingRoot.setAttribute(
-        'animation__zoomscale',
-        `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`
-      );
-    }, 120);
+    const targetX = -localX * zoomScale;
+    const targetY = 1.6 - localY * zoomScale;
+
+    SAGEIntegration.record('zoom_started', {
+      node_id: node.id,
+      poi: poiId,
+      zoom_scale: zoomScale,
+      target_position: {x: targetX, y: targetY, z: -2.25}
+    });
+
+    paintingRoot.setAttribute(
+      'animation__zoompos',
+      `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`
+    );
+    paintingRoot.setAttribute(
+      'animation__zoomscale',
+      `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`
+    );
 
     setTimeout(() => {
       this.setState(State.STORY);
-      showNestedDetails(id);
       backButton.style.display = 'block';
+      SAGEIntegration.record('zoom_completed', {node_id: node.id, poi: poiId, zoom_scale: zoomScale});
 
-      console.log(
-        `[POI narration] ${poi}: ${nodes.map(n => n.id).join(', ')}`
-      );
-
-      // Runtime only blocks future recommendations while the current block
-      // is active; each played node is marked completed when the block ends.
-      CorpusTour.visitorState.narrationState = 'playing';
-
-      playCorpusNodeSequence(nodes, () => {
-        nodes.forEach(node => CorpusTour.markCompleted(node));
-
-        // Once this spatial region has been visited, do not guide the visitor
-        // back to it again during the same session.
-        CorpusTour.visitedPois.add(poi);
-        CorpusTour.record('poi_completed', {
-          profile: selectedProfile,
-          poi,
-          played_nodes: nodes.map(n => n.id)
-        });
-
-        CorpusTour.visitorState.activeNode = null;
-        CorpusTour.visitorState.narrationState = 'idle';
-
-        this.autoTimer = setTimeout(() => {
-          if (this.state === State.STORY && this.target === id) {
-            this.returnFromTarget(true);
-          }
-        }, 900);
+      NarrationManager.playNode(node, result => {
+        SAGEIntegration.finishNarration(node, result);
       });
     }, 900);
   },
 
-  async openFreeTarget(id) {
-    this.pulseToken += 1;
-    this.setState(State.ZOOMING);
-    clearTimeout(this.autoTimer);
-    QuestCue.hideAll();
-    showPrimaryHotspots(false);
-    await loadFocusTiles(id);
-
-    const hotspot = document.querySelector('#' + id);
-    if (!hotspot) return;
-    const pos = hotspot.getAttribute('position');
-
-    setTimeout(() => {
-      const localX = pos.x;
-      const localY = pos.y - 1.6;
-      const zoomScale = 1.85;
-      const targetX = -localX * zoomScale;
-      const targetY = 1.6 - localY * zoomScale;
-      paintingRoot.setAttribute(
-        'animation__zoompos',
-        `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`
-      );
-      paintingRoot.setAttribute(
-        'animation__zoomscale',
-        `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`
-      );
-    }, 120);
-
-    setTimeout(() => {
-      this.setState(State.STORY);
-      showNestedDetails(id);
-      backButton.style.display = 'block';
-      playNarration(id, standardNarration(id));
-    }, 900);
-  },
-
-  returnFromTarget(continueRecommendations) {
-    if (
-      this.state !== State.STORY &&
-      this.state !== State.ZOOMING
-    ) return;
+  returnFromTarget(continueImmediately = false, callback = null) {
+    if (![State.STORY, State.ZOOMING, State.RETURNING].includes(this.state)) {
+      if (typeof callback === 'function') callback();
+      return;
+    }
 
     clearTimeout(this.autoTimer);
-    stopNarration();
+    if (NarrationManager.isPlaying()) NarrationManager.stop('manual_back');
     this.setState(State.RETURNING);
-
-    showNestedDetails(null);
     backButton.style.display = 'none';
+
+    SAGEIntegration.record('zoom_return_started', {
+      poi: SAGEIntegration.activeRecommendation?.poi || null
+    });
 
     paintingRoot.setAttribute(
       'animation__zoompos',
@@ -1804,34 +2381,33 @@ const TourEngine = {
 
     setTimeout(() => {
       clearFocusTiles();
-      showPrimaryHotspots(true);
+      showPrimaryHotspots(false);
       this.target = null;
       this.currentStop = null;
+      this.setState(State.FREE);
+      SAGEIntegration.record('zoom_return_completed', {});
 
-      if (continueRecommendations) {
-        this.setState(State.IDLE);
-        this.autoTimer = setTimeout(() => {
-          this.recommendAndCue().catch(console.error);
-        }, 1800);
-      } else {
-        this.setState(State.FREE);
-      }
+      if (typeof callback === 'function') callback();
+      if (continueImmediately) this.recommendAndCue().catch(console.error);
     }, 830);
   },
 
+  manualBack() {
+    if (this.state === State.STORY && NarrationManager.node) {
+      const node = NarrationManager.node;
+      NarrationManager.interruptForDeparture();
+      SAGEIntegration.record('manual_back', {node_id: node.id, poi: node.poi});
+      return;
+    }
+    this.returnFromTarget(false);
+  },
+
   finishTour() {
+    QuestCue.hideAll();
     this.target = null;
     this.currentStop = null;
     this.setState(State.FREE);
-    QuestCue.hideAll();
-    setBlurOpacity(0, 250);
-    showPrimaryHotspots(true);
-    console.log('[TourEngine] no further supported eligible recommendations');
-  },
-
-  manualBack() {
-    const recommendedFlow = !!this.currentStop && this.state !== State.FREE;
-    this.returnFromTarget(recommendedFlow);
+    SAGEIntegration.record('tour_idle_no_recommendation', {});
   }
 };
 
@@ -1872,56 +2448,57 @@ function startIntro() {
     try {
       await TourEngine.prepare();
 
-      // Opening overview: play NW001 only over the full painting.
       playIntroSequence(() => {
-        setTimeout(() => {
-          TourEngine.recommendAndCue().catch(console.error);
-        }, 2000);
+        SAGEIntegration.record('intro_completed', {node_id: 'NW001'});
+        TourEngine.setState(State.FREE);
+        SAGEIntegration.startGlobalRest('intro');
       });
     } catch (error) {
-      console.error('[CorpusTour] startup failed:', error);
+      console.error('[SAGE startup] failed:', error);
       introStarted = false;
       showAudioStartOverlay();
       const p = document.querySelector('#languageBox p');
-      if (p) {
-        p.textContent = 'Could not load the Night Watch corpus. Check the GitHub corpus path and browser console.';
-      }
+      if (p) p.textContent = `Startup failed: ${error.message}`;
     }
   })();
 }
 
 function beginExperience() {
-  // Wait for profile selection; the click also unlocks audio in Quest Browser.
   showAudioStartOverlay();
 }
 
 document.querySelectorAll('.profileButton').forEach(button => {
   button.addEventListener('click', () => {
     selectedProfile = button.dataset.profile || 'general';
-    console.log(`[Profile selected] ${selectedProfile}`);
+    selectedGuidanceMode = document.querySelector('#guidanceModeSelect')?.value || 'sage';
 
-    CorpusTour.ready = false;
-    CorpusTour.corpus = null;
-    CorpusTour.nodesById = new Map();
-    CorpusTour.nodesByPoi = new Map();
-    CorpusTour.runtime = null;
-    CorpusTour.visitorState = null;
-    CorpusTour.visitedPois = new Set();
-    CorpusTour.log.length = 0;
+    console.log(`[Profile selected] ${selectedProfile}; mode=${selectedGuidanceMode}`);
 
-    if (!experienceStarted) {
-      experienceStarted = true;
-      pageReady = true;
-      currentLanguage = 'en';
-      gazeCursor.setAttribute('visible', true);
-      showPrimaryHotspots(true);
-      refreshVoices();
-    }
+    experienceStarted = true;
+    pageReady = true;
+    currentLanguage = 'en';
+    gazeCursor.setAttribute('visible', true);
+    showPrimaryHotspots(false);
+    refreshVoices();
+
+    document.querySelector('#exportLogButton').style.display = 'block';
+    document.querySelector('#resetSessionButton').style.display = 'block';
 
     introStarted = false;
     startIntro();
   });
 });
+
+document.querySelector('#exportLogButton').addEventListener('click', () => {
+  SAGEIntegration.exportLog();
+});
+
+document.querySelector('#resetSessionButton').addEventListener('click', () => {
+  if (confirm('Reset the current Night Watch visitor session?')) {
+    SAGEIntegration.resetSession();
+  }
+});
+
 
 // Start automatically once the A-Frame scene is ready. If the browser blocks
 // autoplay, a single Begin button appears to unlock audio.
@@ -1933,11 +2510,11 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  console.log('[Dichoptic cue] Adaptive eye mode active; cue eye follows target side.');
+  console.log('[SAGE] adaptive dichoptic cue active; Marco runtime controls POIs and dwell.');
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
-  showPrimaryHotspots(true);
+  showPrimaryHotspots(false);
 
   // Keep the profile selector open until the visitor chooses a profile.
   if (!experienceStarted) {
@@ -1965,6 +2542,7 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
+  console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
   setBlurOpacity(0, 0);
