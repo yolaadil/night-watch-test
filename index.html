@@ -497,8 +497,10 @@ AFRAME.registerComponent('quest-gaze-select', {
 <div id="languageOverlay" style="display:none">
   <div id="languageBox">
     <h1>The Night Watch</h1>
-    <p>Tap to begin the guided experience</p>
-    <button id="startExperienceButton" class="languageButton">Begin</button>
+    <p>Select a visitor profile to begin</p>
+    <button class="languageButton profileButton" data-profile="child">Child</button>
+    <button class="languageButton profileButton" data-profile="general">General</button>
+    <button class="languageButton profileButton" data-profile="expert">Expert</button>
   </div>
 </div>
 
@@ -710,7 +712,8 @@ const CorpusTour = {
 
     this.corpus = await response.json();
     this.runtime = runtime;
-    this.visitorState = runtime.createVisitorState('general');
+    this.visitorState = runtime.createVisitorState(selectedProfile);
+    console.log(`[Profile] ${selectedProfile}`);
 
     for (const node of this.corpus.nodes || []) {
       this.nodesById.set(node.id, node);
@@ -754,8 +757,8 @@ const CorpusTour = {
 
   textForNode(node) {
     if (!node || !node.texts) return '';
-    const general = node.texts.general;
-    return general && general.text ? general.text : '';
+    const variant = node.texts[selectedProfile] || node.texts.general;
+    return variant && variant.text ? variant.text : '';
   },
 
   markCompleted(node) {
@@ -766,6 +769,7 @@ const CorpusTour = {
       performance.now() / 1000
     );
     this.record('narration_completed', {
+      profile: selectedProfile,
       node_id: node.id,
       poi: node.poi,
       category: node.category
@@ -889,6 +893,7 @@ const CorpusTour = {
     this.visitorState.lastGuidanceTime = performance.now() / 1000;
 
     this.record('recommendation_selected', {
+      profile: selectedProfile,
       node_id: selected.node.id,
       poi,
       dom_target: dom,
@@ -934,6 +939,7 @@ const State = Object.freeze({
 });
 
 let currentLanguage = 'en';
+let selectedProfile = 'general';
 let pageReady = false;
 let gazeTimer = null;
 let speechUtterance = null;
@@ -1351,7 +1357,7 @@ function playNarration(id, text, onEnd = null, options = {}) {
   };
 
   const file = /^NW\d{3}$/.test(id)
-    ? `audio/${id}.mp3`
+    ? `audio/${selectedProfile}/${id}.mp3`
     : AUDIO_FILES[id];
   if (file) {
     narrator.src = file;
@@ -1871,30 +1877,35 @@ function startIntro() {
 }
 
 function beginExperience() {
-  if (experienceStarted) return;
-  experienceStarted = true;
-  pageReady = true;
-  currentLanguage = 'en';
-  gazeCursor.setAttribute('visible', true);
-  showPrimaryHotspots(true);
-  refreshVoices();
-
-  // Keep the painting still for two seconds before playing the introduction.
-  setTimeout(startIntro, 2000);
+  // Wait for profile selection; the click also unlocks audio in Quest Browser.
+  showAudioStartOverlay();
 }
 
-const startExperienceButton = document.querySelector('#startExperienceButton');
-startExperienceButton.addEventListener('click', () => {
-  if (!experienceStarted) {
-    experienceStarted = true;
-    pageReady = true;
-    currentLanguage = 'en';
-    gazeCursor.setAttribute('visible', true);
-    showPrimaryHotspots(true);
-    refreshVoices();
-  }
-  introStarted = false;
-  startIntro();
+document.querySelectorAll('.profileButton').forEach(button => {
+  button.addEventListener('click', () => {
+    selectedProfile = button.dataset.profile || 'general';
+    console.log(`[Profile selected] ${selectedProfile}`);
+
+    CorpusTour.ready = false;
+    CorpusTour.corpus = null;
+    CorpusTour.nodesById = new Map();
+    CorpusTour.nodesByPoi = new Map();
+    CorpusTour.runtime = null;
+    CorpusTour.visitorState = null;
+    CorpusTour.log.length = 0;
+
+    if (!experienceStarted) {
+      experienceStarted = true;
+      pageReady = true;
+      currentLanguage = 'en';
+      gazeCursor.setAttribute('visible', true);
+      showPrimaryHotspots(true);
+      refreshVoices();
+    }
+
+    introStarted = false;
+    startIntro();
+  });
 });
 
 // Start automatically once the A-Frame scene is ready. If the browser blocks
@@ -1913,10 +1924,9 @@ scene.addEventListener('enter-vr', () => {
   gazeCursor.setAttribute('visible', true);
   showPrimaryHotspots(true);
 
-  // Keep the current tour state when entering VR. Only start the intro if
-  // the experience has not begun yet.
+  // Keep the profile selector open until the visitor chooses a profile.
   if (!experienceStarted) {
-    beginExperience();
+    showAudioStartOverlay();
   }
 });
 
