@@ -176,12 +176,10 @@ body {
 
 <script>
 AFRAME.registerShader('tile-glow', {
+  // FROZEN SAGE CUE — do not change during the study.
   schema: {
     src: {type: 'map', is: 'uniform'},
-    opacity: {type: 'number', is: 'uniform', default: 0.0},
-    center: {type: 'vec2', is: 'uniform', default: {x: 0.5, y: 0.5}},
-    radius: {type: 'vec2', is: 'uniform', default: {x: 0.2, y: 0.2}},
-    tileRect: {type: 'vec4', is: 'uniform', default: {x: 0, y: 0, z: 1, w: 1}}
+    opacity: {type: 'number', is: 'uniform', default: 0.0}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -193,27 +191,17 @@ AFRAME.registerShader('tile-glow', {
   fragmentShader: `
     uniform sampler2D src;
     uniform float opacity;
-    uniform vec2 center;
-    uniform vec2 radius;
-    uniform vec4 tileRect;
     varying vec2 vUv;
+
     void main() {
       vec4 tex = texture2D(src, vUv);
-      vec2 globalUv = vec2(
-        mix(tileRect.x, tileRect.z, vUv.x),
-        mix(tileRect.y, tileRect.w, 1.0 - vUv.y)
-      );
-      vec2 d = (globalUv - center) / max(radius, vec2(0.0001));
-      float dist = length(d);
-      float mask = 1.0 - smoothstep(0.45, 1.0, dist);
-      float glow = opacity * mask;
 
-      // Stronger museum-style luminance lift that remains visible on dark paint.
-      // Mix toward a warm highlight rather than merely multiplying the source.
-      vec3 warmLift = vec3(1.00, 0.86, 0.46);
-      vec3 lifted = mix(tex.rgb, warmLift, 0.34) * 1.12 + vec3(0.06, 0.045, 0.018);
+      // Frozen technique: illuminate the selected tiles themselves.
+      // Preserve hue; gently lift luminance so dark paint remains visible.
+      vec3 lifted = tex.rgb * 1.30 + vec3(0.045);
 
-      gl_FragColor = vec4(lifted, tex.a * glow);
+      // No oval, ring, radial mask, or yellow tint.
+      gl_FragColor = vec4(lifted, tex.a * opacity);
     }
   `
 });
@@ -593,6 +581,17 @@ const TILE_FOLDER = 'tiles';
 const MAX_LEVEL = 14;
 const GAZE_MS = 2000;
 
+// Frozen visual-cue specification for the study.
+const SAGE_CUE_SPEC = Object.freeze({
+  technique: 'level14_tile_luminance_pulse',
+  luminanceMultiplier: 1.30,
+  luminanceOffset: 0.045,
+  opacityMin: 0.10,
+  opacityMax: 0.40,
+  pulseDurationMs: 1000,
+  mask: 'none'
+});
+
 const hotspotTexts = {
   captain: {
     en: 'Captain Frans Banninck Cocq\n\nLeader of the Amsterdam civic guard company. In Curator’s Tour, selecting him reveals smaller details such as his hand and red sash.',
@@ -695,6 +694,7 @@ const CorpusTour = {
   nodesByPoi: new Map(),
   runtime: null,
   visitorState: null,
+  visitedPois: new Set(),
   ready: false,
   log: [],
 
@@ -854,8 +854,15 @@ const CorpusTour = {
     this.visitorState.activeNode = null;
     this.visitorState.narrationState = 'idle';
 
+    // Recommend among unvisited spatial POIs only.
+    // Multiple narrative nodes may share a POI, but SAGE guides to that region
+    // only once during this session.
+    const unvisitedNodes = this.corpus.nodes.filter(
+      node => !this.visitedPois.has(node.poi)
+    );
+
     const result = this.runtime.selectRecommendation(
-      this.corpus.nodes,
+      unvisitedNodes,
       this.visitorState,
       spatial,
       (node, poiSpatial) => this.featureProvider(node, poiSpatial)
@@ -1192,10 +1199,7 @@ const QuestCue = {
       plane.setAttribute('material', {
         shader: 'tile-glow',
         src: tile.url,
-        opacity: 0.08,
-        center: `${centerUv.x} ${centerUv.y}`,
-        radius: `${radiusUv.x} ${radiusUv.y}`,
-        tileRect: `${u0} ${v0} ${u1} ${v1}`,
+        opacity: SAGE_CUE_SPEC.opacityMin,
         transparent: true,
         depthTest: false,
         depthWrite: false,
@@ -1214,9 +1218,9 @@ const QuestCue = {
     planes.forEach((plane, index) => {
       plane.setAttribute(`animation__continuousglow${index}`, {
         property: 'material.opacity',
-        from: 0.16,
-        to: 0.72,
-        dur: 1050,
+        from: SAGE_CUE_SPEC.opacityMin,
+        to: SAGE_CUE_SPEC.opacityMax,
+        dur: SAGE_CUE_SPEC.pulseDurationMs,
         easing: 'easeInOutSine',
         dir: 'alternate',
         loop: true
@@ -1718,6 +1722,16 @@ const TourEngine = {
 
       playCorpusNodeSequence(nodes, () => {
         nodes.forEach(node => CorpusTour.markCompleted(node));
+
+        // Once this spatial region has been visited, do not guide the visitor
+        // back to it again during the same session.
+        CorpusTour.visitedPois.add(poi);
+        CorpusTour.record('poi_completed', {
+          profile: selectedProfile,
+          poi,
+          played_nodes: nodes.map(n => n.id)
+        });
+
         CorpusTour.visitorState.activeNode = null;
         CorpusTour.visitorState.narrationState = 'idle';
 
@@ -1892,6 +1906,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
     CorpusTour.nodesByPoi = new Map();
     CorpusTour.runtime = null;
     CorpusTour.visitorState = null;
+    CorpusTour.visitedPois = new Set();
     CorpusTour.log.length = 0;
 
     if (!experienceStarted) {
