@@ -449,6 +449,14 @@ AFRAME.registerComponent('quest-gaze-select', {
 </head>
 
 <body>
+<div id="sageStatus" style="
+  position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
+  z-index:30; padding:7px 12px; border-radius:8px;
+  background:rgba(0,0,0,.65); color:white; font:13px Arial;
+  display:none; pointer-events:none;">
+  SAGE starting…
+</div>
+
 <div id="tileControls">
   <button
     id="backButton"
@@ -761,7 +769,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-marco-v8:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-marco-v10:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1076,6 +1084,7 @@ const SAGEIntegration = {
     });
 
     if (!result.selected) {
+      setSageStatus('No eligible recommendation found — reset session or check POI alignment');
       this.record('recommendation_none', {});
       TourEngine.finishTour();
       return null;
@@ -1107,6 +1116,8 @@ const SAGEIntegration = {
     preload.preload = 'auto';
     if (progress?.currentTime) preload.currentTime = progress.currentTime;
     preload.load();
+
+    setSageStatus(`Recommended: ${poiId} — preparing SAGE cue`);
 
     this.record('recommendation_selected', {
       node_id: selected.node.id,
@@ -1223,6 +1234,8 @@ const SAGEIntegration = {
 
       if (event.type === 'orientation_confirmed') {
         const acquisitionMs = nowMs - rec.onsetMs;
+        setSageStatus(`Target acquired: ${rec.poi} — zooming`);
+
         this.record('target_acquired', {
           node_id: rec.node.id,
           poi: rec.poi,
@@ -1412,6 +1425,13 @@ const State = Object.freeze({
 
 let currentLanguage = 'en';
 let pageReady = false;
+
+function setSageStatus(message) {
+  const el = document.querySelector('#sageStatus');
+  if (!el) return;
+  el.textContent = message;
+  el.style.display = message ? 'block' : 'none';
+}
 let gazeTimer = null;
 let speechUtterance = null;
 let voices = [];
@@ -1682,6 +1702,11 @@ const QuestCue = {
 
     const available = patches.filter((p, i) => loaded[i].ok);
 
+    if (available.length === 0) {
+      setSageStatus(`SAGE cue tiles failed to load for ${poiId}`);
+      console.error('[SAGE cue] No Level-14 cue tiles loaded', {poiId, patches});
+    }
+
     for (let index = 0; index < available.length; index++) {
       const p = available[index];
       const {g} = p;
@@ -1731,6 +1756,8 @@ const QuestCue = {
         loop: true
       });
     }
+
+    setSageStatus(`Look at the illuminated ${poiId} region for 2 seconds`);
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
@@ -2155,12 +2182,51 @@ function playIntroSequence(onComplete = null) {
     return;
   }
 
-  NarrationManager.playNode(node, () => {
+  let advanced = false;
+  let watchdog = null;
+
+  const advanceOnce = (reason) => {
+    if (advanced) return;
+    advanced = true;
+
+    if (watchdog) {
+      clearInterval(watchdog);
+      watchdog = null;
+    }
+
     if (!SAGEIntegration.visitorState.completed.has(node.id)) {
       SAGEIntegration.markCompletionThreshold(node);
     }
+
+    SAGEIntegration.record('intro_advance', {
+      node_id: node.id,
+      reason,
+      current_time_s: narrator.currentTime || 0,
+      duration_s: narrator.duration || 0
+    });
+
     if (typeof onComplete === 'function') onComplete();
+  };
+
+  NarrationManager.playNode(node, () => {
+    advanceOnce('audio_ended_callback');
   });
+
+  // Quest Browser has occasionally failed to deliver a reliable `ended`
+  // callback for the opening MP3. The intro must never block SAGE startup.
+  // As soon as NW001 is effectively finished, advance exactly once.
+  watchdog = setInterval(() => {
+    const duration = narrator.duration;
+    const current = narrator.currentTime || 0;
+
+    if (Number.isFinite(duration) && duration > 0) {
+      const fraction = current / duration;
+
+      if (fraction >= 0.97 || narrator.ended) {
+        advanceOnce('intro_watchdog_near_end');
+      }
+    }
+  }, 200);
 }
 
 function makeCanvasTexture(text, language, width = 520, height = 190) {
@@ -2276,8 +2342,8 @@ const TourEngine = {
     console.log('[Tour state]', next);
   },
 
-  async prepare() {
-    await SAGEIntegration.init({profile: selectedProfile});
+  async prepare({forceNew = false} = {}) {
+    await SAGEIntegration.init({profile: selectedProfile, forceNew});
     ensureDynamicPoiAnchor();
   },
 
@@ -2348,6 +2414,7 @@ const TourEngine = {
 
     setTimeout(() => {
       this.setState(State.STORY);
+      setSageStatus('');
       backButton.style.display = 'block';
       SAGEIntegration.record('zoom_completed', {node_id: node.id, poi: poiId, zoom_scale: zoomScale});
 
@@ -2448,12 +2515,17 @@ function startIntro() {
 
   (async () => {
     try {
-      await TourEngine.prepare();
+      await TourEngine.prepare({forceNew: true});
 
       playIntroSequence(() => {
         SAGEIntegration.record('intro_completed', {node_id: 'NW001'});
         TourEngine.setState(State.FREE);
-        SAGEIntegration.startGlobalRest('intro');
+        setSageStatus('NW001 complete — starting SAGE…');
+
+        // Keep the existing v10 recommendation/cue mechanism unchanged.
+        setTimeout(() => {
+          TourEngine.recommendAndCue().catch(console.error);
+        }, 1500);
       });
     } catch (error) {
       console.error('[SAGE startup] failed:', error);
@@ -2475,6 +2547,13 @@ document.querySelectorAll('.profileButton').forEach(button => {
     selectedGuidanceMode = document.querySelector('#guidanceModeSelect')?.value || 'sage';
 
     console.log(`[Profile selected] ${selectedProfile}; mode=${selectedGuidanceMode}`);
+
+    // Always begin a fresh engineering session when a profile is selected.
+    try {
+      localStorage.removeItem(`nightwatch-sage-marco-v10:${selectedProfile}:${selectedGuidanceMode}`);
+    } catch (e) {}
+
+    setSageStatus('Playing NW001…');
 
     experienceStarted = true;
     pageReady = true;
