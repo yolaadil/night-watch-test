@@ -387,41 +387,17 @@ AFRAME.registerComponent('dichoptic-cue-camera', {
 
 AFRAME.registerComponent('quest-gaze-select', {
   init() {
-    this.paintingUv = null;
     this.lastQuaternion = new THREE.Quaternion();
     this.lastSampleMs = performance.now();
     this.angularVelocity = 0;
-
-    this.el.addEventListener('raycaster-intersection', e => {
-      const intersections = (e.detail && e.detail.intersections) || [];
-      const paintingHit = intersections.find(i =>
-        i.object && i.object.el && i.object.el.id === 'paintingLow' && i.uv
-      );
-
-      if (paintingHit && paintingHit.uv) {
-        // Marco POIs use top-left origin; Three.js texture UV uses bottom-left.
-        this.paintingUv = {
-          x: THREE.MathUtils.clamp(paintingHit.uv.x, 0, 1),
-          y: THREE.MathUtils.clamp(1 - paintingHit.uv.y, 0, 1)
-        };
-      }
-    });
-
-    const clear = () => {
-      this.paintingUv = null;
-    };
-    this.el.addEventListener('raycaster-intersection-cleared', clear);
-    this.el.addEventListener('mouseleave', clear);
   },
 
   tick(time) {
-    if (!window.SAGEIntegration) return;
+    if (!window.SAGEIntegration || !paintingRoot || !mainCamera) return;
 
-    const camera = document.querySelector('#mainCamera');
-    const object3D = camera && camera.object3D;
-    if (!object3D) return;
+    const cameraObj = mainCamera.object3D;
+    const q = cameraObj.getWorldQuaternion(new THREE.Quaternion());
 
-    const q = object3D.getWorldQuaternion(new THREE.Quaternion());
     const dt = Math.max(1, time - this.lastSampleMs) / 1000;
     const dot = Math.min(1, Math.max(-1, Math.abs(q.dot(this.lastQuaternion))));
     const angle = 2 * Math.acos(dot);
@@ -429,14 +405,49 @@ AFRAME.registerComponent('quest-gaze-select', {
     this.lastQuaternion.copy(q);
     this.lastSampleMs = time;
 
+    // Robust head-ray -> painting intersection.
+    // Avoid relying on A-Frame UV intersection events, which can become
+    // unreliable on Quest once the dichoptic cue is visible.
+    const worldOrigin = new THREE.Vector3();
+    cameraObj.getWorldPosition(worldOrigin);
+
+    const worldDirection = new THREE.Vector3(0, 0, -1)
+      .applyQuaternion(q)
+      .normalize();
+
+    const localOrigin = paintingRoot.object3D.worldToLocal(worldOrigin.clone());
+    const worldPointAlongRay = worldOrigin.clone().add(worldDirection);
+    const localPointAlongRay = paintingRoot.object3D.worldToLocal(worldPointAlongRay);
+    const localDirection = localPointAlongRay.sub(localOrigin).normalize();
+
+    let uv = null;
+
+    if (Math.abs(localDirection.z) > 1e-6) {
+      const t = -localOrigin.z / localDirection.z;
+
+      if (t > 0) {
+        const hit = localOrigin.clone().add(localDirection.multiplyScalar(t));
+
+        const x = hit.x / WORLD_WIDTH + 0.5;
+        const y = 0.5 - hit.y / WORLD_HEIGHT;
+
+        if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
+          uv = {x, y};
+        }
+      }
+    }
+
     const pos = new THREE.Vector3();
-    object3D.getWorldPosition(pos);
-    const rot = object3D.rotation;
+    cameraObj.getWorldPosition(pos);
+    const rot = cameraObj.rotation;
 
     window.SAGEIntegration.onHeadSample({
       nowMs: performance.now(),
-      uv: this.paintingUv,
-      angularVelocityDegPerSec: this.angularVelocity,
+      uv,
+      // v10 simplified rule: 2 seconds continuously inside the ROI is enough.
+      // Tiny headset velocity jitter is not allowed to block acquisition.
+      angularVelocityDegPerSec: 0,
+      measuredAngularVelocityDegPerSec: this.angularVelocity,
       headPose: {
         position: {x: pos.x, y: pos.y, z: pos.z},
         rotation: {x: rot.x, y: rot.y, z: rot.z}
@@ -1213,17 +1224,17 @@ const SAGEIntegration = {
     this.startGlobalRest('guidance_timeout');
   },
 
-  onHeadSample({nowMs, uv, angularVelocityDegPerSec, headPose}) {
+  onHeadSample({nowMs, uv, angularVelocityDegPerSec, measuredAngularVelocityDegPerSec = angularVelocityDegPerSec, headPose}) {
     if (!this.ready) return;
     this.lastUv = uv;
-    this.angularVelocity = angularVelocityDegPerSec;
+    this.angularVelocity = measuredAngularVelocityDegPerSec;
     this.lastHeadPose = headPose;
 
     if (nowMs - this.lastHeadLogMs >= 250 && ['CUE', 'WAIT_GAZE', 'STORY'].includes(TourEngine.state)) {
       this.lastHeadLogMs = nowMs;
       this.record('head_pose_sample', {
         head_pose: headPose,
-        angular_velocity_deg_s: angularVelocityDegPerSec,
+        angular_velocity_deg_s: measuredAngularVelocityDegPerSec,
         painting_uv: uv,
         zoom_scale: paintingRoot?.object3D?.scale?.x ?? 1
       });
@@ -1257,6 +1268,13 @@ const SAGEIntegration = {
       this.record(insideInner ? 'roi_inner_enter' : 'roi_inner_exit', {
         node_id: rec.node.id, poi: rec.poi, painting_uv: uv
       });
+
+      if (insideInner) {
+        setSageStatus(`Target found: hold on ${rec.poi} for 2 seconds…`);
+      } else {
+        setSageStatus(`Look at the illuminated ${rec.poi} region for 2 seconds`);
+      }
+
       this.roiInside.inner = insideInner;
     }
 
