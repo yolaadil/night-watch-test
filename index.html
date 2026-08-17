@@ -193,12 +193,11 @@ AFRAME.registerShader('tile-glow', {
     opacity: {type: 'number', is: 'uniform', default: 0.0},
     uvMin: {type: 'vec2', is: 'uniform', default: {x: 0, y: 0}},
     uvMax: {type: 'vec2', is: 'uniform', default: {x: 1, y: 1}},
-    lift: {type: 'number', is: 'uniform', default: 0.36},
-    contrast: {type: 'number', is: 'uniform', default: 1.08},
-    // x=left, y=right, z=top, w=bottom.
-    // Only patches touching the outside of the complete cue are feathered.
-    edgeFlags: {type: 'vec4', is: 'uniform', default: {x: 0, y: 0, z: 0, w: 0}},
-    feather: {type: 'number', is: 'uniform', default: 0.14}
+    lift: {type: 'number', is: 'uniform', default: 0.30},
+    coreBoost: {type: 'number', is: 'uniform', default: 0.10},
+    // Coordinates of this tile patch inside the complete cue region.
+    // Used only to make one seamless, very soft illumination field.
+    cueRect: {type: 'vec4', is: 'uniform', default: {x: 0, y: 0, z: 1, w: 1}}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -213,9 +212,8 @@ AFRAME.registerShader('tile-glow', {
     uniform vec2 uvMin;
     uniform vec2 uvMax;
     uniform float lift;
-    uniform float contrast;
-    uniform vec4 edgeFlags;
-    uniform float feather;
+    uniform float coreBoost;
+    uniform vec4 cueRect;
     varying vec2 vUv;
 
     void main() {
@@ -227,25 +225,29 @@ AFRAME.registerShader('tile-glow', {
 
       vec4 tex = texture2D(src, sampleUv);
 
-      // Preserve hue and gently "wake up" the painting:
-      // lift dark/mid tones, add a tiny local-contrast increase,
-      // and avoid any yellow tint or blur.
+      // Compute a seamless coordinate over the WHOLE cue region.
+      vec2 cueUv = vec2(
+        mix(cueRect.x, cueRect.z, vUv.x),
+        mix(cueRect.y, cueRect.w, vUv.y)
+      );
+
+      // Very broad, gradual illumination field.
+      // There is no visible oval boundary: the falloff starts near the center
+      // and fades gently all the way to zero at the perimeter.
+      vec2 d = (cueUv - vec2(0.5)) / vec2(0.50, 0.58);
+      float r = length(d);
+      float field = 1.0 - smoothstep(0.10, 1.00, r);
+      field = field * field * (3.0 - 2.0 * field);
+
+      // Preserve hue. Lift dark/mid tones a little more than bright ones,
+      // so the region feels illuminated rather than pasted on.
       vec3 gammaLift = sqrt(max(tex.rgb, vec3(0.0)));
-      vec3 lifted = mix(tex.rgb, gammaLift, lift);
+      vec3 lifted = mix(tex.rgb, gammaLift, lift * field);
+      lifted += vec3(coreBoost * field * 0.18);
+      lifted = clamp(lifted, 0.0, 1.0);
 
-      // Mild contrast around middle gray; restrained to avoid a pasted-on look.
-      lifted = (lifted - 0.5) * contrast + 0.5;
-      lifted = clamp(lifted * 1.025 + vec3(0.006), 0.0, 1.0);
-
-      // Softly feather ONLY the outer boundary of the combined cue region.
-      // Internal Level-14 tile boundaries remain fully opaque and seamless.
-      float edgeMask = 1.0;
-      if (edgeFlags.x > 0.5) edgeMask *= smoothstep(0.0, feather, vUv.x);
-      if (edgeFlags.y > 0.5) edgeMask *= smoothstep(0.0, feather, 1.0 - vUv.x);
-      if (edgeFlags.z > 0.5) edgeMask *= smoothstep(0.0, feather, 1.0 - vUv.y);
-      if (edgeFlags.w > 0.5) edgeMask *= smoothstep(0.0, feather, vUv.y);
-
-      gl_FragColor = vec4(lifted, tex.a * opacity * edgeMask);
+      // Transparent at the outer edge; strongest at the subject.
+      gl_FragColor = vec4(lifted, tex.a * opacity * field);
     }
   `
 });
@@ -705,12 +707,11 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.20,
-  cueOpacityMax: 0.42,
-  cuePulseMs: 1300,
-  cueLift: 0.36,
-  cueContrast: 1.08,
-  cueFeatherFraction: 0.14,
+  cueOpacityMin: 0.18,
+  cueOpacityMax: 0.34,
+  cuePulseMs: 1450,
+  cueLift: 0.30,
+  cueCoreBoost: 0.10,
   // Provisional visual POIs are allowed for engineering/pilot work only.
   allowProvisionalVisual: true,
   allowConservationRegistrationPois: false,
@@ -1808,13 +1809,12 @@ const QuestCue = {
       const uvMinY = (p.iy0 - g.fileY) / g.fileH;
       const uvMaxY = (p.iy1 - g.fileY) / g.fileH;
 
-      // Feather only the outside of the WHOLE cue, not each tile.
-      // This avoids a visible tile grid while softening the rectangular patch.
-      const eps = 0.75;
-      const edgeLeft   = Math.abs(p.ix0 - leftPx)   <= eps ? 1 : 0;
-      const edgeRight  = Math.abs(p.ix1 - rightPx)  <= eps ? 1 : 0;
-      const edgeTop    = Math.abs(p.iy0 - topPx)    <= eps ? 1 : 0;
-      const edgeBottom = Math.abs(p.iy1 - bottomPx) <= eps ? 1 : 0;
+      // Patch coordinates inside the complete cue region.
+      // This makes the illumination falloff continuous across tile seams.
+      const cueX0 = (p.ix0 - leftPx) / Math.max(1, rightPx - leftPx);
+      const cueX1 = (p.ix1 - leftPx) / Math.max(1, rightPx - leftPx);
+      const cueY0 = (p.iy0 - topPx) / Math.max(1, bottomPx - topPx);
+      const cueY1 = (p.iy1 - topPx) / Math.max(1, bottomPx - topPx);
 
       const plane = document.createElement('a-plane');
       plane.setAttribute('width', worldW);
@@ -1828,9 +1828,8 @@ const QuestCue = {
         uvMin: `${uvMinX} ${uvMinY}`,
         uvMax: `${uvMaxX} ${uvMaxY}`,
         lift: MARCO_CONFIG.cueLift,
-        contrast: MARCO_CONFIG.cueContrast,
-        edgeFlags: `${edgeLeft} ${edgeRight} ${edgeTop} ${edgeBottom}`,
-        feather: MARCO_CONFIG.cueFeatherFraction,
+        coreBoost: MARCO_CONFIG.cueCoreBoost,
+        cueRect: `${cueX0} ${cueY0} ${cueX1} ${cueY1}`,
         transparent: true,
         depthTest: false,
         depthWrite: false,
@@ -1859,13 +1858,7 @@ const QuestCue = {
       poi: poiId,
       patch_count: available.length,
       cue_bounds: bounds,
-      cue_bounds_scale: MARCO_CONFIG.cueBoundsScale,
-      cue_opacity_min: MARCO_CONFIG.cueOpacityMin,
-      cue_opacity_max: MARCO_CONFIG.cueOpacityMax,
-      cue_pulse_ms: MARCO_CONFIG.cuePulseMs,
-      cue_feather_fraction: MARCO_CONFIG.cueFeatherFraction,
-      cue_lift: MARCO_CONFIG.cueLift,
-      cue_contrast: MARCO_CONFIG.cueContrast
+      cue_bounds_scale: MARCO_CONFIG.cueBoundsScale
     });
   }
 };
@@ -2725,6 +2718,7 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
+  console.info('[SAGE visual] v11 soft illumination field + corrected girl POI');
   console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
