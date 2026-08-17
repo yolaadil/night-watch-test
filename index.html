@@ -186,18 +186,9 @@ body {
 
 <script>
 AFRAME.registerShader('tile-glow', {
-  // SAGE cue: a cropped patch from the real Level-14 tile.
-  // The patch preserves hue and lifts dark/mid luminance without a colored tint.
+  // Transparent SAGE halo. No painting recoloring, no tile brightness change.
   schema: {
-    src: {type: 'map', is: 'uniform'},
-    opacity: {type: 'number', is: 'uniform', default: 0.0},
-    uvMin: {type: 'vec2', is: 'uniform', default: {x: 0, y: 0}},
-    uvMax: {type: 'vec2', is: 'uniform', default: {x: 1, y: 1}},
-    lift: {type: 'number', is: 'uniform', default: 0.30},
-    coreBoost: {type: 'number', is: 'uniform', default: 0.10},
-    // Coordinates of this tile patch inside the complete cue region.
-    // Used only to make one seamless, very soft illumination field.
-    cueRect: {type: 'vec4', is: 'uniform', default: {x: 0, y: 0, z: 1, w: 1}}
+    opacity: {type: 'number', is: 'uniform', default: 0.16}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -207,48 +198,25 @@ AFRAME.registerShader('tile-glow', {
     }
   `,
   fragmentShader: `
-    uniform sampler2D src;
     uniform float opacity;
-    uniform vec2 uvMin;
-    uniform vec2 uvMax;
-    uniform float lift;
-    uniform float coreBoost;
-    uniform vec4 cueRect;
     varying vec2 vUv;
 
     void main() {
-      // uvMin/uvMax are expressed from the tile's top-left image coordinates.
-      vec2 sampleUv = vec2(
-        mix(uvMin.x, uvMax.x, vUv.x),
-        mix(uvMax.y, uvMin.y, vUv.y)
-      );
+      vec2 p = vUv - vec2(0.5);
+      float r = length(p) / 0.7071;
 
-      vec4 tex = texture2D(src, sampleUv);
+      // Broad, soft halo: mostly transparent in the middle, strongest around
+      // the subject, then fades smoothly to zero at the outer boundary.
+      float inner = smoothstep(0.05, 0.34, r);
+      float outer = 1.0 - smoothstep(0.46, 1.0, r);
+      float halo = inner * outer;
 
-      // Compute a seamless coordinate over the WHOLE cue region.
-      vec2 cueUv = vec2(
-        mix(cueRect.x, cueRect.z, vUv.x),
-        mix(cueRect.y, cueRect.w, vUv.y)
-      );
+      // Add a very faint central wash so the target reads as one guided area.
+      float centerWash = (1.0 - smoothstep(0.0, 0.72, r)) * 0.22;
+      float a = (halo + centerWash) * opacity;
 
-      // Very broad, gradual illumination field.
-      // There is no visible oval boundary: the falloff starts near the center
-      // and fades gently all the way to zero at the perimeter.
-      vec2 d = (cueUv - vec2(0.5)) / vec2(0.50, 0.58);
-      float r = length(d);
-      float field = 1.0 - smoothstep(0.06, 1.00, r);
-      field = pow(field, 0.82);
-      field = field * field * (3.0 - 2.0 * field);
-
-      // Preserve hue. Lift dark/mid tones a little more than bright ones,
-      // so the region feels illuminated rather than pasted on.
-      vec3 gammaLift = sqrt(max(tex.rgb, vec3(0.0)));
-      vec3 lifted = mix(tex.rgb, gammaLift, lift * field);
-      lifted += vec3(coreBoost * field * 0.24);
-      lifted = clamp(lifted, 0.0, 1.0);
-
-      // Transparent at the outer edge; strongest at the subject.
-      gl_FragColor = vec4(lifted, tex.a * opacity * field);
+      vec3 glowColor = vec3(1.0, 0.92, 0.70);
+      gl_FragColor = vec4(glowColor, a);
     }
   `
 });
@@ -708,11 +676,11 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.24,
-  cueOpacityMax: 0.46,
-  cuePulseMs: 1350,
-  cueLift: 0.42,
-  cueCoreBoost: 0.15,
+  cueOpacityMin: 0.16,
+  cueOpacityMax: 0.34,
+  cuePulseMs: 1200,
+  cueLift: 0.64,
+  cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
   allowProvisionalVisual: true,
   allowConservationRegistrationPois: false,
@@ -1714,7 +1682,9 @@ const QuestCue = {
   hideAll() {
     this.token += 1;
     this.activePoi = null;
-    if (this.group && this.group.parentNode) this.group.parentNode.removeChild(this.group);
+    if (this.group && this.group.parentNode) {
+      this.group.parentNode.removeChild(this.group);
+    }
     this.group = null;
   },
 
@@ -1722,16 +1692,19 @@ const QuestCue = {
     if (!this.group) return;
     const group = this.group;
     const token = this.token;
-    const planes = [...group.querySelectorAll('a-plane')];
+    const plane = group.querySelector('a-plane');
 
-    planes.forEach((plane, index) => {
-      plane.removeAttribute(`animation__sagepulse${index}`);
-      plane.setAttribute(`animation__sagefade${index}`, {
-        property: 'material.opacity',
-        to: 0,
-        dur: duration,
-        easing: 'easeOutQuad'
-      });
+    if (!plane) {
+      this.hideAll();
+      return;
+    }
+
+    plane.removeAttribute('animation__halopulse');
+    plane.setAttribute('animation__halofade', {
+      property: 'material.opacity',
+      to: 0,
+      dur: duration,
+      easing: 'easeOutQuad'
     });
 
     setTimeout(() => {
@@ -1744,10 +1717,10 @@ const QuestCue = {
     if (selectedGuidanceMode === 'baseline') return;
 
     const shape = SAGEIntegration.pois?.shapes?.[poiId];
-    const fullBounds = SAGEIntegration.shapeBounds(shape);
-    if (!fullBounds) return;
+    const bounds = SAGEIntegration.shapeBounds(shape);
+    const center = SAGEIntegration.shapeCenter(shape);
+    if (!bounds || !center) return;
 
-    const bounds = SAGEIntegration.shrinkBounds(fullBounds, MARCO_CONFIG.cueBoundsScale);
     const localToken = ++this.token;
     this.activePoi = poiId;
 
@@ -1756,110 +1729,56 @@ const QuestCue = {
     cueLayer.appendChild(group);
     this.group = group;
 
-    const leftPx = bounds.x0 * IMAGE_WIDTH;
-    const rightPx = bounds.x1 * IMAGE_WIDTH;
-    const topPx = bounds.y0 * IMAGE_HEIGHT;
-    const bottomPx = bounds.y1 * IMAGE_HEIGHT;
+    // Slightly larger than the POI so the halo wraps around the subject
+    // instead of looking like a box sitting on top of the painting.
+    const regionW = Math.max(0.10, (bounds.x1 - bounds.x0) * WORLD_WIDTH);
+    const regionH = Math.max(0.10, (bounds.y1 - bounds.y0) * WORLD_HEIGHT);
 
-    const startCol = Math.floor(leftPx / TILE_SIZE);
-    const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
-    const startRow = Math.floor(topPx / TILE_SIZE);
-    const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+    const haloW = regionW * 1.30;
+    const haloH = regionH * 1.22;
 
-    const patches = [];
+    const centerX = (center.x - 0.5) * WORLD_WIDTH;
+    const centerY = (0.5 - center.y) * WORLD_HEIGHT;
 
-    for (let row = startRow; row <= endRow; row++) {
-      for (let col = startCol; col <= endCol; col++) {
-        const g = tileGeometry(MAX_LEVEL, col, row);
-        if (!g) continue;
+    const plane = document.createElement('a-plane');
+    plane.setAttribute('width', haloW);
+    plane.setAttribute('height', haloH);
+    plane.setAttribute('position', `${centerX} ${centerY} 0.032`);
+    plane.setAttribute('render-layer', 'layer: 1');
+    plane.setAttribute('material', {
+      shader: 'tile-glow',
+      opacity: MARCO_CONFIG.cueOpacityMin,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      side: 'double'
+    });
 
-        const ix0 = Math.max(leftPx, g.fileX);
-        const iy0 = Math.max(topPx, g.fileY);
-        const ix1 = Math.min(rightPx, g.fileX + g.fileW);
-        const iy1 = Math.min(bottomPx, g.fileY + g.fileH);
-        if (ix1 <= ix0 || iy1 <= iy0) continue;
+    group.appendChild(plane);
 
-        const url = `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`;
-        patches.push({g, url, ix0, iy0, ix1, iy1});
-      }
-    }
+    plane.addEventListener('object3dset', () => {
+      plane.object3D.traverse(object => object.layers.set(1));
+    });
 
-    const loaded = await Promise.all(patches.map(p => preloadImage(p.url)));
+    plane.setAttribute('animation__halopulse', {
+      property: 'material.opacity',
+      from: MARCO_CONFIG.cueOpacityMin,
+      to: MARCO_CONFIG.cueOpacityMax,
+      dur: MARCO_CONFIG.cuePulseMs,
+      easing: 'easeInOutSine',
+      dir: 'alternate',
+      loop: true
+    });
+
     if (localToken !== this.token || this.activePoi !== poiId) return;
-
-    const available = patches.filter((p, i) => loaded[i].ok);
-
-    if (available.length === 0) {
-      setSageStatus(`SAGE cue tiles failed to load for ${poiId}`);
-      console.error('[SAGE cue] No Level-14 cue tiles loaded', {poiId, patches});
-    }
-
-    for (let index = 0; index < available.length; index++) {
-      const p = available[index];
-      const {g} = p;
-
-      const patchWpx = p.ix1 - p.ix0;
-      const patchHpx = p.iy1 - p.iy0;
-      const worldW = patchWpx / IMAGE_WIDTH * WORLD_WIDTH;
-      const worldH = patchHpx / IMAGE_HEIGHT * WORLD_HEIGHT;
-      const centerX = ((p.ix0 + patchWpx / 2) / IMAGE_WIDTH - 0.5) * WORLD_WIDTH;
-      const centerY = (0.5 - (p.iy0 + patchHpx / 2) / IMAGE_HEIGHT) * WORLD_HEIGHT;
-
-      const uvMinX = (p.ix0 - g.fileX) / g.fileW;
-      const uvMaxX = (p.ix1 - g.fileX) / g.fileW;
-      const uvMinY = (p.iy0 - g.fileY) / g.fileH;
-      const uvMaxY = (p.iy1 - g.fileY) / g.fileH;
-
-      // Patch coordinates inside the complete cue region.
-      // This makes the illumination falloff continuous across tile seams.
-      const cueX0 = (p.ix0 - leftPx) / Math.max(1, rightPx - leftPx);
-      const cueX1 = (p.ix1 - leftPx) / Math.max(1, rightPx - leftPx);
-      const cueY0 = (p.iy0 - topPx) / Math.max(1, bottomPx - topPx);
-      const cueY1 = (p.iy1 - topPx) / Math.max(1, bottomPx - topPx);
-
-      const plane = document.createElement('a-plane');
-      plane.setAttribute('width', worldW);
-      plane.setAttribute('height', worldH);
-      plane.setAttribute('position', `${centerX} ${centerY} 0.032`);
-      plane.setAttribute('render-layer', 'layer: 1');
-      plane.setAttribute('material', {
-        shader: 'tile-glow',
-        src: p.url,
-        opacity: MARCO_CONFIG.cueOpacityMin,
-        uvMin: `${uvMinX} ${uvMinY}`,
-        uvMax: `${uvMaxX} ${uvMaxY}`,
-        lift: MARCO_CONFIG.cueLift,
-        coreBoost: MARCO_CONFIG.cueCoreBoost,
-        cueRect: `${cueX0} ${cueY0} ${cueX1} ${cueY1}`,
-        transparent: true,
-        depthTest: false,
-        depthWrite: false,
-        side: 'double'
-      });
-
-      group.appendChild(plane);
-      plane.addEventListener('object3dset', () => {
-        plane.object3D.traverse(object => object.layers.set(1));
-      });
-
-      plane.setAttribute(`animation__sagepulse${index}`, {
-        property: 'material.opacity',
-        from: MARCO_CONFIG.cueOpacityMin,
-        to: MARCO_CONFIG.cueOpacityMax,
-        dur: MARCO_CONFIG.cuePulseMs,
-        easing: 'easeInOutSine',
-        dir: 'alternate',
-        loop: true
-      });
-    }
-
-    setSageStatus(`Look at the illuminated ${poiId} region for 2 seconds`);
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      patch_count: available.length,
-      cue_bounds: bounds,
-      cue_bounds_scale: MARCO_CONFIG.cueBoundsScale
+      cue_type: 'transparent_halo',
+      halo_width_world: haloW,
+      halo_height_world: haloH,
+      opacity_min: MARCO_CONFIG.cueOpacityMin,
+      opacity_max: MARCO_CONFIG.cueOpacityMax
     });
   }
 };
@@ -2719,7 +2638,7 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
-  console.info('[SAGE visual] v11.1 stronger soft illumination + corrected girl POI');
+  console.info('[SAGE visual] v12 transparent halo + corrected girl POI');
   console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
