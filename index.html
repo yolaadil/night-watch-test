@@ -991,11 +991,15 @@ const SAGEIntegration = {
         !['whole', 'canvas'].includes(poiId) &&
         shape.confidence !== 'conceptual_missing_area';
 
+      // IMPORTANT: do not make current head direction a hard eligibility gate.
+      // SAGE is specifically meant to guide the visitor toward a target that may
+      // not already be close to the current view. Eccentricity still affects the
+      // recommendation SCORE through visibility/spatialConvenience, but it can no
+      // longer eliminate every POI and leave the painting completely static.
       const guideable =
         semanticallyUseful &&
         this.confidenceGuideable(shape) &&
-        !this.nodeCountReached(poiId) &&
-        m.eccentricity <= MARCO_CONFIG.guideableAngleDeg;
+        !this.nodeCountReached(poiId);
 
       spatial[poiId] = {
         zoomValid: guideable,
@@ -1083,14 +1087,55 @@ const SAGEIntegration = {
       }))
     });
 
-    if (!result.selected) {
-      setSageStatus('No eligible recommendation found — reset session or check POI alignment');
+    let recommendationResult = result;
+
+    if (!recommendationResult.selected) {
+      // Safety fallback for the cue pipeline: prerequisites/completion/profile
+      // logic remain Marco's, but current spatial state must never suppress the
+      // entire recommendation set and produce a blank/still experience.
+      const fallbackSpatial = {};
+      Object.entries(this.pois?.shapes || {}).forEach(([poiId, shape]) => {
+        const semanticallyUseful =
+          !['whole', 'canvas'].includes(poiId) &&
+          shape.confidence !== 'conceptual_missing_area';
+
+        const supported =
+          semanticallyUseful &&
+          this.confidenceGuideable(shape) &&
+          !this.nodeCountReached(poiId) &&
+          !this.poiInCooldown(poiId);
+
+        fallbackSpatial[poiId] = {
+          zoomValid: supported,
+          angularSizeValid: supported,
+          currentlyIntersected: false,
+          inCooldown: false,
+          guideable: supported,
+          currentVisibility: 0.25,
+          spatialConvenience: 0.25
+        };
+      });
+
+      recommendationResult = this.runtime.selectRecommendation(
+        this.corpus.nodes,
+        this.visitorState,
+        fallbackSpatial,
+        (node, poiSpatial) => this.featureProvider(node, poiSpatial)
+      );
+
+      this.record('recommendation_spatial_fallback', {
+        candidate_count: recommendationResult.candidates.length
+      });
+    }
+
+    if (!recommendationResult.selected) {
+      setSageStatus('No eligible narrative node found');
       this.record('recommendation_none', {});
       TourEngine.finishTour();
       return null;
     }
 
-    const selected = result.selected;
+    const selected = recommendationResult.selected;
     const poiId = selected.node.poi;
     const metrics = spatial[poiId];
 
