@@ -186,9 +186,9 @@ body {
 
 <script>
 AFRAME.registerShader('tile-glow', {
-  // Transparent SAGE halo. No painting recoloring, no tile brightness change.
+  // Small transparent filled glow. No ring, no dark center, no tile look.
   schema: {
-    opacity: {type: 'number', is: 'uniform', default: 0.16}
+    opacity: {type: 'number', is: 'uniform', default: 0.12}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -205,18 +205,13 @@ AFRAME.registerShader('tile-glow', {
       vec2 p = vUv - vec2(0.5);
       float r = length(p) / 0.7071;
 
-      // Broad, soft halo: mostly transparent in the middle, strongest around
-      // the subject, then fades smoothly to zero at the outer boundary.
-      float inner = smoothstep(0.05, 0.34, r);
-      float outer = 1.0 - smoothstep(0.46, 1.0, r);
-      float halo = inner * outer;
+      // Filled glow: strongest in the center, smoothly fades to zero.
+      // There is intentionally NO ring and NO dark hole.
+      float glow = 1.0 - smoothstep(0.05, 1.0, r);
+      glow = pow(glow, 1.35);
 
-      // Add a very faint central wash so the target reads as one guided area.
-      float centerWash = (1.0 - smoothstep(0.0, 0.72, r)) * 0.22;
-      float a = (halo + centerWash) * opacity;
-
-      vec3 glowColor = vec3(1.0, 0.92, 0.70);
-      gl_FragColor = vec4(glowColor, a);
+      vec3 glowColor = vec3(1.0, 0.92, 0.76);
+      gl_FragColor = vec4(glowColor, opacity * glow);
     }
   `
 });
@@ -676,9 +671,9 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.16,
-  cueOpacityMax: 0.34,
-  cuePulseMs: 1200,
+  cueOpacityMin: 0.10,
+  cueOpacityMax: 0.24,
+  cuePulseMs: 1350,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -1674,6 +1669,28 @@ function setBlurOpacity(target, duration = 450) {
   requestAnimationFrame(frame);
 }
 
+
+// Visual cue anchors are intentionally smaller/more local than the interaction ROI.
+// The interaction/gaze ROI remains Marco's full POI shape.
+const CUE_ANCHOR_OVERRIDES = Object.freeze({
+  // Marco's provisional cartouche cue was visually too far right/down.
+  // Keep the gaze ROI unchanged; move only the visible guidance cue.
+  cartouche: {x: 0.620, y: 0.255}
+});
+
+function cueAnchorForPoi(poiId, bounds, center) {
+  const override = CUE_ANCHOR_OVERRIDES[poiId];
+  if (override) return override;
+
+  // Bias character cues upward toward face/upper torso so Captain, Lieutenant,
+  // Girl, Drummer, etc. do not get a full-body glowing patch.
+  const height = bounds.y1 - bounds.y0;
+  return {
+    x: center.x,
+    y: THREE.MathUtils.clamp(center.y - Math.min(0.08, height * 0.18), 0, 1)
+  };
+}
+
 const QuestCue = {
   activePoi: null,
   group: null,
@@ -1729,16 +1746,18 @@ const QuestCue = {
     cueLayer.appendChild(group);
     this.group = group;
 
-    // Slightly larger than the POI so the halo wraps around the subject
-    // instead of looking like a box sitting on top of the painting.
+    // Compact local cue, not the whole POI.
+    // Clamp the footprint so tall character ROIs (e.g. Captain) do not create
+    // a body-sized disruptive glow.
     const regionW = Math.max(0.10, (bounds.x1 - bounds.x0) * WORLD_WIDTH);
     const regionH = Math.max(0.10, (bounds.y1 - bounds.y0) * WORLD_HEIGHT);
 
-    const haloW = regionW * 0.82;
-    const haloH = regionH * 0.82;
+    const haloW = THREE.MathUtils.clamp(regionW * 0.38, 0.16, 0.32);
+    const haloH = THREE.MathUtils.clamp(regionH * 0.30, 0.16, 0.34);
 
-    const centerX = (center.x - 0.5) * WORLD_WIDTH;
-    const centerY = (0.5 - center.y) * WORLD_HEIGHT;
+    const cueAnchor = cueAnchorForPoi(poiId, bounds, center);
+    const centerX = (cueAnchor.x - 0.5) * WORLD_WIDTH;
+    const centerY = (0.5 - cueAnchor.y) * WORLD_HEIGHT;
 
     const plane = document.createElement('a-plane');
     plane.setAttribute('width', haloW);
@@ -1777,6 +1796,7 @@ const QuestCue = {
       cue_type: 'transparent_halo',
       halo_width_world: haloW,
       halo_height_world: haloH,
+      cue_anchor: cueAnchor,
       opacity_min: MARCO_CONFIG.cueOpacityMin,
       opacity_max: MARCO_CONFIG.cueOpacityMax
     });
@@ -2638,7 +2658,7 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
-  console.info('[SAGE visual] v12 transparent halo + corrected girl POI');
+  console.info('[SAGE visual] v12.1 compact filled halo + cartouche cue correction');
   console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
