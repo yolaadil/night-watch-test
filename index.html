@@ -236,14 +236,15 @@ AFRAME.registerShader('tile-glow', {
       // and fades gently all the way to zero at the perimeter.
       vec2 d = (cueUv - vec2(0.5)) / vec2(0.50, 0.58);
       float r = length(d);
-      float field = 1.0 - smoothstep(0.10, 1.00, r);
+      float field = 1.0 - smoothstep(0.06, 1.00, r);
+      field = pow(field, 0.82);
       field = field * field * (3.0 - 2.0 * field);
 
       // Preserve hue. Lift dark/mid tones a little more than bright ones,
       // so the region feels illuminated rather than pasted on.
       vec3 gammaLift = sqrt(max(tex.rgb, vec3(0.0)));
       vec3 lifted = mix(tex.rgb, gammaLift, lift * field);
-      lifted += vec3(coreBoost * field * 0.18);
+      lifted += vec3(coreBoost * field * 0.24);
       lifted = clamp(lifted, 0.0, 1.0);
 
       // Transparent at the outer edge; strongest at the subject.
@@ -707,11 +708,11 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.18,
-  cueOpacityMax: 0.34,
-  cuePulseMs: 1450,
-  cueLift: 0.30,
-  cueCoreBoost: 0.10,
+  cueOpacityMin: 0.24,
+  cueOpacityMax: 0.46,
+  cuePulseMs: 1350,
+  cueLift: 0.42,
+  cueCoreBoost: 0.15,
   // Provisional visual POIs are allowed for engineering/pilot work only.
   allowProvisionalVisual: true,
   allowConservationRegistrationPois: false,
@@ -2718,7 +2719,7 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
-  console.info('[SAGE visual] v11 soft illumination field + corrected girl POI');
+  console.info('[SAGE visual] v11.1 stronger soft illumination + corrected girl POI');
   console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
