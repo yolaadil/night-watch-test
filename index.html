@@ -688,18 +688,20 @@ const INTRO_NODE_IDS = ['NW001'];
 // dwell, cooldown, logging, and POI geometry as the adaptive page.
 // The ONLY experimental difference is that the next spatial POI is
 // determined by this fixed sequence rather than selectRecommendation().
-const FIXED_POI_SEQUENCE = Object.freeze([
-  'captain',
-  'lieutenant',
-  'girl',
-  'drummer',
-  'standard',
-  'musketeer_left',
-  'dog',
-  'right_group',
-  'architecture',
-  'cartouche'
+const FIXED_STOPS = Object.freeze([
+  {poi: 'captain',        nodeId: 'NW011'},
+  {poi: 'lieutenant',     nodeId: 'NW012'},
+  {poi: 'girl',           nodeId: 'NW016'},
+  {poi: 'standard',       nodeId: 'NW015'},
+  {poi: 'musketeer_left', nodeId: 'NW023'},
+  {poi: 'drummer',        nodeId: 'NW020'},
+  {poi: 'dog',            nodeId: 'NW021'},
+  {poi: 'right_group',    nodeId: 'NW025'},
+  {poi: 'architecture',   nodeId: 'NW008'},
+  {poi: 'cartouche',      nodeId: 'NW055'}
 ]);
+
+const FIXED_POI_SEQUENCE = Object.freeze(FIXED_STOPS.map(stop => stop.poi));
 let selectedProfile = 'general';
 let selectedGuidanceMode = 'sage';
 
@@ -726,7 +728,8 @@ const StudyLogger = {
     this.lastSampleMs = 0;
 
     this.logEvent('session_started', {
-      fixed_sequence: [...FIXED_POI_SEQUENCE]
+      fixed_sequence: [...FIXED_POI_SEQUENCE],
+      fixed_stops: FIXED_STOPS.map(s => ({...s}))
     });
   },
 
@@ -911,6 +914,17 @@ const SAGEIntegration = {
     this.corpus = await corpusResponse.json();
     this.pois = await poiResponse.json();
 
+    // Registration correction for this build: Cartouche was still visually
+    // too far right/down. Apply one shared correction to the loaded POI so
+    // cue placement, gaze ROI, and zoom target all remain aligned.
+    if (this.pois?.shapes?.cartouche) {
+      this.pois.shapes.cartouche.cx = 0.575;
+      this.pois.shapes.cartouche.cy = 0.205;
+      this.pois.shapes.cartouche.rx = 0.080;
+      this.pois.shapes.cartouche.ry = 0.052;
+      this.pois.shapes.cartouche.confidence = 'provisional_visual_adjusted';
+    }
+
     const persisted = !forceNew ? this.loadPersistedState(profile) : null;
     this.visitorState = persisted
       ? runtime.hydrateVisitorState(persisted.visitorState)
@@ -956,7 +970,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v1:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v2:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1263,70 +1277,37 @@ const SAGEIntegration = {
     if (!this.ready) await this.init();
     if (this.activeRecommendation || !['IDLE', 'FREE'].includes(TourEngine.state)) return null;
 
-    const spatial = this.buildSpatialState();
-
-    // Move through FIXED_POI_SEQUENCE only.
-    // No POI recommendation scoring is used in this condition.
-    let chosenPoi = null;
-    let chosenNode = null;
-
-    while (this.fixedPoiIndex < FIXED_POI_SEQUENCE.length && !chosenNode) {
-      const poiId = FIXED_POI_SEQUENCE[this.fixedPoiIndex];
-
-      // Build the eligible set using Marco's prerequisites/completion/cooldown rules,
-      // but restrict the search to the current fixed POI.
-      const poiNodes = this.corpus.nodes.filter(node => node.poi === poiId);
-
-      const eligible = poiNodes.filter(node => {
-        const s = spatial[node.poi] || {};
-        const requiresAll = node.requires_all || [];
-        const requiresAny = node.requires_any || [];
-
-        const prereqsOk =
-          requiresAll.every(id => this.visitorState.completed.has(id)) &&
-          (requiresAny.length === 0 || requiresAny.some(id => this.visitorState.completed.has(id)));
-
-        return !this.visitorState.completed.has(node.id)
-          && !this.visitorState.dismissed.has(node.id)
-          && prereqsOk
-          && s.zoomValid !== false
-          && s.angularSizeValid !== false
-          && s.inCooldown !== true
-          && s.guideable !== false;
-      });
-
-      if (eligible.length) {
-        // Deterministic narration choice within this POI:
-        // lowest information level first, then lowest node ID.
-        eligible.sort((a, b) =>
-          (a.level ?? 0) - (b.level ?? 0) ||
-          a.id.localeCompare(b.id, undefined, {numeric: true})
-        );
-
-        chosenPoi = poiId;
-        chosenNode = eligible[0];
-        break;
-      }
-
-      // If this POI has nothing currently playable, skip to the next fixed stop.
-      this.record('fixed_poi_skipped', {
-        sequence_index: this.fixedPoiIndex,
-        poi: poiId,
-        reason: 'no_eligible_node'
-      });
-      this.fixedPoiIndex += 1;
-    }
-
-    if (!chosenNode || !chosenPoi) {
+    // STRICT FIXED CONDITION:
+    // Never call Marco's adaptive recommender here.
+    // The current index directly determines BOTH the spatial POI and narration node.
+    if (this.fixedPoiIndex >= FIXED_STOPS.length) {
       setSageStatus('Fixed guided tour complete');
       this.record('fixed_tour_complete', {
-        sequence_length: FIXED_POI_SEQUENCE.length
+        sequence_length: FIXED_STOPS.length
       });
       TourEngine.finishTour();
       return null;
     }
 
-    const metrics = spatial[chosenPoi] || {};
+    const stop = FIXED_STOPS[this.fixedPoiIndex];
+    const chosenPoi = stop.poi;
+    const chosenNode = this.corpus.nodes.find(node => node.id === stop.nodeId);
+
+    if (!chosenNode) {
+      console.error('[Fixed tour] Missing narrative node', stop);
+      this.record('fixed_stop_error', {
+        sequence_index: this.fixedPoiIndex,
+        poi: chosenPoi,
+        node_id: stop.nodeId,
+        reason: 'node_not_found'
+      });
+      return null;
+    }
+
+    // Do not use narrative prerequisites to alter the fixed experimental order.
+    // Those prerequisites belong to the adaptive graph; the fixed condition must
+    // present the same predetermined sequence to every participant.
+    const metrics = this.angularMetrics(chosenPoi);
 
     this.activeRecommendation = {
       node: chosenNode,
@@ -1335,8 +1316,8 @@ const SAGEIntegration = {
       contributions: null,
       features: null,
       onsetMs: performance.now(),
-      eccentricityDeg: metrics.targetEccentricityDeg ?? null,
-      angularSizeDeg: metrics.angularSizeDeg ?? null
+      eccentricityDeg: metrics?.eccentricity ?? null,
+      angularSizeDeg: metrics?.angularSize ?? null
     };
 
     this.visitorState.activeNode = chosenNode.id;
@@ -1345,11 +1326,13 @@ const SAGEIntegration = {
     this.dwell.reset();
     this.roiInside = {outer: false, inner: false};
 
-    setSageStatus(`Fixed stop ${this.fixedPoiIndex + 1}/${FIXED_POI_SEQUENCE.length}: ${chosenPoi}`);
+    setSageStatus(
+      `Fixed stop ${this.fixedPoiIndex + 1}/${FIXED_STOPS.length}: ${chosenPoi}`
+    );
 
     this.record('fixed_poi_selected', {
       sequence_index: this.fixedPoiIndex,
-      sequence_length: FIXED_POI_SEQUENCE.length,
+      sequence_length: FIXED_STOPS.length,
       node_id: chosenNode.id,
       poi: chosenPoi,
       target_eccentricity_deg: this.activeRecommendation.eccentricityDeg,
@@ -1358,7 +1341,7 @@ const SAGEIntegration = {
 
     await TourEngine.startCue(chosenPoi);
 
-    this.record(selectedGuidanceMode === 'baseline' ? 'latent_guidance_onset' : 'guidance_onset', {
+    this.record('guidance_onset', {
       condition: 'fixed_sequence',
       sequence_index: this.fixedPoiIndex,
       node_id: chosenNode.id,
@@ -1368,7 +1351,10 @@ const SAGEIntegration = {
     });
 
     clearTimeout(this.guidanceTimer);
-    this.guidanceTimer = setTimeout(() => this.guidanceTimeout(), MARCO_CONFIG.guidanceTimeoutMs);
+    this.guidanceTimer = setTimeout(
+      () => this.guidanceTimeout(),
+      MARCO_CONFIG.guidanceTimeoutMs
+    );
 
     this.persist();
     return this.activeRecommendation;
@@ -1632,11 +1618,12 @@ const SAGEIntegration = {
     this.visitorState.activeNode = null;
     this.visitorState.narrationState = interrupted ? 'paused' : 'idle';
 
-    // Advance to the next spatial POI only after the current narration block ends.
+    // Advance exactly one stop after successful narration completion.
     if (!interrupted) {
       this.fixedPoiIndex += 1;
       this.record('fixed_sequence_advanced', {
-        next_sequence_index: this.fixedPoiIndex
+        next_sequence_index: this.fixedPoiIndex,
+        next_poi: FIXED_STOPS[this.fixedPoiIndex]?.poi || null
       });
     }
 
@@ -2786,7 +2773,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v1:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v2:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
@@ -2865,7 +2852,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 window.addEventListener('load', () => {
-  console.info('[SAGE fixed-sequence condition] v1');
+  console.info('[SAGE fixed-sequence condition] v2 strict order');
   console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
