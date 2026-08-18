@@ -462,22 +462,20 @@ AFRAME.registerComponent('quest-gaze-select', {
     style="display:none">
     ← Back
   </button>
-  <button id="exportLogButton" class="tileButton" style="display:none">Export Log</button>
+  <button id="exportLogButton" class="tileButton" style="display:none">Export Study Data</button>
   <button id="resetSessionButton" class="tileButton" style="display:none">Reset Session</button>
 </div>
 
 <div id="languageOverlay" style="display:none">
   <div id="languageBox">
     <h1>The Night Watch</h1>
+    <p>Participant ID</p>
+    <input id="participantIdInput" type="text" placeholder="e.g. P001"
+      style="padding:10px 12px; border-radius:8px; border:1px solid #aaa; margin-bottom:14px; width:180px; text-align:center;">
     <p>Select a visitor profile to begin</p>
     <button class="languageButton profileButton" data-profile="child">Child</button>
     <button class="languageButton profileButton" data-profile="general">General</button>
     <button class="languageButton profileButton" data-profile="expert">Expert</button>
-    <p style="margin-top:18px">Guidance condition</p>
-    <select id="guidanceModeSelect" class="languageButton" style="padding:10px 14px">
-      <option value="sage" selected>SAGE cue</option>
-      <option value="baseline">Unguided baseline</option>
-    </select>
   </div>
 </div>
 
@@ -705,6 +703,175 @@ const FIXED_POI_SEQUENCE = Object.freeze([
 let selectedProfile = 'general';
 let selectedGuidanceMode = 'sage';
 
+
+const StudyLogger = {
+  participantId: 'P000',
+  condition: 'fixed_sequence',
+  profile: 'general',
+  startedAtIso: null,
+  startedAtMs: null,
+  endedAtIso: null,
+  events: [],
+  viewSamples: [],
+  lastSampleMs: 0,
+
+  start(participantId, profile) {
+    this.participantId = (participantId || 'P000').trim() || 'P000';
+    this.profile = profile || 'general';
+    this.startedAtIso = new Date().toISOString();
+    this.startedAtMs = performance.now();
+    this.endedAtIso = null;
+    this.events = [];
+    this.viewSamples = [];
+    this.lastSampleMs = 0;
+
+    this.logEvent('session_started', {
+      fixed_sequence: [...FIXED_POI_SEQUENCE]
+    });
+  },
+
+  nowMs() {
+    return this.startedAtMs == null ? 0 : Math.round(performance.now() - this.startedAtMs);
+  },
+
+  logEvent(event, data = {}) {
+    if (this.startedAtMs == null) return;
+    this.events.push({
+      t_ms: this.nowMs(),
+      event,
+      ...data
+    });
+  },
+
+  sampleView({uv, headPose, angularVelocityDegPerSec, activeTarget, state}) {
+    if (this.startedAtMs == null) return;
+
+    const now = performance.now();
+    if (now - this.lastSampleMs < 100) return; // 10 Hz
+    this.lastSampleMs = now;
+
+    let lookedAtPoi = null;
+    if (uv && window.SAGEIntegration?.pois?.shapes && window.SAGEIntegration?.runtime?.pointInShape) {
+      for (const [poiId, shape] of Object.entries(window.SAGEIntegration.pois.shapes)) {
+        try {
+          if (window.SAGEIntegration.runtime.pointInShape(uv.x, uv.y, shape)) {
+            lookedAtPoi = poiId;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    this.viewSamples.push({
+      t_ms: this.nowMs(),
+      painting_x: uv ? Number(uv.x.toFixed(5)) : null,
+      painting_y: uv ? Number(uv.y.toFixed(5)) : null,
+      yaw_rad: headPose?.rotation?.y ?? null,
+      pitch_rad: headPose?.rotation?.x ?? null,
+      roll_rad: headPose?.rotation?.z ?? null,
+      angular_velocity_deg_s: Number.isFinite(angularVelocityDegPerSec)
+        ? Number(angularVelocityDegPerSec.toFixed(3))
+        : null,
+      looked_at_poi: lookedAtPoi,
+      active_target: activeTarget || null,
+      state: state || null
+    });
+  },
+
+  summarize() {
+    const totalDurationS = this.startedAtMs == null
+      ? 0
+      : (performance.now() - this.startedAtMs) / 1000;
+
+    const acquisitionEvents = this.events.filter(e => e.event === 'target_acquired');
+    const acquisitions = acquisitionEvents
+      .map(e => e.acquisition_ms)
+      .filter(v => Number.isFinite(v));
+
+    const meanAcq = acquisitions.length
+      ? acquisitions.reduce((a, b) => a + b, 0) / acquisitions.length
+      : null;
+
+    const sorted = [...acquisitions].sort((a, b) => a - b);
+    const medianAcq = sorted.length
+      ? (sorted.length % 2
+          ? sorted[(sorted.length - 1) / 2]
+          : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2)
+      : null;
+
+    const narrStarted = this.events.filter(e => e.event === 'audio_start').length;
+    const narrCompleted = this.events.filter(e =>
+      e.event === 'audio_completion' || e.event === 'narration_completion_threshold'
+    ).length;
+    const cueTimeouts = this.events.filter(e => e.event === 'guidance_timeout').length;
+    const poisVisited = new Set(
+      this.events
+        .filter(e => e.event === 'target_acquired' && e.poi)
+        .map(e => e.poi)
+    ).size;
+
+    let totalHeadRotationDeg = 0;
+    for (let i = 1; i < this.viewSamples.length; i++) {
+      const a = this.viewSamples[i - 1];
+      const b = this.viewSamples[i];
+      if (
+        Number.isFinite(a.yaw_rad) && Number.isFinite(b.yaw_rad) &&
+        Number.isFinite(a.pitch_rad) && Number.isFinite(b.pitch_rad)
+      ) {
+        const dy = b.yaw_rad - a.yaw_rad;
+        const dp = b.pitch_rad - a.pitch_rad;
+        totalHeadRotationDeg += Math.sqrt(dy * dy + dp * dp) * 180 / Math.PI;
+      }
+    }
+
+    return {
+      pois_visited: poisVisited,
+      narrations_started: narrStarted,
+      narrations_completed: narrCompleted,
+      cue_successes: acquisitionEvents.length,
+      cue_timeouts: cueTimeouts,
+      mean_acquisition_ms: meanAcq == null ? null : Math.round(meanAcq),
+      median_acquisition_ms: medianAcq == null ? null : Math.round(medianAcq),
+      total_head_rotation_deg: Number(totalHeadRotationDeg.toFixed(2)),
+      total_duration_s: Number(totalDurationS.toFixed(2))
+    };
+  },
+
+  exportJson() {
+    if (this.startedAtMs == null) return;
+
+    this.endedAtIso = new Date().toISOString();
+
+    const payload = {
+      participant_id: this.participantId,
+      condition: this.condition,
+      profile: this.profile,
+      session_start: this.startedAtIso,
+      session_end: this.endedAtIso,
+      fixed_sequence: [...FIXED_POI_SEQUENCE],
+      summary: this.summarize(),
+      events: this.events,
+      view_samples: this.viewSamples
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `${this.participantId}_fixed_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+};
+
+window.StudyLogger = StudyLogger;
+
 const SAGEIntegration = {
   runtime: null,
   corpus: null,
@@ -829,6 +996,17 @@ const SAGEIntegration = {
         })
       : {schema_version: '1.0', type, timestamp_ms: performance.now(), ...data};
     this.log.push(event);
+
+    if (window.StudyLogger && StudyLogger.startedAtMs !== null) {
+      const {
+        schema_version,
+        timestamp_ms,
+        type,
+        ...studyData
+      } = event;
+      StudyLogger.logEvent(type, studyData);
+    }
+
     this.persist();
     console.log('[SAGE event]', event);
     return event;
@@ -1224,6 +1402,16 @@ const SAGEIntegration = {
     this.lastUv = uv;
     this.angularVelocity = measuredAngularVelocityDegPerSec;
     this.lastHeadPose = headPose;
+
+    if (window.StudyLogger) {
+      StudyLogger.sampleView({
+        uv,
+        headPose,
+        angularVelocityDegPerSec: measuredAngularVelocityDegPerSec,
+        activeTarget: this.activeRecommendation?.poi || null,
+        state: TourEngine.state
+      });
+    }
 
     if (nowMs - this.lastHeadLogMs >= 250 && ['CUE', 'WAIT_GAZE', 'STORY'].includes(TourEngine.state)) {
       this.lastHeadLogMs = nowMs;
@@ -2589,9 +2777,12 @@ function beginExperience() {
 document.querySelectorAll('.profileButton').forEach(button => {
   button.addEventListener('click', () => {
     selectedProfile = button.dataset.profile || 'general';
-    selectedGuidanceMode = document.querySelector('#guidanceModeSelect')?.value || 'sage';
+    selectedGuidanceMode = 'sage';
 
-    console.log(`[Profile selected] ${selectedProfile}; mode=${selectedGuidanceMode}`);
+    const participantId = document.querySelector('#participantIdInput')?.value || 'P000';
+    StudyLogger.start(participantId, selectedProfile);
+
+    console.log(`[Profile selected] ${selectedProfile}; mode=${selectedGuidanceMode}; participant=${participantId}`);
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
@@ -2616,7 +2807,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 });
 
 document.querySelector('#exportLogButton').addEventListener('click', () => {
-  SAGEIntegration.exportLog();
+  StudyLogger.exportJson();
 });
 
 document.querySelector('#resetSessionButton').addEventListener('click', () => {
@@ -2664,6 +2855,12 @@ Object.keys(hotspotTexts).forEach(addHotspot);
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     TourEngine.manualBack();
+  }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (window.StudyLogger && StudyLogger.startedAtMs !== null) {
+    StudyLogger.logEvent('session_page_exit', {});
   }
 });
 
