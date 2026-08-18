@@ -973,7 +973,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v6:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v7:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -2620,46 +2620,6 @@ function showNestedDetails(id) {
 }
 
 
-function animatePaintingTransform({position, scale, duration = 850, onComplete = null}) {
-  const obj = paintingRoot.object3D;
-  if (!obj) {
-    if (typeof onComplete === 'function') onComplete();
-    return;
-  }
-
-  // Cancel A-Frame transform animations so position and scale are not driven
-  // by separate components on different render frames.
-  ['animation__zoompos', 'animation__zoomscale'].forEach(name => {
-    try { paintingRoot.removeAttribute(name); } catch {}
-  });
-
-  const fromPos = obj.position.clone();
-  const fromScale = obj.scale.clone();
-  const toPos = new THREE.Vector3(position.x, position.y, position.z);
-  const toScale = new THREE.Vector3(scale, scale, scale);
-  const started = performance.now();
-
-  const easeInOut = t =>
-    t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-
-  function frame(now) {
-    const raw = Math.min(1, (now - started) / duration);
-    const t = easeInOut(raw);
-
-    // Position and scale use the exact same interpolation value on the same frame.
-    obj.position.lerpVectors(fromPos, toPos, t);
-    obj.scale.lerpVectors(fromScale, toScale, t);
-
-    if (raw < 1) {
-      requestAnimationFrame(frame);
-    } else if (typeof onComplete === 'function') {
-      onComplete();
-    }
-  }
-
-  requestAnimationFrame(frame);
-}
-
 const TourEngine = {
   state: State.IDLE,
   target: null,
@@ -2736,11 +2696,16 @@ const TourEngine = {
       target_position: {x: targetX, y: targetY, z: -2.25}
     });
 
-    animatePaintingTransform({
-      position: {x: targetX, y: targetY, z: -2.25},
-      scale: zoomScale,
-      duration: 850,
-      onComplete: () => {
+    paintingRoot.setAttribute(
+      'animation__zoompos',
+      `property: position; to: ${targetX} ${targetY} -2.25; dur: 850; easing: easeInOutQuad`
+    );
+    paintingRoot.setAttribute(
+      'animation__zoomscale',
+      `property: scale; to: ${zoomScale} ${zoomScale} ${zoomScale}; dur: 850; easing: easeInOutQuad`
+    );
+
+    setTimeout(() => {
       this.setState(State.STORY);
       setSageStatus('');
       backButton.style.display = 'block';
@@ -2790,8 +2755,7 @@ const TourEngine = {
       };
 
       playNextNarration();
-      }
-    });
+    }, 900);
   },
 
   returnFromTarget(continueImmediately = false, callback = null) {
@@ -2809,11 +2773,16 @@ const TourEngine = {
       poi: SAGEIntegration.activeRecommendation?.poi || null
     });
 
-    animatePaintingTransform({
-      position: {x: 0, y: 1.6, z: -3},
-      scale: 1,
-      duration: 800,
-      onComplete: () => {
+    paintingRoot.setAttribute(
+      'animation__zoompos',
+      'property: position; to: 0 1.6 -3; dur: 800; easing: easeInOutQuad'
+    );
+    paintingRoot.setAttribute(
+      'animation__zoomscale',
+      'property: scale; to: 1 1 1; dur: 800; easing: easeInOutQuad'
+    );
+
+    setTimeout(() => {
       clearFocusTiles();
       showPrimaryHotspots(false);
       this.target = null;
@@ -2823,8 +2792,7 @@ const TourEngine = {
 
       if (typeof callback === 'function') callback();
       if (continueImmediately) this.recommendAndCue().catch(console.error);
-      }
-    });
+    }, 830);
   },
 
   manualBack() {
@@ -2919,7 +2887,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v6:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v7:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
