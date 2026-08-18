@@ -1080,7 +1080,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v10:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v11:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1179,7 +1179,19 @@ const SAGEIntegration = {
   },
 
   activationShapeForPoi(poiId) {
-    return this.pois?.shapes?.[poiId] || null;
+    const source = this.pois?.shapes?.[poiId];
+    const center = this.shapeCenter(source);
+    if (!center) return source || null;
+
+    // Match the gaze-lock footprint to the visible 0.34 x 0.34 world-unit cue.
+    // This prevents the reticle from locking while visibly outside the halo.
+    return {
+      type: 'ellipse',
+      cx: center.x,
+      cy: center.y,
+      rx: (0.34 / WORLD_WIDTH) / 2,
+      ry: (0.34 / WORLD_HEIGHT) / 2
+    };
   },
 
   shrinkBounds(bounds, scale) {
@@ -1974,113 +1986,736 @@ function cueAnchorForPoi(poiId, bounds, center) {
   return {x: center.x, y: center.y};
 }
 
+const QuestCue = {
+  group: null,
+  activePoi: null,
+  token: 0,
+  _xrTimer: null,
 
-const DICHOPTIC_LEFT_LAYER = 1;
-const DICHOPTIC_RIGHT_LAYER = 2;
-
-AFRAME.registerComponent('dichoptic-eye', {
-  schema: {eye: {default: 'left'}},
-  init() {
-    const apply=()=>{
-      this.el.object3D?.traverse(o=>{
-        if(!o.layers)return;
-        o.layers.disableAll();
-        o.layers.enable(this.data.eye==='left'?DICHOPTIC_LEFT_LAYER:DICHOPTIC_RIGHT_LAYER);
-      });
-    };
-    apply();
-    this.el.addEventListener('object3dset',apply);
-    this.el.addEventListener('loaded',apply);
-  }
-});
-
-function configureDichopticEyeLayers(){
-  const scene=document.querySelector('a-scene');
-  const r=scene?.renderer,c=scene?.camera;
-  if(!r||!c||!r.xr?.isPresenting)return false;
-  c.layers.enable(0);
-  const cams=r.xr.getCamera(c)?.cameras;
-  if(!cams||cams.length<2)return false;
-  cams[0].layers.enable(0); cams[0].layers.enable(1); cams[0].layers.disable(2);
-  cams[1].layers.enable(0); cams[1].layers.enable(2); cams[1].layers.disable(1);
-  return true;
-}
-
-const QuestCue={
-  group:null, activePoi:null, token:0, _xrInterval:null,
-
-  async show(poiId){
+  async show(poiId) {
     this.hideAll();
-    this.activePoi=poiId;
-    const token=++this.token;
-    const shape=SAGEIntegration.pois?.shapes?.[poiId];
-    const bounds=SAGEIntegration.shapeBounds(shape);
-    const center=SAGEIntegration.shapeCenter(shape);
-    if(!bounds||!center)return;
+    this.activePoi = poiId;
+    const token = ++this.token;
 
-    const group=document.createElement('a-entity');
-    group.id=`dichoptic-cue-${poiId}`;
-    this.group=group;
+    const shape = SAGEIntegration.pois?.shapes?.[poiId];
+    const bounds = SAGEIntegration.shapeBounds(shape);
+    const center = SAGEIntegration.shapeCenter(shape);
+    if (!bounds || !center) return;
+
+    const group = document.createElement('a-entity');
+    group.id = `dichoptic-cue-${poiId}`;
+    this.group = group;
     paintingRoot.appendChild(group);
 
-    // LEFT EYE: brighten the same Level-14 target tiles used for focus/zoom.
-    const tiles=tileListForBounds(bounds);
-    const bright=document.createElement('a-entity');
-    bright.setAttribute('dichoptic-eye','eye: left');
-    group.appendChild(bright);
+    const tiles = tileListForBounds(bounds);
+    const brightPlanes = [];
 
-    tiles.forEach(tile=>{
-      const p=document.createElement('a-image');
-      p.setAttribute('src',tile.url);
-      const x0=tile.x/LEVEL14_COLS,x1=(tile.x+1)/LEVEL14_COLS;
-      const y0=tile.y/LEVEL14_ROWS,y1=(tile.y+1)/LEVEL14_ROWS;
-      p.setAttribute('position',`${((x0+x1)/2-0.5)*WORLD_WIDTH} ${(0.5-(y0+y1)/2)*WORLD_HEIGHT} 0.012`);
-      p.setAttribute('width',(x1-x0)*WORLD_WIDTH);
-      p.setAttribute('height',(y1-y0)*WORLD_HEIGHT);
-      p.setAttribute('material','shader: flat; transparent: true; opacity: 0.30; depthWrite: false');
-      p.addEventListener('materialtextureloaded',()=>{
-        const m=p.getObject3D('mesh')?.material;
-        if(m){m.opacity=0.30;m.transparent=true;m.blending=THREE.AdditiveBlending;m.depthWrite=false;m.toneMapped=false;m.needsUpdate=true;}
-      },{once:true});
-      bright.appendChild(p);
+    // Local target enhancement. Visible normally until XR eye masks are ready.
+    tiles.forEach(tile => {
+      const p = document.createElement('a-image');
+      p.setAttribute('src', tile.url);
+
+      const x0 = tile.x / LEVEL14_COLS, x1 = (tile.x + 1) / LEVEL14_COLS;
+      const y0 = tile.y / LEVEL14_ROWS, y1 = (tile.y + 1) / LEVEL14_ROWS;
+      p.setAttribute('position',
+        `${((x0+x1)/2-0.5)*WORLD_WIDTH} ${(0.5-(y0+y1)/2)*WORLD_HEIGHT} 0.012`);
+      p.setAttribute('width', (x1-x0)*WORLD_WIDTH);
+      p.setAttribute('height', (y1-y0)*WORLD_HEIGHT);
+      p.setAttribute('material',
+        'shader: flat; transparent: true; opacity: 0.28; depthWrite: false');
+
+      p.addEventListener('materialtextureloaded', () => {
+        const mesh = p.getObject3D('mesh');
+        if (!mesh) return;
+        brightPlanes.push(mesh);
+        const m = mesh.material;
+        if (m) {
+          m.transparent = true;
+          m.opacity = 0.28;
+          m.blending = THREE.AdditiveBlending;
+          m.depthWrite = false;
+          m.toneMapped = false;
+          m.needsUpdate = true;
+        }
+      }, {once:true});
+      group.appendChild(p);
     });
 
-    // RIGHT EYE: subtle global dim, creating local inter-eye salience.
-    const veil=document.createElement('a-plane');
-    veil.setAttribute('dichoptic-eye','eye: right');
-    veil.setAttribute('position','0 0 0.014');
-    veil.setAttribute('width',WORLD_WIDTH);
-    veil.setAttribute('height',WORLD_HEIGHT);
-    veil.setAttribute('material','shader: flat; color: #000; transparent: true; opacity: 0.08; depthWrite: false');
+    // Dim veil starts hidden; it is enabled only after XR cameras are confirmed.
+    const veil = document.createElement('a-plane');
+    veil.setAttribute('position', '0 0 0.014');
+    veil.setAttribute('width', WORLD_WIDTH);
+    veil.setAttribute('height', WORLD_HEIGHT);
+    veil.setAttribute('visible', false);
+    veil.setAttribute('material',
+      'shader: flat; color: #000000; transparent: true; opacity: 0.07; depthWrite: false');
     group.appendChild(veil);
 
-    const scene=document.querySelector('a-scene');
-    const sync=()=>{
-      if(token!==this.token||!this.group)return;
-      const xr=!!scene?.renderer?.xr?.isPresenting;
-      veil.setAttribute('visible',xr);
-      configureDichopticEyeLayers();
-    };
-    sync();
-    this._xrInterval=setInterval(sync,250);
+    const applyStereo = () => {
+      if (token !== this.token || !this.group) return;
+      const scene = document.querySelector('a-scene');
+      const renderer = scene?.renderer;
+      const baseCamera = scene?.camera;
+      if (!renderer?.xr?.isPresenting || !baseCamera) return;
 
-    SAGEIntegration.record('cue_rendered',{
-      poi:poiId,cue_type:'dichoptic_local_region',
-      cue_anchor:{x:center.x,y:center.y},
-      left_eye_bright_overlay:0.30,right_eye_dim:0.08,tile_count:tiles.length
+      const xrCamera = renderer.xr.getCamera(baseCamera);
+      const cams = xrCamera?.cameras;
+      if (!cams || cams.length < 2) return;
+
+      // Three.js WebXR reserves layer 1 for left eye and 2 for right eye.
+      // Normal scene stays on layer 0.
+      brightPlanes.forEach(mesh => mesh.layers.set(1));
+
+      const veilMesh = veil.getObject3D('mesh');
+      if (veilMesh) {
+        veilMesh.layers.set(2);
+        veil.setAttribute('visible', true);
+      }
+
+      // Preserve normal layer 0 while enabling the eye-specific layers.
+      cams[0].layers.enable(0);
+      cams[0].layers.enable(1);
+      cams[0].layers.disable(2);
+      cams[1].layers.enable(0);
+      cams[1].layers.enable(2);
+      cams[1].layers.disable(1);
+
+      SAGEIntegration.record('dichoptic_cue_active', {
+        poi: poiId,
+        left_eye_target_overlay: 0.28,
+        right_eye_surround_dim: 0.07
+      });
+    };
+
+    // Apply after XR is active and keep refreshing because WebXR updates eye cameras.
+    this._xrTimer = setInterval(applyStereo, 100);
+
+    SAGEIntegration.record('cue_rendered', {
+      poi: poiId,
+      cue_type: 'dichoptic_tile_region_safe',
+      cue_anchor: {x:center.x, y:center.y},
+      tile_count: tiles.length
     });
   },
 
-  hideAll(){
-    this.token+=1; this.activePoi=null;
-    if(this._xrInterval){clearInterval(this._xrInterval);this._xrInterval=null;}
-    if(this.group)disposeEntityTree(this.group);
-    this.group=null;
+  hideAll() {
+    this.token += 1;
+    this.activePoi = null;
+    if (this._xrTimer) {
+      clearInterval(this._xrTimer);
+      this._xrTimer = null;
+    }
+    if (this.group) disposeEntityTree(this.group);
+    this.group = null;
   },
 
-  pulse(){}
+  pulse() {}
+};
+function disposeEntityTree(rootEl) {
+  if (!rootEl) return;
+
+  // Dispose GPU resources explicitly before removing DOM entities.
+  try {
+    const object3D = rootEl.object3D;
+    if (object3D) {
+      object3D.traverse(obj => {
+        if (obj.geometry && typeof obj.geometry.dispose === 'function') {
+          try { obj.geometry.dispose(); } catch {}
+        }
+
+        const materials = obj.material
+          ? (Array.isArray(obj.material) ? obj.material : [obj.material])
+          : [];
+
+        materials.forEach(material => {
+          if (!material) return;
+          [
+            'map', 'alphaMap', 'aoMap', 'bumpMap', 'displacementMap',
+            'emissiveMap', 'envMap', 'lightMap', 'metalnessMap',
+            'normalMap', 'roughnessMap'
+          ].forEach(key => {
+            const tex = material[key];
+            if (tex && typeof tex.dispose === 'function') {
+              try { tex.dispose(); } catch {}
+            }
+          });
+          if (typeof material.dispose === 'function') {
+            try { material.dispose(); } catch {}
+          }
+        });
+      });
+    }
+  } catch {}
+
+  // Remove A-Frame animation/material attributes to stop hidden update work.
+  try {
+    rootEl.querySelectorAll('*').forEach(el => {
+      [...el.attributes].forEach(attr => {
+        if (attr.name.startsWith('animation__')) el.removeAttribute(attr.name);
+      });
+      if (el.pause) {
+        try { el.pause(); } catch {}
+      }
+    });
+  } catch {}
+
+  if (rootEl.parentNode) rootEl.parentNode.removeChild(rootEl);
+}
+
+function clearFocusTiles() {
+  while (focusLayer.firstChild) {
+    disposeEntityTree(focusLayer.firstChild);
+  }
+}
+function preloadImage(url) {
+  return new Promise(resolve => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve({ok:true,url});
+    image.onerror = () => resolve({ok:false,url});
+    image.src = url;
+  });
+}
+async function loadFocusTiles(id) {
+  clearFocusTiles();
+  const cfg = REGION[id];
+  const range = tileRangeFor(id, cfg.focusW, cfg.focusH);
+  const tiles = [];
+  for (let row = range.startRow; row <= range.endRow; row++) {
+    for (let col = range.startCol; col <= range.endCol; col++) {
+      const geometry = tileGeometry(MAX_LEVEL, col, row);
+      if (geometry) tiles.push({col,row,geometry,url:`${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`});
+    }
+  }
+  const results = await Promise.all(tiles.map(t => preloadImage(t.url)));
+  const available = tiles.filter((t,i) => results[i].ok);
+  const group = document.createElement('a-entity');
+  group.dataset.target = id;
+  focusLayer.appendChild(group);
+  const promises = available.map(tile => new Promise(resolve => {
+    const plane = document.createElement('a-image');
+    plane.setAttribute('src', tile.url);
+    plane.setAttribute('width', tile.geometry.worldW);
+    plane.setAttribute('height', tile.geometry.worldH);
+    plane.setAttribute('position', `${tile.geometry.centerX} ${tile.geometry.centerY} 0.018`);
+    plane.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false; depthWrite: false; side: double; toneMapped: false');
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(plane); } };
+    plane.addEventListener('materialtextureloaded', finish, {once:true});
+    plane.addEventListener('loaded', () => setTimeout(finish, 700), {once:true});
+    group.appendChild(plane);
+  }));
+  const planes = await Promise.all(promises);
+  planes.forEach((plane,index) => plane.setAttribute(`animation__focusfade${index}`, 'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad'));
+  console.log(`[Focus tiles] ${id}: ${planes.length}/${tiles.length} loaded`);
+}
+
+
+function normalizedBoundsWithPadding(poiId, paddingFraction = 0.08) {
+  const shape = SAGEIntegration.pois?.shapes?.[poiId];
+  const b = SAGEIntegration.shapeBounds(shape);
+  if (!b) return null;
+  const w = b.x1 - b.x0;
+  const h = b.y1 - b.y0;
+  return {
+    x0: THREE.MathUtils.clamp(b.x0 - w * paddingFraction, 0, 1),
+    y0: THREE.MathUtils.clamp(b.y0 - h * paddingFraction, 0, 1),
+    x1: THREE.MathUtils.clamp(b.x1 + w * paddingFraction, 0, 1),
+    y1: THREE.MathUtils.clamp(b.y1 + h * paddingFraction, 0, 1)
+  };
+}
+
+async function loadFocusTilesForPoi(poiId) {
+  clearFocusTiles();
+  const bounds = normalizedBoundsWithPadding(poiId, 0.08);
+  if (!bounds) return;
+
+  const leftPx = bounds.x0 * IMAGE_WIDTH;
+  const rightPx = bounds.x1 * IMAGE_WIDTH;
+  const topPx = bounds.y0 * IMAGE_HEIGHT;
+  const bottomPx = bounds.y1 * IMAGE_HEIGHT;
+
+  const startCol = Math.floor(leftPx / TILE_SIZE);
+  const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
+  const startRow = Math.floor(topPx / TILE_SIZE);
+  const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+
+  const tiles = [];
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      const geometry = tileGeometry(MAX_LEVEL, col, row);
+      if (geometry) {
+        tiles.push({col, row, geometry, url: `${TILE_FOLDER}/${MAX_LEVEL}/${col}_${row}.jpeg`});
+      }
+    }
+  }
+
+  // Load each tile only once through the actual A-Frame image entity.
+  // The previous preload pass caused duplicate image fetch/decode work in VR.
+  const group = document.createElement('a-entity');
+  group.dataset.poi = poiId;
+  focusLayer.appendChild(group);
+
+  const promises = tiles.map(tile => new Promise(resolve => {
+    const plane = document.createElement('a-image');
+    plane.setAttribute('src', tile.url);
+    plane.setAttribute('width', tile.geometry.worldW);
+    plane.setAttribute('height', tile.geometry.worldH);
+    plane.setAttribute('position', `${tile.geometry.centerX} ${tile.geometry.centerY} 0.018`);
+    plane.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false; depthWrite: false; side: double; toneMapped: false');
+    let done = false;
+    const finish = (ok = true) => {
+      if (!done) {
+        done = true;
+        resolve(ok ? plane : null);
+      }
+    };
+    plane.addEventListener('materialtextureloaded', () => finish(true), {once:true});
+    plane.addEventListener('error', () => finish(false), {once:true});
+    plane.addEventListener('loaded', () => setTimeout(() => finish(true), 700), {once:true});
+    group.appendChild(plane);
+  }));
+
+  const loadedPlanes = (await Promise.all(promises)).filter(Boolean);
+  loadedPlanes.forEach((plane, index) =>
+    plane.setAttribute(`animation__focusfade${index}`, 'property: material.opacity; from: 0; to: 1; dur: 350; easing: easeOutQuad')
+  );
+
+  SAGEIntegration.record('focus_tiles_loaded', {
+    poi: poiId,
+    loaded_count: loadedPlanes.length,
+    requested_count: tiles.length
+  });
+}
+
+function ensureDynamicPoiAnchor() {
+  let anchor = document.querySelector('#dynamicPoiAnchor');
+  if (!anchor) {
+    anchor = document.createElement('a-entity');
+    anchor.id = 'dynamicPoiAnchor';
+    anchor.setAttribute('position', '0 0 0.04');
+    paintingRoot.appendChild(anchor);
+  }
+  return anchor;
+}
+
+function positionDynamicPoiAnchor(poiId) {
+  const shape = SAGEIntegration.pois?.shapes?.[poiId];
+  const center = SAGEIntegration.shapeCenter(shape);
+  if (!center) return;
+  const anchor = ensureDynamicPoiAnchor();
+  const x = (center.x - 0.5) * WORLD_WIDTH;
+  const y = (0.5 - center.y) * WORLD_HEIGHT;
+  anchor.setAttribute('position', `${x} ${y} 0.04`);
+}
+function refreshVoices() {
+  if (!('speechSynthesis' in window)) return;
+  voices = window.speechSynthesis.getVoices();
+}
+
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.addEventListener('voiceschanged', refreshVoices);
+}
+
+function stopSpeech() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  speechUtterance = null;
+}
+
+function speak(text, onEnd = null) {
+  if (!('speechSynthesis' in window) || !text) return;
+
+  stopSpeech();
+  refreshVoices();
+
+  const prefix = currentLanguage === 'ar' ? 'ar' : 'en';
+  const preferred = voices.find(v =>
+    v.lang.toLowerCase().startsWith(prefix) &&
+    /aria|jenny|samantha|daniel|salma|hamed|google/i.test(v.name)
+  ) || voices.find(v => v.lang.toLowerCase().startsWith(prefix));
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = currentLanguage === 'ar' ? 'ar-SA' : 'en-US';
+  utterance.rate = currentLanguage === 'ar' ? 0.88 : 0.92;
+  utterance.pitch = 0.97;
+  if (preferred) utterance.voice = preferred;
+
+  if (typeof onEnd === 'function') {
+    let completed = false;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      onEnd();
+    };
+
+    utterance.onend = finish;
+    utterance.onerror = finish;
+  }
+
+  speechUtterance = utterance;
+  window.speechSynthesis.speak(utterance);
+}
+
+const AUDIO_FILES = {
+  intro: 'intro.mp3',
+  captain: 'captain.mp3',
+  lieutenant: 'lieutenant.mp3',
+  girl: 'girl.mp3'
 };
 
+const narrator = new Audio();
+narrator.preload = 'auto';
+
+const NarrationManager = {
+  node: null,
+  completionRecorded: false,
+  intentionallyStopping: false,
+  onFinished: null,
+
+  isPlaying() {
+    return !!(this.node && !narrator.paused && !narrator.ended);
+  },
+
+  stop(reason = 'manual_stop') {
+    if (!this.node) return;
+    this.intentionallyStopping = true;
+    const node = this.node;
+    SAGEIntegration.record('audio_stop', {
+      node_id: node.id,
+      poi: node.poi,
+      reason,
+      current_time_s: narrator.currentTime || 0
+    });
+    narrator.pause();
+    narrator.removeAttribute('src');
+    narrator.load();
+    this.node = null;
+    this.completionRecorded = false;
+    this.onFinished = null;
+    this.intentionallyStopping = false;
+  },
+
+  playNode(node, onFinished = null) {
+    this.stop('replace_audio');
+    this.node = node;
+    this.onFinished = onFinished;
+    this.completionRecorded = SAGEIntegration.visitorState.completed.has(node.id);
+    this.intentionallyStopping = false;
+
+    const file = `audio/${selectedProfile}/${node.id}.mp3`;
+    const saved = SAGEIntegration.narrationProgress.get(node.id);
+    const resumeCount = SAGEIntegration.resumeCounts.get(node.id) || 0;
+
+    narrator.src = file;
+    narrator.volume = 1.0;
+
+    narrator.onloadedmetadata = () => {
+      if (saved?.currentTime && resumeCount <= 1 && saved.currentTime < narrator.duration * 0.9) {
+        narrator.currentTime = saved.currentTime;
+        SAGEIntegration.record('audio_resume', {
+          node_id: node.id,
+          poi: node.poi,
+          resume_from_s: saved.currentTime,
+          resume_count: resumeCount
+        });
+      } else {
+        SAGEIntegration.record('audio_start', {
+          node_id: node.id,
+          poi: node.poi,
+          duration_s: narrator.duration
+        });
+      }
+    };
+
+    narrator.ontimeupdate = () => {
+      if (!this.node || !Number.isFinite(narrator.duration) || narrator.duration <= 0) return;
+      const fraction = narrator.currentTime / narrator.duration;
+
+      SAGEIntegration.narrationProgress.set(node.id, {
+        currentTime: narrator.currentTime,
+        duration: narrator.duration,
+        fraction
+      });
+
+      if (!this.completionRecorded && fraction >= MARCO_CONFIG.narrationCompletionFraction) {
+        this.completionRecorded = true;
+        SAGEIntegration.markCompletionThreshold(node);
+      }
+    };
+
+    narrator.onpause = () => {
+      if (!this.node || this.intentionallyStopping || narrator.ended) return;
+      SAGEIntegration.record('audio_pause', {
+        node_id: node.id,
+        poi: node.poi,
+        current_time_s: narrator.currentTime || 0
+      });
+    };
+
+    narrator.onended = () => {
+      if (!this.node) return;
+      if (!this.completionRecorded) {
+        this.completionRecorded = true;
+        SAGEIntegration.markCompletionThreshold(node);
+      }
+
+      SAGEIntegration.record('audio_completion', {
+        node_id: node.id,
+        poi: node.poi,
+        listened_fraction: 1.0
+      });
+
+      const callback = this.onFinished;
+      this.node = null;
+      this.onFinished = null;
+      if (typeof callback === 'function') callback({interrupted: false, ended: true});
+    };
+
+    narrator.onerror = () => {
+      SAGEIntegration.record('audio_error', {node_id: node.id, poi: node.poi, file});
+      const text = SAGEIntegration.narrationText(node);
+      speak(text, () => {
+        if (!this.completionRecorded) {
+          this.completionRecorded = true;
+          SAGEIntegration.markCompletionThreshold(node);
+        }
+        const callback = this.onFinished;
+        this.node = null;
+        this.onFinished = null;
+        if (typeof callback === 'function') callback({interrupted: false, ended: true});
+      });
+    };
+
+    const promise = narrator.play();
+    if (promise && typeof promise.catch === 'function') {
+      promise.catch(error => {
+        SAGEIntegration.record('audio_blocked', {
+          node_id: node.id,
+          poi: node.poi,
+          message: String(error)
+        });
+        const text = SAGEIntegration.narrationText(node);
+        speak(text, () => {
+          if (!this.completionRecorded) {
+            this.completionRecorded = true;
+            SAGEIntegration.markCompletionThreshold(node);
+          }
+          const callback = this.onFinished;
+          this.node = null;
+          this.onFinished = null;
+          if (typeof callback === 'function') callback({interrupted: false, ended: true});
+        });
+      });
+    }
+  },
+
+  interruptForDeparture() {
+    if (!this.node || narrator.paused) return;
+    const node = this.node;
+    const currentTime = narrator.currentTime || 0;
+    const resumeCount = (SAGEIntegration.resumeCounts.get(node.id) || 0) + 1;
+    SAGEIntegration.resumeCounts.set(node.id, resumeCount);
+    SAGEIntegration.narrationProgress.set(node.id, {
+      currentTime,
+      duration: narrator.duration || 0,
+      fraction: narrator.duration ? currentTime / narrator.duration : 0
+    });
+
+    // Fade over 450 ms before pausing.
+    const startVolume = narrator.volume;
+    const started = performance.now();
+    const fade = now => {
+      const p = Math.min(1, (now - started) / 450);
+      narrator.volume = startVolume * (1 - p);
+      if (p < 1) {
+        requestAnimationFrame(fade);
+      } else {
+        narrator.pause();
+        narrator.volume = 1.0;
+
+        if (resumeCount > 1 && !SAGEIntegration.visitorState.completed.has(node.id)) {
+          SAGEIntegration.visitorState.dismissed.add(node.id);
+          SAGEIntegration.record('dismissal', {
+            node_id: node.id,
+            poi: node.poi,
+            reason: 'second_interruption'
+          });
+        }
+
+        const callback = this.onFinished;
+        this.node = null;
+        this.onFinished = null;
+        if (typeof callback === 'function') callback({interrupted: true, ended: false});
+      }
+    };
+    requestAnimationFrame(fade);
+  }
+};
+
+function stopNarration() {
+  NarrationManager.stop('tour_stop');
+}
+
+function playNarration(id, text, onEnd = null, options = {}) {
+  // Legacy hotspot fallback only. Corpus narration should use NarrationManager.playNode.
+  if (/^NW\d{3}$/.test(id) && SAGEIntegration.corpus) {
+    const node = SAGEIntegration.corpus.nodes.find(n => n.id === id);
+    if (node) {
+      NarrationManager.playNode(node, () => {
+        if (typeof onEnd === 'function') onEnd();
+      });
+      return;
+    }
+  }
+  speak(text, onEnd);
+}
+
+function standardNarration(id) {
+  const raw = hotspotTexts[id][currentLanguage];
+  return raw.replace(/\n+/g, ' ');
+}
+
+function playIntroSequence(onComplete = null) {
+  const node = SAGEIntegration.corpus?.nodes?.find(n => n.id === 'NW001');
+  if (!node) {
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
+
+  let advanced = false;
+  let watchdog = null;
+
+  const advanceOnce = (reason) => {
+    if (advanced) return;
+    advanced = true;
+
+    if (watchdog) {
+      clearInterval(watchdog);
+      watchdog = null;
+    }
+
+    if (!SAGEIntegration.visitorState.completed.has(node.id)) {
+      SAGEIntegration.markCompletionThreshold(node);
+    }
+
+    SAGEIntegration.record('intro_advance', {
+      node_id: node.id,
+      reason,
+      current_time_s: narrator.currentTime || 0,
+      duration_s: narrator.duration || 0
+    });
+
+    if (typeof onComplete === 'function') onComplete();
+  };
+
+  NarrationManager.playNode(node, () => {
+    advanceOnce('audio_ended_callback');
+  });
+
+  // Quest Browser has occasionally failed to deliver a reliable `ended`
+  // callback for the opening MP3. The intro must never block SAGE startup.
+  // As soon as NW001 is effectively finished, advance exactly once.
+  watchdog = setInterval(() => {
+    const duration = narrator.duration;
+    const current = narrator.currentTime || 0;
+
+    if (Number.isFinite(duration) && duration > 0) {
+      const fraction = current / duration;
+
+      if (fraction >= 0.97 || narrator.ended) {
+        advanceOnce('intro_watchdog_near_end');
+      }
+    }
+  }, 200);
+}
+
+function makeCanvasTexture(text, language, width = 520, height = 190) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = 'rgba(17,17,17,0.72)';
+  roundRect(ctx, 0, 0, width, height, 26);
+  ctx.fill();
+
+  ctx.fillStyle = 'white';
+  ctx.textBaseline = 'top';
+
+  if (language === 'ar') {
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.font = '22px Tahoma, Arial, sans-serif';
+    drawWrappedText(ctx, text, width - 38, 26, width - 68, 36);
+  } else {
+    ctx.direction = 'ltr';
+    ctx.textAlign = 'left';
+    ctx.font = '21px Arial, sans-serif';
+    drawWrappedText(ctx, text, 38, 26, width - 68, 36);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+  const paragraphs = text.split('\n');
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      y += lineHeight * 0.65;
+      continue;
+    }
+
+    const words = paragraph.split(' ');
+    let line = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+
+      if (ctx.measureText(testLine).width > maxWidth && i > 0) {
+        ctx.fillText(line.trim(), x, y);
+        line = words[i] + ' ';
+        y += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+
+    ctx.fillText(line.trim(), x, y);
+    y += lineHeight;
+  }
+}
+
+function setPanelText(panel, text, language) {
+  const mesh = panel.getObject3D('mesh');
+  if (!mesh) return;
+
+  mesh.material.map = makeCanvasTexture(text, language);
+  mesh.material.transparent = true;
+  mesh.material.needsUpdate = true;
+}
+
+function showInfo(id) { /* descriptions removed */ }
+
+function hideInfo() { }
 
 function showPrimaryHotspots(show) {
   document.querySelectorAll('.hotspot').forEach(el => {
@@ -2372,7 +3007,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v10:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v11:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
