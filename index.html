@@ -1080,7 +1080,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v11:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v12:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1180,17 +1180,18 @@ const SAGEIntegration = {
 
   activationShapeForPoi(poiId) {
     const source = this.pois?.shapes?.[poiId];
+    const bounds = this.shapeBounds(source);
     const center = this.shapeCenter(source);
-    if (!center) return source || null;
+    if (!bounds || !center) return source || null;
 
-    // Match the gaze-lock footprint to the visible 0.34 x 0.34 world-unit cue.
-    // This prevents the reticle from locking while visibly outside the halo.
+    // EXACT same center as the visible cue. The cue is 0.38 world units.
+    // Convert that footprint back into painting-normalized coordinates.
     return {
       type: 'ellipse',
       cx: center.x,
       cy: center.y,
-      rx: (0.34 / WORLD_WIDTH) / 2,
-      ry: (0.34 / WORLD_HEIGHT) / 2
+      rx: (0.38 / WORLD_WIDTH) / 2,
+      ry: (0.38 / WORLD_HEIGHT) / 2
     };
   },
 
@@ -1987,130 +1988,114 @@ function cueAnchorForPoi(poiId, bounds, center) {
 }
 
 const QuestCue = {
-  group: null,
   activePoi: null,
+  group: null,
   token: 0,
-  _xrTimer: null,
+
+  hideAll() {
+    this.token += 1;
+    this.activePoi = null;
+    if (this.group) {
+      disposeEntityTree(this.group);
+    }
+    this.group = null;
+  },
+
+  fadeOut(duration = 240) {
+    if (!this.group) return;
+    const group = this.group;
+    const token = this.token;
+    const plane = group.querySelector('a-plane');
+
+    if (!plane) {
+      this.hideAll();
+      return;
+    }
+
+    plane.removeAttribute('animation__halopulse');
+    plane.setAttribute('animation__halofade', {
+      property: 'material.opacity',
+      to: 0,
+      dur: duration,
+      easing: 'easeOutQuad'
+    });
+
+    setTimeout(() => {
+      if (token === this.token && group === this.group) this.hideAll();
+    }, duration + 30);
+  },
 
   async show(poiId) {
     this.hideAll();
-    this.activePoi = poiId;
-    const token = ++this.token;
+    if (selectedGuidanceMode === 'baseline') return;
 
     const shape = SAGEIntegration.pois?.shapes?.[poiId];
     const bounds = SAGEIntegration.shapeBounds(shape);
     const center = SAGEIntegration.shapeCenter(shape);
     if (!bounds || !center) return;
 
+    const localToken = ++this.token;
+    this.activePoi = poiId;
+
     const group = document.createElement('a-entity');
-    group.id = `dichoptic-cue-${poiId}`;
+    group.dataset.poi = poiId;
+    cueLayer.appendChild(group);
     this.group = group;
-    paintingRoot.appendChild(group);
 
-    const tiles = tileListForBounds(bounds);
-    const brightPlanes = [];
+    // Fixed visual cue size for ALL POIs.
+    // The interaction ROI can be large or small, but the visible SAGE halo
+    // should not grow with the POI geometry.
+    const haloW = 0.38;
+    const haloH = 0.38;
 
-    // Local target enhancement. Visible normally until XR eye masks are ready.
-    tiles.forEach(tile => {
-      const p = document.createElement('a-image');
-      p.setAttribute('src', tile.url);
+    const cueAnchor = cueAnchorForPoi(poiId, bounds, center);
+    const centerX = (cueAnchor.x - 0.5) * WORLD_WIDTH;
+    const centerY = (0.5 - cueAnchor.y) * WORLD_HEIGHT;
 
-      const x0 = tile.x / LEVEL14_COLS, x1 = (tile.x + 1) / LEVEL14_COLS;
-      const y0 = tile.y / LEVEL14_ROWS, y1 = (tile.y + 1) / LEVEL14_ROWS;
-      p.setAttribute('position',
-        `${((x0+x1)/2-0.5)*WORLD_WIDTH} ${(0.5-(y0+y1)/2)*WORLD_HEIGHT} 0.012`);
-      p.setAttribute('width', (x1-x0)*WORLD_WIDTH);
-      p.setAttribute('height', (y1-y0)*WORLD_HEIGHT);
-      p.setAttribute('material',
-        'shader: flat; transparent: true; opacity: 0.28; depthWrite: false');
-
-      p.addEventListener('materialtextureloaded', () => {
-        const mesh = p.getObject3D('mesh');
-        if (!mesh) return;
-        brightPlanes.push(mesh);
-        const m = mesh.material;
-        if (m) {
-          m.transparent = true;
-          m.opacity = 0.28;
-          m.blending = THREE.AdditiveBlending;
-          m.depthWrite = false;
-          m.toneMapped = false;
-          m.needsUpdate = true;
-        }
-      }, {once:true});
-      group.appendChild(p);
+    const plane = document.createElement('a-plane');
+    plane.setAttribute('width', haloW);
+    plane.setAttribute('height', haloH);
+    plane.setAttribute('position', `${centerX} ${centerY} 0.032`);
+    plane.setAttribute('render-layer', 'layer: 1');
+    plane.setAttribute('material', {
+      shader: 'tile-glow',
+      opacity: MARCO_CONFIG.cueOpacityMin,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      side: 'double'
     });
 
-    // Dim veil starts hidden; it is enabled only after XR cameras are confirmed.
-    const veil = document.createElement('a-plane');
-    veil.setAttribute('position', '0 0 0.014');
-    veil.setAttribute('width', WORLD_WIDTH);
-    veil.setAttribute('height', WORLD_HEIGHT);
-    veil.setAttribute('visible', false);
-    veil.setAttribute('material',
-      'shader: flat; color: #000000; transparent: true; opacity: 0.07; depthWrite: false');
-    group.appendChild(veil);
+    group.appendChild(plane);
 
-    const applyStereo = () => {
-      if (token !== this.token || !this.group) return;
-      const scene = document.querySelector('a-scene');
-      const renderer = scene?.renderer;
-      const baseCamera = scene?.camera;
-      if (!renderer?.xr?.isPresenting || !baseCamera) return;
+    plane.addEventListener('object3dset', () => {
+      plane.object3D.traverse(object => object.layers.set(1));
+    });
 
-      const xrCamera = renderer.xr.getCamera(baseCamera);
-      const cams = xrCamera?.cameras;
-      if (!cams || cams.length < 2) return;
+    plane.setAttribute('animation__halopulse', {
+      property: 'material.opacity',
+      from: MARCO_CONFIG.cueOpacityMin,
+      to: MARCO_CONFIG.cueOpacityMax,
+      dur: MARCO_CONFIG.cuePulseMs,
+      easing: 'easeInOutSine',
+      dir: 'alternate',
+      loop: true
+    });
 
-      // Three.js WebXR reserves layer 1 for left eye and 2 for right eye.
-      // Normal scene stays on layer 0.
-      brightPlanes.forEach(mesh => mesh.layers.set(1));
-
-      const veilMesh = veil.getObject3D('mesh');
-      if (veilMesh) {
-        veilMesh.layers.set(2);
-        veil.setAttribute('visible', true);
-      }
-
-      // Preserve normal layer 0 while enabling the eye-specific layers.
-      cams[0].layers.enable(0);
-      cams[0].layers.enable(1);
-      cams[0].layers.disable(2);
-      cams[1].layers.enable(0);
-      cams[1].layers.enable(2);
-      cams[1].layers.disable(1);
-
-      SAGEIntegration.record('dichoptic_cue_active', {
-        poi: poiId,
-        left_eye_target_overlay: 0.28,
-        right_eye_surround_dim: 0.07
-      });
-    };
-
-    // Apply after XR is active and keep refreshing because WebXR updates eye cameras.
-    this._xrTimer = setInterval(applyStereo, 100);
+    if (localToken !== this.token || this.activePoi !== poiId) return;
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'dichoptic_tile_region_safe',
-      cue_anchor: {x:center.x, y:center.y},
-      tile_count: tiles.length
+      cue_type: 'transparent_halo',
+      halo_width_world: haloW,
+      halo_height_world: haloH,
+      cue_anchor: cueAnchor,
+      opacity_min: MARCO_CONFIG.cueOpacityMin,
+      opacity_max: MARCO_CONFIG.cueOpacityMax
     });
-  },
-
-  hideAll() {
-    this.token += 1;
-    this.activePoi = null;
-    if (this._xrTimer) {
-      clearInterval(this._xrTimer);
-      this._xrTimer = null;
-    }
-    if (this.group) disposeEntityTree(this.group);
-    this.group = null;
-  },
-
-  pulse() {}
+  }
 };
+
 function disposeEntityTree(rootEl) {
   if (!rootEl) return;
 
@@ -3007,7 +2992,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v11:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v12:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
