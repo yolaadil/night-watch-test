@@ -656,7 +656,7 @@ const MARCO_CONFIG = Object.freeze({
   departureGraceMs: 400,
   maxAngularVelocityDegPerSec: 15,
   samePoiCooldownMs: 30000,
-  globalGuidanceRestMs: 10000,
+  globalGuidanceRestMs: 3000,
   guidanceTimeoutMs: 20000,
   sustainedNarrationDepartureMs: 4500,
   narrationCompletionFraction: 0.90,
@@ -689,7 +689,6 @@ const INTRO_NODE_IDS = ['NW001'];
 // The ONLY experimental difference is that the next spatial POI is
 // determined by this fixed sequence rather than selectRecommendation().
 const FIXED_STOPS = Object.freeze([
-  {poi: 'central',           nodeIds: ['NW006', 'NW007']},
   {poi: 'captain',           nodeIds: ['NW011', 'NW013']},
   {poi: 'lieutenant',        nodeIds: ['NW012', 'NW028']},
   {poi: 'girl',              nodeIds: ['NW016', 'NW018']},
@@ -974,7 +973,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v4:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v5:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -2875,7 +2874,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v4:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v5:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
