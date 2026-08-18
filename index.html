@@ -878,6 +878,92 @@ const StudyLogger = {
 
 window.StudyLogger = StudyLogger;
 
+
+class StrictInnerDwellController {
+  constructor(options = {}) {
+    this.options = {
+      orientationMs: 2000,
+      departureGraceMs: 400,
+      maxAngularVelocityDegPerSec: 15,
+      ...options
+    };
+    this.reset();
+  }
+
+  reset() {
+    this.state = 'outside';
+    this.poi = null;
+    this.innerStartedAt = null;
+    this.lastInnerAt = null;
+  }
+
+  update({nowMs, poi = null, insideOuter = false, insideInner = false, angularVelocityDegPerSec = 0}) {
+    const events = [];
+    const stable = angularVelocityDegPerSec <= this.options.maxAngularVelocityDegPerSec;
+
+    if (!poi || !insideOuter) {
+      if (
+        this.lastInnerAt !== null &&
+        nowMs - this.lastInnerAt <= this.options.departureGraceMs
+      ) {
+        return {state: this.state, events};
+      }
+
+      if (this.state !== 'outside') {
+        events.push({
+          type: 'dwell_cancelled',
+          poi: this.poi,
+          at: nowMs,
+          fromState: this.state
+        });
+      }
+      this.reset();
+      return {state: this.state, events};
+    }
+
+    // Being only in the outer ROI never starts the 2-second lock timer.
+    if (!insideInner || !stable) {
+      if (
+        this.innerStartedAt !== null &&
+        this.lastInnerAt !== null &&
+        nowMs - this.lastInnerAt > this.options.departureGraceMs
+      ) {
+        if (this.state !== 'outside') {
+          events.push({
+            type: 'dwell_cancelled',
+            poi: this.poi,
+            at: nowMs,
+            fromState: this.state
+          });
+        }
+        this.reset();
+      }
+      return {state: this.state, events};
+    }
+
+    this.lastInnerAt = nowMs;
+
+    // Start timing ONLY when the user is actually inside the inner target.
+    if (this.poi !== poi || this.innerStartedAt === null) {
+      this.poi = poi;
+      this.innerStartedAt = nowMs;
+      this.state = 'candidate';
+      events.push({type: 'roi_candidate', poi, at: nowMs});
+      return {state: this.state, events};
+    }
+
+    if (
+      this.state === 'candidate' &&
+      nowMs - this.innerStartedAt >= this.options.orientationMs
+    ) {
+      this.state = 'oriented';
+      events.push({type: 'orientation_confirmed', poi, at: nowMs});
+    }
+
+    return {state: this.state, events};
+  }
+}
+
 const SAGEIntegration = {
   runtime: null,
   corpus: null,
@@ -949,9 +1035,8 @@ const SAGEIntegration = {
       window.SAGE_EVENT_LOG = this.log;
     }
 
-    this.dwell = new runtime.DwellController({
+    this.dwell = new StrictInnerDwellController({
       orientationMs: MARCO_CONFIG.orientationMs,
-      activationMs: MARCO_CONFIG.activationMs,
       departureGraceMs: MARCO_CONFIG.departureGraceMs,
       maxAngularVelocityDegPerSec: MARCO_CONFIG.maxAngularVelocityDegPerSec
     });
@@ -973,7 +1058,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v7:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v8:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -2851,7 +2936,12 @@ function startIntro() {
     try {
       await TourEngine.prepare({forceNew: true});
 
-      playIntroSequence(() => {
+      // Give the participant 3 seconds to settle into the scene before NW001.
+      setSageStatus('Experience started — narration begins in 3 seconds…');
+
+      setTimeout(() => {
+        setSageStatus('Starting experience…');
+        playIntroSequence(() => {
         SAGEIntegration.record('intro_completed', {node_id: 'NW001'});
         TourEngine.setState(State.FREE);
         setSageStatus('NW001 complete — starting SAGE…');
@@ -2860,7 +2950,8 @@ function startIntro() {
         setTimeout(() => {
           TourEngine.recommendAndCue().catch(console.error);
         }, 1500);
-      });
+        });
+      }, 3000);
     } catch (error) {
       console.error('[SAGE startup] failed:', error);
       introStarted = false;
@@ -2887,7 +2978,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v7:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v8:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
