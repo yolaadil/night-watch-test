@@ -671,8 +671,8 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.10,
-  cueOpacityMax: 0.24,
+  cueOpacityMin: 0.08,
+  cueOpacityMax: 0.20,
   cuePulseMs: 1350,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
@@ -1672,11 +1672,7 @@ function setBlurOpacity(target, duration = 450) {
 
 // Visual cue anchors are intentionally smaller/more local than the interaction ROI.
 // The interaction/gaze ROI remains Marco's full POI shape.
-const CUE_ANCHOR_OVERRIDES = Object.freeze({
-  // Marco's provisional cartouche cue was visually too far right/down.
-  // Keep the gaze ROI unchanged; move only the visible guidance cue.
-  cartouche: {x: 0.620, y: 0.255}
-});
+const CUE_ANCHOR_OVERRIDES = Object.freeze({});
 
 function cueAnchorForPoi(poiId, bounds, center) {
   const override = CUE_ANCHOR_OVERRIDES[poiId];
@@ -1746,14 +1742,11 @@ const QuestCue = {
     cueLayer.appendChild(group);
     this.group = group;
 
-    // Compact local cue, not the whole POI.
-    // Clamp the footprint so tall character ROIs (e.g. Captain) do not create
-    // a body-sized disruptive glow.
-    const regionW = Math.max(0.10, (bounds.x1 - bounds.x0) * WORLD_WIDTH);
-    const regionH = Math.max(0.10, (bounds.y1 - bounds.y0) * WORLD_HEIGHT);
-
-    const haloW = THREE.MathUtils.clamp(regionW * 0.38, 0.16, 0.32);
-    const haloH = THREE.MathUtils.clamp(regionH * 0.30, 0.16, 0.34);
+    // Fixed visual cue size for ALL POIs.
+    // The interaction ROI can be large or small, but the visible SAGE halo
+    // should not grow with the POI geometry.
+    const haloW = 0.22;
+    const haloH = 0.22;
 
     const cueAnchor = cueAnchorForPoi(poiId, bounds, center);
     const centerX = (cueAnchor.x - 0.5) * WORLD_WIDTH;
@@ -2658,7 +2651,7 @@ window.addEventListener('keydown', event => {
 });
 
 window.addEventListener('load', () => {
-  console.info('[SAGE visual] v12.1 compact filled halo + cartouche cue correction');
+  console.info('[SAGE visual] v12.2 compact filled halo + JSON POI corrections');
   console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
