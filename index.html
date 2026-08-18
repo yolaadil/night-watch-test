@@ -743,7 +743,8 @@ const StudyLogger = {
 
     this.logEvent('session_started', {
       fixed_sequence: [...FIXED_POI_SEQUENCE],
-      fixed_stops: FIXED_STOPS.map(s => ({poi: s.poi, node_ids: [...s.nodeIds]}))
+      fixed_stops: FIXED_STOPS.map(s => ({poi: s.poi, node_ids: [...s.nodeIds]})),
+      logger_sampling_hz: 5
     });
   },
 
@@ -764,21 +765,11 @@ const StudyLogger = {
     if (this.startedAtMs == null) return;
 
     const now = performance.now();
-    if (now - this.lastSampleMs < 100) return; // 10 Hz
+    if (now - this.lastSampleMs < 200) return; // 5 Hz: sufficient for paths/heatmaps, lighter in Quest VR
     this.lastSampleMs = now;
 
-    let lookedAtPoi = null;
-    if (uv && window.SAGEIntegration?.pois?.shapes && window.SAGEIntegration?.runtime?.pointInShape) {
-      for (const [poiId, shape] of Object.entries(window.SAGEIntegration.pois.shapes)) {
-        try {
-          if (window.SAGEIntegration.runtime.pointInShape(uv.x, uv.y, shape)) {
-            lookedAtPoi = poiId;
-            break;
-          }
-        } catch {}
-      }
-    }
-
+    // Store the raw viewing coordinates only. Which POI the sample falls inside
+    // can be derived offline after the session, avoiding 24 shape tests per sample.
     this.viewSamples.push({
       t_ms: this.nowMs(),
       painting_x: uv ? Number(uv.x.toFixed(5)) : null,
@@ -789,7 +780,6 @@ const StudyLogger = {
       angular_velocity_deg_s: Number.isFinite(angularVelocityDegPerSec)
         ? Number(angularVelocityDegPerSec.toFixed(3))
         : null,
-      looked_at_poi: lookedAtPoi,
       active_target: activeTarget || null,
       state: state || null
     });
@@ -984,7 +974,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v3:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v4:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1895,8 +1885,8 @@ const QuestCue = {
   hideAll() {
     this.token += 1;
     this.activePoi = null;
-    if (this.group && this.group.parentNode) {
-      this.group.parentNode.removeChild(this.group);
+    if (this.group) {
+      disposeEntityTree(this.group);
     }
     this.group = null;
   },
@@ -1945,8 +1935,8 @@ const QuestCue = {
     // Fixed visual cue size for ALL POIs.
     // The interaction ROI can be large or small, but the visible SAGE halo
     // should not grow with the POI geometry.
-    const haloW = 0.22;
-    const haloH = 0.22;
+    const haloW = 0.26;
+    const haloH = 0.26;
 
     const cueAnchor = cueAnchorForPoi(poiId, bounds, center);
     const centerX = (cueAnchor.x - 0.5) * WORLD_WIDTH;
@@ -1996,8 +1986,61 @@ const QuestCue = {
   }
 };
 
+function disposeEntityTree(rootEl) {
+  if (!rootEl) return;
+
+  // Dispose GPU resources explicitly before removing DOM entities.
+  try {
+    const object3D = rootEl.object3D;
+    if (object3D) {
+      object3D.traverse(obj => {
+        if (obj.geometry && typeof obj.geometry.dispose === 'function') {
+          try { obj.geometry.dispose(); } catch {}
+        }
+
+        const materials = obj.material
+          ? (Array.isArray(obj.material) ? obj.material : [obj.material])
+          : [];
+
+        materials.forEach(material => {
+          if (!material) return;
+          [
+            'map', 'alphaMap', 'aoMap', 'bumpMap', 'displacementMap',
+            'emissiveMap', 'envMap', 'lightMap', 'metalnessMap',
+            'normalMap', 'roughnessMap'
+          ].forEach(key => {
+            const tex = material[key];
+            if (tex && typeof tex.dispose === 'function') {
+              try { tex.dispose(); } catch {}
+            }
+          });
+          if (typeof material.dispose === 'function') {
+            try { material.dispose(); } catch {}
+          }
+        });
+      });
+    }
+  } catch {}
+
+  // Remove A-Frame animation/material attributes to stop hidden update work.
+  try {
+    rootEl.querySelectorAll('*').forEach(el => {
+      [...el.attributes].forEach(attr => {
+        if (attr.name.startsWith('animation__')) el.removeAttribute(attr.name);
+      });
+      if (el.pause) {
+        try { el.pause(); } catch {}
+      }
+    });
+  } catch {}
+
+  if (rootEl.parentNode) rootEl.parentNode.removeChild(rootEl);
+}
+
 function clearFocusTiles() {
-  while (focusLayer.firstChild) focusLayer.removeChild(focusLayer.firstChild);
+  while (focusLayer.firstChild) {
+    disposeEntityTree(focusLayer.firstChild);
+  }
 }
 function preloadImage(url) {
   return new Promise(resolve => {
@@ -2082,13 +2125,13 @@ async function loadFocusTilesForPoi(poiId) {
     }
   }
 
-  const results = await Promise.all(tiles.map(t => preloadImage(t.url)));
-  const available = tiles.filter((t, i) => results[i].ok);
+  // Load each tile only once through the actual A-Frame image entity.
+  // The previous preload pass caused duplicate image fetch/decode work in VR.
   const group = document.createElement('a-entity');
   group.dataset.poi = poiId;
   focusLayer.appendChild(group);
 
-  const promises = available.map(tile => new Promise(resolve => {
+  const promises = tiles.map(tile => new Promise(resolve => {
     const plane = document.createElement('a-image');
     plane.setAttribute('src', tile.url);
     plane.setAttribute('width', tile.geometry.worldW);
@@ -2096,20 +2139,26 @@ async function loadFocusTilesForPoi(poiId) {
     plane.setAttribute('position', `${tile.geometry.centerX} ${tile.geometry.centerY} 0.018`);
     plane.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false; depthWrite: false; side: double; toneMapped: false');
     let done = false;
-    const finish = () => { if (!done) { done = true; resolve(plane); } };
-    plane.addEventListener('materialtextureloaded', finish, {once:true});
-    plane.addEventListener('loaded', () => setTimeout(finish, 700), {once:true});
+    const finish = (ok = true) => {
+      if (!done) {
+        done = true;
+        resolve(ok ? plane : null);
+      }
+    };
+    plane.addEventListener('materialtextureloaded', () => finish(true), {once:true});
+    plane.addEventListener('error', () => finish(false), {once:true});
+    plane.addEventListener('loaded', () => setTimeout(() => finish(true), 700), {once:true});
     group.appendChild(plane);
   }));
 
-  const planes = await Promise.all(promises);
-  planes.forEach((plane, index) =>
-    plane.setAttribute(`animation__focusfade${index}`, 'property: material.opacity; from: 0; to: 1; dur: 450; easing: easeOutQuad')
+  const loadedPlanes = (await Promise.all(promises)).filter(Boolean);
+  loadedPlanes.forEach((plane, index) =>
+    plane.setAttribute(`animation__focusfade${index}`, 'property: material.opacity; from: 0; to: 1; dur: 350; easing: easeOutQuad')
   );
 
   SAGEIntegration.record('focus_tiles_loaded', {
     poi: poiId,
-    loaded_count: planes.length,
+    loaded_count: loadedPlanes.length,
     requested_count: tiles.length
   });
 }
@@ -2603,6 +2652,9 @@ const TourEngine = {
     QuestCue.hideAll();
     showPrimaryHotspots(false);
 
+    // Ensure the previous high-resolution POI has released its GPU resources
+    // before creating the next focus region.
+    clearFocusTiles();
     await loadFocusTilesForPoi(poiId);
 
     const shape = SAGEIntegration.pois.shapes[poiId];
@@ -2823,7 +2875,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v3:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v4:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
@@ -2902,7 +2954,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 window.addEventListener('load', () => {
-  console.info('[SAGE fixed-sequence condition] v2 strict order');
+  console.info('[SAGE fixed-sequence condition] v4 VR optimized');
   console.warn('[Night Watch] Marco normalized POIs are provisional. Use for pilot/engineering only until registered against the exact gigapixel master.');
   syncPrimaryHotspotsToFocusRegions();
   infoPanel.setAttribute('visible', false);
