@@ -1023,7 +1023,7 @@ const SAGEIntegration = {
     moveEllipse('lieutenant',       0.040, -0.070); // up to face
     moveEllipse('girl',             0.020,  0.000);
     moveEllipse('hand_shadow',      0,      0, {x: 0.535, y: 0.620}); // lower
-    moveEllipse('standard',         0.000, -0.115); // move away from cartouche
+    moveEllipse('standard',         0,      0, {x: 0.300, y: 0.400}); // user-marked Standard Bearer position
     moveEllipse('musketeer_left',  -0.040, -0.040); // left + up
     moveEllipse('musketeer_right',  0.000, -0.035);
     moveEllipse('musketeer_center', 0.055,  0.040); // a little further right
@@ -1082,7 +1082,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v13:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v14:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1989,6 +1989,27 @@ function cueAnchorForPoi(poiId, bounds, center) {
   return {x: center.x, y: center.y};
 }
 
+const CUE_INTENSITY = Object.freeze({
+  captain: 1.28,
+  lieutenant: 1.28,
+  girl: 1.24,
+
+  // Dark/background/context regions: intentionally softer.
+  architecture: 0.72,
+  cartouche: 0.76,
+  whole: 0.68,
+  cropped_edge: 0.74,
+  canvas: 0.74,
+  paint_sample: 0.78,
+  acid_region: 0.76,
+  right_group: 0.84,
+  left_group: 0.84
+});
+
+function cueIntensityForPoi(poiId) {
+  return CUE_INTENSITY[poiId] ?? 1.0;
+}
+
 const QuestCue = {
   activePoi: null,
   group: null,
@@ -2028,6 +2049,7 @@ const QuestCue = {
   },
 
   async show(poiId) {
+    const cueIntensity = cueIntensityForPoi(poiId);
     this.hideAll();
     if (selectedGuidanceMode === 'baseline') return;
 
@@ -2994,7 +3016,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v13:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v14:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
