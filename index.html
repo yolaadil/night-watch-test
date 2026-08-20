@@ -550,6 +550,14 @@ AFRAME.registerComponent('quest-gaze-select', {
 const infoPanel = document.querySelector('#infoPanel');
 const welcomePanel = document.querySelector('#welcomePanel');
 const gazeCursor = document.querySelector('#gazeCursor');
+
+function setGazePointerInsideCue(isInside) {
+  if (!gazeCursor) return;
+  gazeCursor.setAttribute('color', isInside ? '#ff2020' : '#000000');
+  gazeCursor.setAttribute('material',
+    `shader: flat; color: ${isInside ? '#ff2020' : '#000000'}; opacity: 0.95; transparent: true; depthTest: false;`);
+}
+
 const languageOverlay = document.querySelector('#languageOverlay');
 const cueLayer = document.querySelector('#cueLayer');
 const focusLayer = document.querySelector('#focusLayer');
@@ -1530,6 +1538,8 @@ const SAGEIntegration = {
 
     if (this.activeRecommendation && ['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) {
       this.updateDwell(nowMs, uv, angularVelocityDegPerSec);
+    } else {
+      setGazePointerInsideCue(false);
     }
 
     if (this.activeRecommendation && TourEngine.state === 'STORY') {
@@ -1545,6 +1555,9 @@ const SAGEIntegration = {
     const outer = this.expandShape(shape);
     const insideInner = !!(uv && this.runtime.pointInShape(uv.x, uv.y, shape));
     const insideOuter = !!(uv && this.runtime.pointInShape(uv.x, uv.y, outer));
+
+    // Black normally; red while gaze is inside the exact 2-second lock region.
+    setGazePointerInsideCue(insideInner);
 
     if (insideOuter !== this.roiInside.outer) {
       this.record(insideOuter ? 'roi_outer_enter' : 'roi_outer_exit', {
@@ -2102,6 +2115,7 @@ const QuestCue = {
   hideAll() {
     this.token += 1;
     this.activePoi = null;
+    setGazePointerInsideCue(false);
     if (this.group) {
       disposeEntityTree(this.group);
     }
@@ -2133,6 +2147,14 @@ const QuestCue = {
   },
 
   async show(poiId) {
+    this.hideAll();
+    if (selectedGuidanceMode === 'baseline') return;
+
+    const shape = SAGEIntegration.pois?.shapes?.[poiId];
+    const bounds = SAGEIntegration.shapeBounds(shape);
+    const center = SAGEIntegration.shapeCenter(shape);
+    if (!bounds || !center) return;
+
     const localLuminance = await LuminanceAdapter.averageLuminance(bounds);
     const luminanceIntensity = LuminanceAdapter.intensityFromLuminance(localLuminance);
 
@@ -2142,13 +2164,6 @@ const QuestCue = {
       0.72,
       1.42
     );
-    this.hideAll();
-    if (selectedGuidanceMode === 'baseline') return;
-
-    const shape = SAGEIntegration.pois?.shapes?.[poiId];
-    const bounds = SAGEIntegration.shapeBounds(shape);
-    const center = SAGEIntegration.shapeCenter(shape);
-    if (!bounds || !center) return;
 
     const localToken = ++this.token;
     this.activePoi = poiId;
