@@ -555,8 +555,6 @@ function setGazePointerInsideCue(isInside) {
   if (!gazeCursor) return;
   const color = isInside ? '#ff2020' : '#000000';
   gazeCursor.setAttribute('color', color);
-  gazeCursor.setAttribute('material',
-    `shader: flat; color: ${color}; opacity: 0.95; transparent: true; depthTest: false;`);
 }
 
 const languageOverlay = document.querySelector('#languageOverlay');
@@ -1091,7 +1089,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v19:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v20:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1557,7 +1555,6 @@ const SAGEIntegration = {
     const insideInner = !!(uv && this.runtime.pointInShape(uv.x, uv.y, shape));
     const insideOuter = !!(uv && this.runtime.pointInShape(uv.x, uv.y, outer));
 
-    // Black outside; red only while gaze is inside the exact lock region.
     setGazePointerInsideCue(insideInner);
 
     if (insideOuter !== this.roiInside.outer) {
@@ -2024,90 +2021,6 @@ function cueIntensityForPoi(poiId) {
   return CUE_INTENSITY[poiId] ?? 1.0;
 }
 
-
-const LuminanceAdapter = {
-  canvas: null,
-  ctx: null,
-  image: null,
-  ready: false,
-
-  async init() {
-    if (this.ready) return true;
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-
-    // Reuse the same low-resolution painting already used by the experience.
-    const source =
-      document.querySelector('#paintingLow')?.getAttribute('src') ||
-      document.querySelector('#painting')?.getAttribute('src') ||
-      document.querySelector('a-assets img')?.getAttribute('src');
-
-    if (!source) return false;
-
-    await new Promise(resolve => {
-      img.onload = resolve;
-      img.onerror = resolve;
-      img.src = source;
-    });
-
-    if (!img.naturalWidth || !img.naturalHeight) return false;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d', {willReadFrequently: true});
-    ctx.drawImage(img, 0, 0);
-
-    this.canvas = canvas;
-    this.ctx = ctx;
-    this.image = img;
-    this.ready = true;
-    return true;
-  },
-
-  async averageLuminance(bounds) {
-    const ok = await this.init();
-    if (!ok || !bounds || !this.ctx || !this.canvas) return 0.5;
-
-    const x0 = Math.max(0, Math.floor(bounds.x0 * this.canvas.width));
-    const x1 = Math.min(this.canvas.width, Math.ceil(bounds.x1 * this.canvas.width));
-    const y0 = Math.max(0, Math.floor(bounds.y0 * this.canvas.height));
-    const y1 = Math.min(this.canvas.height, Math.ceil(bounds.y1 * this.canvas.height));
-
-    const w = Math.max(1, x1 - x0);
-    const h = Math.max(1, y1 - y0);
-
-    // Sample a compact grid instead of every pixel for Quest performance.
-    const cols = 8, rows = 8;
-    let total = 0, count = 0;
-
-    for (let gy = 0; gy < rows; gy++) {
-      for (let gx = 0; gx < cols; gx++) {
-        const px = Math.min(this.canvas.width - 1,
-          x0 + Math.floor((gx + 0.5) * w / cols));
-        const py = Math.min(this.canvas.height - 1,
-          y0 + Math.floor((gy + 0.5) * h / rows));
-
-        const d = this.ctx.getImageData(px, py, 1, 1).data;
-        // Relative luminance approximation in sRGB space.
-        const lum = (0.2126 * d[0] + 0.7152 * d[1] + 0.0722 * d[2]) / 255;
-        total += lum;
-        count++;
-      }
-    }
-
-    return count ? total / count : 0.5;
-  },
-
-  intensityFromLuminance(lum) {
-    // Dark region -> stronger cue, bright region -> gentler cue.
-    // Clamp to avoid becoming a light bulb.
-    const t = THREE.MathUtils.clamp(1 - lum, 0, 1);
-    return THREE.MathUtils.lerp(0.82, 1.35, t);
-  }
-};
-
 const QuestCue = {
   activePoi: null,
   group: null,
@@ -2147,6 +2060,7 @@ const QuestCue = {
   },
 
   async show(poiId) {
+    const cueIntensity = cueIntensityForPoi(poiId);
     this.hideAll();
     if (selectedGuidanceMode === 'baseline') return;
 
@@ -2154,16 +2068,6 @@ const QuestCue = {
     const bounds = SAGEIntegration.shapeBounds(shape);
     const center = SAGEIntegration.shapeCenter(shape);
     if (!bounds || !center) return;
-
-    const localLuminance = await LuminanceAdapter.averageLuminance(bounds);
-    const luminanceIntensity = LuminanceAdapter.intensityFromLuminance(localLuminance);
-
-    // Preserve POI-specific emphasis, then adapt it to local brightness.
-    const cueIntensity = THREE.MathUtils.clamp(
-      cueIntensityForPoi(poiId) * luminanceIntensity,
-      0.72,
-      1.42
-    );
 
     const localToken = ++this.token;
     this.activePoi = poiId;
@@ -2218,8 +2122,6 @@ const QuestCue = {
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
       cue_type: 'transparent_halo',
-      local_luminance: Number(localLuminance.toFixed(3)),
-      adaptive_intensity: Number(cueIntensity.toFixed(3)),
       halo_width_world: haloW,
       halo_height_world: haloH,
       cue_anchor: cueAnchor,
@@ -3074,7 +2976,8 @@ function hideAudioStartOverlay() {
 let experienceStarted = false;
 let introStarted = false;
 
-let introVrListenerArmed = false;
+let vrIntroStarted = false;
+let vrWaitTimer = null;
 
 function startIntro() {
   if (introStarted) return;
@@ -3083,63 +2986,88 @@ function startIntro() {
 
   (async () => {
     try {
-      // Keep the previously working preparation path.
+      // Keep the known-working v14 preparation path.
       await TourEngine.prepare({forceNew: true});
       setSageStatus('Ready — enter VR to begin.');
 
       const sceneEl = document.querySelector('a-scene');
 
-      const startAfterVr = () => {
-        if (!introStarted) return;
+      const vrIsActive = () =>
+        !!(sceneEl?.is('vr-mode') || sceneEl?.renderer?.xr?.isPresenting);
 
-        SAGEIntegration.record('vr_entered', {
-          experience_time_origin: true
-        });
+      const launchIntro = () => {
+        if (vrIntroStarted) return;
+        vrIntroStarted = true;
 
+        if (vrWaitTimer) {
+          clearInterval(vrWaitTimer);
+          vrWaitTimer = null;
+        }
+
+        SAGEIntegration.record('vr_entered', {experience_time_origin: true});
         setSageStatus('VR ready — narration begins in 5 seconds…');
 
         setTimeout(() => {
-          if (!introStarted) return;
-
           setSageStatus('Preparing experience…');
-          playIntroSequence(() => {
-            SAGEIntegration.record('intro_completed', {node_id: 'NW001'});
+
+          let tourAdvanced = false;
+          const advanceTour = (reason) => {
+            if (tourAdvanced) return;
+            tourAdvanced = true;
+
+            SAGEIntegration.record('intro_completed', {
+              node_id: 'NW001',
+              advance_reason: reason
+            });
+
             TourEngine.setState(State.FREE);
             setSageStatus('NW001 complete — starting guided tour…');
 
             setTimeout(() => {
               TourEngine.recommendAndCue().catch(console.error);
             }, 1500);
-          });
+          };
+
+          playIntroSequence(() => advanceTour('audio_complete'));
+
+          // Safety watchdog: a blocked/missed audio callback must never freeze the tour.
+          setTimeout(() => {
+            if (!tourAdvanced) advanceTour('startup_watchdog');
+          }, 18000);
+
         }, 5000);
       };
 
-      // If the profile is selected while already in VR, start the 5 s countdown now.
-      if (sceneEl?.is('vr-mode')) {
-        startAfterVr();
-        return;
-      }
-
-      // Otherwise wait once for immersive VR entry.
-      if (!introVrListenerArmed && sceneEl) {
-        introVrListenerArmed = true;
-        sceneEl.addEventListener('enter-vr', () => {
-          introVrListenerArmed = false;
-          setTimeout(startAfterVr, 100);
+      // Works whether the profile is chosen before or after entering immersive VR.
+      if (vrIsActive()) {
+        launchIntro();
+      } else {
+        sceneEl?.addEventListener('enter-vr', () => {
+          setTimeout(() => {
+            if (vrIsActive()) launchIntro();
+          }, 100);
         }, {once: true});
+
+        // Quest/A-Frame can occasionally miss the event timing; poll XR state too.
+        vrWaitTimer = setInterval(() => {
+          if (vrIsActive()) launchIntro();
+        }, 250);
       }
 
     } catch (error) {
       console.error('[SAGE startup] failed:', error);
       introStarted = false;
-      introVrListenerArmed = false;
+      vrIntroStarted = false;
+      if (vrWaitTimer) {
+        clearInterval(vrWaitTimer);
+        vrWaitTimer = null;
+      }
       showAudioStartOverlay();
       const p = document.querySelector('#languageBox p');
       if (p) p.textContent = `Startup failed: ${error?.message || error}`;
     }
   })();
 }
-
 function beginExperience() {
   showAudioStartOverlay();
 }
@@ -3156,7 +3084,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v19:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v20:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
@@ -3197,7 +3125,7 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  console.log('[SAGE] VR entered; intro gate will start after preparation.');
+  console.log('[SAGE] adaptive dichoptic cue active; Marco runtime controls POIs and dwell.');
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
