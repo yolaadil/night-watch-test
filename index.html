@@ -1082,7 +1082,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v16:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v17:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -3060,45 +3060,64 @@ let experienceStarted = false;
 let introStarted = false;
 
 let vrExperienceStarted = false;
-let vrExperiencePrepared = false;
+let vrStartInProgress = false;
 
 function startIntro() {
-  if (introStarted) return;
-  introStarted = true;
+  // Kept as the profile-selection entry point, but DO NOT prepare or play audio here.
+  hideAudioStartOverlay();
+  setSageStatus('Ready — enter VR to begin.');
 
-  (async () => {
-    try {
-      setSageStatus('Preparing experience…');
-      await TourEngine.prepare({forceNew: true});
-      vrExperiencePrepared = true;
-      setSageStatus('Ready — enter VR to begin.');
-    } catch (error) {
-      console.error(error);
-      setSageStatus('Could not prepare experience.');
-      introStarted = false;
-    }
-  })();
+  const sceneEl = document.querySelector('a-scene');
+  if (sceneEl?.is('vr-mode')) {
+    beginVrExperienceOnce();
+  }
 }
 
-function beginVrExperienceOnce() {
-  if (vrExperienceStarted || !vrExperiencePrepared) return;
+async function beginVrExperienceOnce() {
+  if (vrExperienceStarted || vrStartInProgress || !experienceStarted) return;
 
   const sceneEl = document.querySelector('a-scene');
   if (!sceneEl || !sceneEl.is('vr-mode')) return;
 
-  vrExperienceStarted = true;
-  SAGEIntegration.record('vr_entered', {experience_time_origin: true});
-  setSageStatus('VR entered — narration begins in 5 seconds…');
+  vrStartInProgress = true;
 
-  setTimeout(() => {
-    setSageStatus('Playing NW001…');
-    playIntroSequence(() => {
-      SAGEIntegration.record('intro_completed', {node_id: 'NW001'});
-      setTimeout(() => {
-        TourEngine.recommendAndCue().catch(console.error);
-      }, 1500);
+  try {
+    // Prepare only after immersive VR has actually been entered.
+    setSageStatus('Preparing VR experience…');
+    await TourEngine.prepare({forceNew: true});
+
+    vrExperienceStarted = true;
+    vrStartInProgress = false;
+
+    SAGEIntegration.record('vr_entered', {
+      experience_time_origin: true
     });
-  }, 5000);
+
+    setSageStatus('VR ready — narration begins in 5 seconds…');
+
+    setTimeout(() => {
+      setSageStatus('Ready — enter VR to begin.');
+
+      playIntroSequence(() => {
+        SAGEIntegration.record('intro_completed', {node_id: 'NW001'});
+        TourEngine.setState(State.FREE);
+        setSageStatus('NW001 complete — starting guided tour…');
+
+        setTimeout(() => {
+          TourEngine.recommendAndCue().catch(console.error);
+        }, 1500);
+      });
+    }, 5000);
+
+  } catch (error) {
+    vrStartInProgress = false;
+    vrExperienceStarted = false;
+    console.error('[VR startup] prepare failed:', error);
+
+    // Surface the real error instead of only saying "could not prepare".
+    const msg = error?.message || String(error);
+    setSageStatus(`VR preparation failed: ${msg}`);
+  }
 }
 
 function beginExperience() {
@@ -3117,7 +3136,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v16:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v17:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
@@ -3158,16 +3177,22 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  console.log('[SAGE] adaptive dichoptic cue active; Marco runtime controls POIs and dwell.');
+  console.log('[SAGE] VR entered.');
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
   showPrimaryHotspots(false);
 
-  // Keep the profile selector open until the visitor chooses a profile.
   if (!experienceStarted) {
+    // If VR is entered before choosing a profile, keep selector available.
     showAudioStartOverlay();
+    return;
   }
+
+  // If the profile was already selected, prepare and start only now.
+  setTimeout(() => {
+    beginVrExperienceOnce().catch(console.error);
+  }, 100);
 });
 
 
@@ -3206,16 +3231,6 @@ window.addEventListener('load', () => {
   // On Quest, A-Frame may finish loading before the window load event;
   // resetting these values afterward disables gaze and cue effects in VR.
 });
-
-
-const vrSceneEl = document.querySelector('a-scene');
-if (vrSceneEl) {
-  vrSceneEl.addEventListener('enter-vr', () => {
-    // Let A-Frame finish switching into immersive VR before starting the 5 s clock.
-    setTimeout(() => beginVrExperienceOnce(), 100);
-  });
-}
-
 </script>
 
 </body>
