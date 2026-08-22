@@ -977,6 +977,8 @@ const SAGEIntegration = {
   visitorState: null,
   dwell: null,
   activeRecommendation: null,
+  activeRecommendations: [],
+  visitedFixedStopIndices: new Set(),
   log: [],
   ready: false,
   lastUv: null,
@@ -1412,77 +1414,57 @@ const SAGEIntegration = {
     if (!this.ready) await this.init();
     if (this.activeRecommendation || !['IDLE', 'FREE'].includes(TourEngine.state)) return null;
 
-    if (this.fixedPoiIndex >= FIXED_STOPS.length) {
-      setSageStatus('Fixed guided tour complete');
+    const available = FIXED_STOPS
+      .map((stop, index) => ({stop, index}))
+      .filter(item => !this.visitedFixedStopIndices.has(item.index))
+      .slice(0, 3);
+
+    if (!available.length) {
+      setSageStatus('Guided tour complete');
       this.record('fixed_tour_complete', {sequence_length: FIXED_STOPS.length});
       TourEngine.finishTour();
       return null;
     }
 
-    const stop = FIXED_STOPS[this.fixedPoiIndex];
-    const chosenPoi = stop.poi;
-    const chosenNodes = stop.nodeIds
-      .map(id => this.corpus.nodes.find(node => node.id === id))
-      .filter(Boolean);
+    const recommendations = available.map(({stop, index}) => {
+      const nodes = stop.nodeIds
+        .map(id => this.corpus.nodes.find(node => node.id === id))
+        .filter(Boolean);
+      if (!nodes.length) return null;
+      const metrics = this.angularMetrics(stop.poi);
+      return {
+        node: nodes[0], nodes, poi: stop.poi, fixedStopIndex: index,
+        score: null, contributions: null, features: null,
+        onsetMs: performance.now(),
+        eccentricityDeg: metrics?.eccentricity ?? null,
+        angularSizeDeg: metrics?.angularSize ?? null
+      };
+    }).filter(Boolean);
 
-    if (!chosenNodes.length) {
-      console.error('[Fixed tour] Missing narration node(s)', stop);
-      this.record('fixed_stop_error', {
-        sequence_index: this.fixedPoiIndex,
-        poi: chosenPoi,
-        node_ids: stop.nodeIds,
-        reason: 'nodes_not_found'
-      });
-      return null;
-    }
+    if (!recommendations.length) return null;
 
-    const metrics = this.angularMetrics(chosenPoi);
-
-    this.activeRecommendation = {
-      node: chosenNodes[0],
-      nodes: chosenNodes,
-      poi: chosenPoi,
-      score: null,
-      contributions: null,
-      features: null,
-      onsetMs: performance.now(),
-      eccentricityDeg: metrics?.eccentricity ?? null,
-      angularSizeDeg: metrics?.angularSize ?? null
-    };
-
-    this.visitorState.activeNode = chosenNodes[0].id;
+    this.activeRecommendations = recommendations;
+    // No target is selected yet. activeRecommendation becomes the user's chosen target on gaze entry.
+    this.activeRecommendation = recommendations[0];
+    this.visitorState.activeNode = null;
     this.visitorState.lastGuidanceTime = performance.now() / 1000;
     this.visitorState.narrationState = 'idle';
     this.dwell.reset();
     this.roiInside = {outer: false, inner: false};
 
-    setSageStatus(`Fixed stop ${this.fixedPoiIndex + 1}/${FIXED_STOPS.length}: ${chosenPoi}`);
-
-    this.record('fixed_poi_selected', {
-      sequence_index: this.fixedPoiIndex,
-      sequence_length: FIXED_STOPS.length,
-      node_ids: chosenNodes.map(n => n.id),
-      poi: chosenPoi,
-      target_eccentricity_deg: this.activeRecommendation.eccentricityDeg,
-      roi_angular_size_deg: this.activeRecommendation.angularSizeDeg
+    const poiIds = recommendations.map(r => r.poi);
+    setSageStatus(`Choose one of the ${poiIds.length} illuminated regions`);
+    this.record('three_choice_offered', {
+      poi_ids: poiIds,
+      stop_indices: recommendations.map(r => r.fixedStopIndex)
     });
 
-    await TourEngine.startCue(chosenPoi);
-
-    this.record('guidance_onset', {
-      condition: 'fixed_sequence',
-      sequence_index: this.fixedPoiIndex,
-      node_ids: chosenNodes.map(n => n.id),
-      poi: chosenPoi,
-      target_eccentricity_deg: this.activeRecommendation.eccentricityDeg,
-      roi_angular_size_deg: this.activeRecommendation.angularSizeDeg
-    });
+    await TourEngine.startCueChoices(poiIds);
 
     clearTimeout(this.guidanceTimer);
     this.guidanceTimer = setTimeout(() => this.guidanceTimeout(), MARCO_CONFIG.guidanceTimeoutMs);
-
     this.persist();
-    return this.activeRecommendation;
+    return recommendations;
   },
 
   guidanceTimeout() {
@@ -1501,6 +1483,7 @@ const SAGEIntegration = {
     this.record('dismissal', {node_id: rec.node.id, poi: rec.poi, reason: 'timeout'});
 
     this.activeRecommendation = null;
+    this.activeRecommendations = [];
     this.visitorState.activeNode = null;
     this.visitorState.narrationState = 'idle';
     this.dwell.reset();
@@ -1519,7 +1502,7 @@ const SAGEIntegration = {
         uv,
         headPose,
         angularVelocityDegPerSec: measuredAngularVelocityDegPerSec,
-        activeTarget: this.activeRecommendation?.poi || null,
+        activeTarget: this.activeRecommendations?.map(r => r.poi) || (this.activeRecommendation?.poi ? [this.activeRecommendation.poi] : []),
         state: TourEngine.state
       });
     }
@@ -1544,14 +1527,50 @@ const SAGEIntegration = {
   },
 
   updateDwell(nowMs, uv, angularVelocityDegPerSec) {
-    const rec = this.activeRecommendation;
-    const shape = this.activationShapeForPoi(rec.poi);
-    if (!shape) return;
+    const choices = this.activeRecommendations?.length
+      ? this.activeRecommendations
+      : (this.activeRecommendation ? [this.activeRecommendation] : []);
+    if (!choices.length) return;
 
-    const outer = this.expandShape(shape);
+    let rec = null;
+    let shape = null;
+    let outer = null;
+
+    // If a dwell is already underway, keep evaluating that same target.
+    const dwellPoi = this.dwell?.poi || this.dwell?.poiId || null;
+    if (dwellPoi) rec = choices.find(r => r.poi === dwellPoi) || null;
+
+    // Otherwise whichever of the three inner ROIs the user enters becomes the candidate.
+    if (!rec && uv) {
+      for (const candidate of choices) {
+        const candidateShape = this.activationShapeForPoi(candidate.poi);
+        if (candidateShape && this.runtime.pointInShape(uv.x, uv.y, candidateShape)) {
+          rec = candidate;
+          break;
+        }
+      }
+    }
+
+    // If not inside an inner ROI, use the currently active choice only for exit/reset handling.
+    if (!rec) rec = this.activeRecommendation;
+    if (!rec) return;
+
+    shape = this.activationShapeForPoi(rec.poi);
+    if (!shape) return;
+    outer = this.expandShape(shape);
+
     const insideInner = !!(uv && this.runtime.pointInShape(uv.x, uv.y, shape));
     const insideOuter = !!(uv && this.runtime.pointInShape(uv.x, uv.y, outer));
     setGazePointerInsideCue(insideInner);
+
+    // As soon as gaze enters one of the three exact target ROIs, make it the active choice.
+    if (insideInner && this.activeRecommendation?.poi !== rec.poi) {
+      this.activeRecommendation = rec;
+      this.visitorState.activeNode = rec.node.id;
+      this.dwell.reset();
+      this.roiInside = {outer: false, inner: false};
+      this.record('choice_target_entered', {node_id: rec.node.id, poi: rec.poi});
+    }
 
     if (insideOuter !== this.roiInside.outer) {
       this.record(insideOuter ? 'roi_outer_enter' : 'roi_outer_exit', {
@@ -1563,29 +1582,19 @@ const SAGEIntegration = {
       this.record(insideInner ? 'roi_inner_enter' : 'roi_inner_exit', {
         node_id: rec.node.id, poi: rec.poi, painting_uv: uv
       });
-
-      if (insideInner) {
-        setSageStatus(`Target found: hold on ${rec.poi} for 2 seconds…`);
-      } else {
-        setSageStatus(`Look at the illuminated ${rec.poi} region for 2 seconds`);
-      }
-
+      setSageStatus(insideInner
+        ? `Selected ${rec.poi}: hold for 2 seconds…`
+        : 'Choose one of the illuminated regions');
       this.roiInside.inner = insideInner;
     }
 
     const result = this.dwell.update({
-      nowMs,
-      poi: rec.poi,
-      insideOuter,
-      insideInner,
-      angularVelocityDegPerSec
+      nowMs, poi: rec.poi, insideOuter, insideInner, angularVelocityDegPerSec
     });
 
     result.events.forEach(event => {
       this.record(event.type, {
-        node_id: rec.node.id,
-        poi: rec.poi,
-        controller_at_ms: event.at,
+        node_id: rec.node.id, poi: rec.poi, controller_at_ms: event.at,
         from_state: event.fromState || null,
         angular_velocity_deg_s: angularVelocityDegPerSec
       });
@@ -1593,28 +1602,18 @@ const SAGEIntegration = {
       if (event.type === 'orientation_confirmed') {
         const acquisitionMs = nowMs - rec.onsetMs;
         setSageStatus(`Target acquired: ${rec.poi} — zooming`);
-
-        this.record('target_acquired', {
-          node_id: rec.node.id,
-          poi: rec.poi,
-          acquisition_ms: acquisitionMs,
-          target_eccentricity_deg: rec.eccentricityDeg
+        this.record('three_choice_selected', {
+          node_id: rec.node.id, poi: rec.poi,
+          offered_pois: choices.map(r => r.poi),
+          acquisition_ms: acquisitionMs
         });
-
-        // Recovery build: 2-second stable orientation IS the activation.
         clearTimeout(this.guidanceTimer);
         QuestCue.hideAll();
-
+        this.activeRecommendation = rec;
+        this.activeRecommendations = [];
+        this.visitorState.activeNode = rec.node.id;
         this.visitorState.started.add(rec.node.id);
         this.visitorState.narrationState = 'playing';
-
-        this.record('orientation_activation_committed', {
-          node_id: rec.node.id,
-          poi: rec.poi,
-          stable_orientation_ms: MARCO_CONFIG.orientationMs
-        });
-
-        // Stop the dwell state machine here; no second dwell stage.
         this.dwell.reset();
         TourEngine.openRecommendedTarget(rec.poi, rec.node);
         return;
@@ -1623,9 +1622,7 @@ const SAGEIntegration = {
       if (event.type === 'dwell_cancelled') {
         this.visitorState.narrationState = 'idle';
         this.record('orientation_cancelled', {
-          node_id: rec.node.id,
-          poi: rec.poi,
-          from_state: event.fromState || null
+          node_id: rec.node.id, poi: rec.poi, from_state: event.fromState || null
         });
       }
     });
@@ -1745,14 +1742,16 @@ const SAGEIntegration = {
     this.visitorState.activeNode = null;
     this.visitorState.narrationState = interrupted ? 'paused' : 'idle';
 
-    // Advance exactly one stop after successful narration completion.
-    if (!interrupted) {
-      this.fixedPoiIndex += 1;
-      this.record('fixed_sequence_advanced', {
-        next_sequence_index: this.fixedPoiIndex,
-        next_poi: FIXED_STOPS[this.fixedPoiIndex]?.poi || null
+    // Mark only the user's chosen stop as visited. The other offered POIs remain available.
+    if (!interrupted && Number.isInteger(rec?.fixedStopIndex)) {
+      this.visitedFixedStopIndices.add(rec.fixedStopIndex);
+      this.record('choice_stop_visited', {
+        visited_stop_index: rec.fixedStopIndex,
+        visited_poi: rec.poi,
+        visited_count: this.visitedFixedStopIndices.size
       });
     }
+    this.activeRecommendations = [];
 
     this.dwell.reset();
     this.persist();
@@ -2020,14 +2019,16 @@ function cueIntensityForPoi(poiId) {
 const QuestCue = {
   activePoi: null,
   group: null,
+  groups: [],
   token: 0,
 
   hideAll() {
     this.token += 1;
     this.activePoi = null;
-    if (this.group) {
-      disposeEntityTree(this.group);
+    for (const group of this.groups) {
+      if (group) disposeEntityTree(group);
     }
+    this.groups = [];
     this.group = null;
   },
 
@@ -2056,8 +2057,20 @@ const QuestCue = {
   },
 
   async show(poiId) {
-    const cueIntensity = cueIntensityForPoi(poiId);
+    return this.showMany([poiId]);
+  },
+
+  async showMany(poiIds) {
     this.hideAll();
+    const ids = [...new Set((poiIds || []).filter(Boolean))].slice(0, 3);
+    if (selectedGuidanceMode === 'baseline' || !ids.length) return;
+    this.activePoi = ids;
+    await Promise.all(ids.map(id => this.showOne(id)));
+    SAGEIntegration.record('three_choice_cues_rendered', {poi_ids: ids});
+  },
+
+  async showOne(poiId) {
+    const cueIntensity = cueIntensityForPoi(poiId);
     if (selectedGuidanceMode === 'baseline') return;
 
     const shape = SAGEIntegration.pois?.shapes?.[poiId];
@@ -2072,6 +2085,7 @@ const QuestCue = {
     group.dataset.poi = poiId;
     cueLayer.appendChild(group);
     this.group = group;
+    this.groups.push(group);
 
     // Fixed visual cue size for ALL POIs.
     // The interaction ROI can be large or small, but the visible SAGE halo
@@ -2770,6 +2784,18 @@ const TourEngine = {
     if (!SAGEIntegration.ready) await this.prepare();
     if (![State.IDLE, State.FREE].includes(this.state)) return;
     return SAGEIntegration.recommendNext();
+  },
+
+  async startCueChoices(poiIds) {
+    clearTimeout(this.autoTimer);
+    this.currentStop = null;
+    this.target = null;
+    this.setState(State.CUE);
+    QuestCue.hideAll();
+    setBlurOpacity(0, 150);
+    await QuestCue.showMany(poiIds);
+    if (!SAGEIntegration.activeRecommendation) return;
+    this.setState(State.WAIT_GAZE);
   },
 
   async startCue(poiId) {
