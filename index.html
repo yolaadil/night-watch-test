@@ -553,8 +553,7 @@ const gazeCursor = document.querySelector('#gazeCursor');
 
 function setGazePointerInsideCue(isInside) {
   if (!gazeCursor) return;
-  const color = isInside ? '#ff2020' : '#000000';
-  gazeCursor.setAttribute('color', color);
+  gazeCursor.setAttribute('color', isInside ? '#ff2020' : '#000000');
 }
 
 const languageOverlay = document.querySelector('#languageOverlay');
@@ -1089,7 +1088,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v20:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v14:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1537,8 +1536,6 @@ const SAGEIntegration = {
 
     if (this.activeRecommendation && ['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) {
       this.updateDwell(nowMs, uv, angularVelocityDegPerSec);
-    } else {
-      setGazePointerInsideCue(false);
     }
 
     if (this.activeRecommendation && TourEngine.state === 'STORY') {
@@ -1554,7 +1551,6 @@ const SAGEIntegration = {
     const outer = this.expandShape(shape);
     const insideInner = !!(uv && this.runtime.pointInShape(uv.x, uv.y, shape));
     const insideOuter = !!(uv && this.runtime.pointInShape(uv.x, uv.y, outer));
-
     setGazePointerInsideCue(insideInner);
 
     if (insideOuter !== this.roiInside.outer) {
@@ -2976,8 +2972,41 @@ function hideAudioStartOverlay() {
 let experienceStarted = false;
 let introStarted = false;
 
-let vrIntroStarted = false;
-let vrWaitTimer = null;
+let pendingVrIntro = false;
+let vrIntroRunning = false;
+let audioPrimed = false;
+
+function primeNarratorAudio() {
+  // Must be called directly from a user gesture (profile click or VR button path).
+  // It silently unlocks this HTMLAudioElement for later playback after the 5 s delay.
+  if (audioPrimed || !selectedProfile) return;
+
+  try {
+    narrator.src = `audio/${selectedProfile}/NW001.mp3`;
+    narrator.muted = true;
+    narrator.volume = 0;
+
+    const p = narrator.play();
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        narrator.pause();
+        try { narrator.currentTime = 0; } catch {}
+        narrator.muted = false;
+        narrator.volume = 1;
+        audioPrimed = true;
+        console.log('[Audio] NW001 primed successfully.');
+      }).catch(err => {
+        narrator.muted = false;
+        narrator.volume = 1;
+        console.warn('[Audio] Priming was blocked:', err);
+      });
+    }
+  } catch (err) {
+    narrator.muted = false;
+    narrator.volume = 1;
+    console.warn('[Audio] Priming failed:', err);
+  }
+}
 
 function startIntro() {
   if (introStarted) return;
@@ -2986,88 +3015,64 @@ function startIntro() {
 
   (async () => {
     try {
-      // Keep the known-working v14 preparation path.
+      // Keep the known-working v14 preparation exactly here.
       await TourEngine.prepare({forceNew: true});
+      pendingVrIntro = true;
       setSageStatus('Ready — enter VR to begin.');
 
       const sceneEl = document.querySelector('a-scene');
-
-      const vrIsActive = () =>
-        !!(sceneEl?.is('vr-mode') || sceneEl?.renderer?.xr?.isPresenting);
-
-      const launchIntro = () => {
-        if (vrIntroStarted) return;
-        vrIntroStarted = true;
-
-        if (vrWaitTimer) {
-          clearInterval(vrWaitTimer);
-          vrWaitTimer = null;
-        }
-
-        SAGEIntegration.record('vr_entered', {experience_time_origin: true});
-        setSageStatus('VR ready — narration begins in 5 seconds…');
-
-        setTimeout(() => {
-          setSageStatus('Preparing experience…');
-
-          let tourAdvanced = false;
-          const advanceTour = (reason) => {
-            if (tourAdvanced) return;
-            tourAdvanced = true;
-
-            SAGEIntegration.record('intro_completed', {
-              node_id: 'NW001',
-              advance_reason: reason
-            });
-
-            TourEngine.setState(State.FREE);
-            setSageStatus('NW001 complete — starting guided tour…');
-
-            setTimeout(() => {
-              TourEngine.recommendAndCue().catch(console.error);
-            }, 1500);
-          };
-
-          playIntroSequence(() => advanceTour('audio_complete'));
-
-          // Safety watchdog: a blocked/missed audio callback must never freeze the tour.
-          setTimeout(() => {
-            if (!tourAdvanced) advanceTour('startup_watchdog');
-          }, 18000);
-
-        }, 5000);
-      };
-
-      // Works whether the profile is chosen before or after entering immersive VR.
-      if (vrIsActive()) {
-        launchIntro();
-      } else {
-        sceneEl?.addEventListener('enter-vr', () => {
-          setTimeout(() => {
-            if (vrIsActive()) launchIntro();
-          }, 100);
-        }, {once: true});
-
-        // Quest/A-Frame can occasionally miss the event timing; poll XR state too.
-        vrWaitTimer = setInterval(() => {
-          if (vrIsActive()) launchIntro();
-        }, 250);
+      if (sceneEl?.is('vr-mode') || sceneEl?.renderer?.xr?.isPresenting) {
+        startVrIntroCountdown();
       }
-
     } catch (error) {
-      console.error('[SAGE startup] failed:', error);
+      console.error('[SAGE startup] prepare failed:', error);
       introStarted = false;
-      vrIntroStarted = false;
-      if (vrWaitTimer) {
-        clearInterval(vrWaitTimer);
-        vrWaitTimer = null;
-      }
+      pendingVrIntro = false;
       showAudioStartOverlay();
       const p = document.querySelector('#languageBox p');
       if (p) p.textContent = `Startup failed: ${error?.message || error}`;
     }
   })();
 }
+
+function startVrIntroCountdown() {
+  if (!pendingVrIntro || vrIntroRunning) return;
+  vrIntroRunning = true;
+  pendingVrIntro = false;
+
+  SAGEIntegration.record('vr_entered', {experience_time_origin: true});
+  setSageStatus('VR ready — NW001 begins in 5 seconds…');
+
+  setTimeout(() => {
+    setSageStatus('Preparing experience…');
+
+    let advanced = false;
+    const advance = reason => {
+      if (advanced) return;
+      advanced = true;
+
+      SAGEIntegration.record('intro_completed', {
+        node_id: 'NW001',
+        advance_reason: reason
+      });
+
+      TourEngine.setState(State.FREE);
+      setSageStatus('NW001 complete — starting guided tour…');
+
+      setTimeout(() => {
+        TourEngine.recommendAndCue().catch(console.error);
+      }, 1500);
+    };
+
+    playIntroSequence(() => advance('audio_complete'));
+
+    // If Quest blocks the delayed audio despite priming, never freeze the tour.
+    // Advance after 14 s so the first visual cue still appears.
+    setTimeout(() => advance('intro_safety_timeout'), 14000);
+
+  }, 5000);
+}
+
 function beginExperience() {
   showAudioStartOverlay();
 }
@@ -3077,6 +3082,9 @@ document.querySelectorAll('.profileButton').forEach(button => {
     selectedProfile = button.dataset.profile || 'general';
     selectedGuidanceMode = 'sage';
 
+    // Unlock the narrator while this click still has user activation.
+    primeNarratorAudio();
+
     const participantId = document.querySelector('#participantIdInput')?.value || 'P000';
     StudyLogger.start(participantId, selectedProfile);
 
@@ -3084,7 +3092,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v20:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v14:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
@@ -3125,16 +3133,20 @@ if (scene.hasLoaded) {
 }
 
 scene.addEventListener('enter-vr', () => {
-  console.log('[SAGE] adaptive dichoptic cue active; Marco runtime controls POIs and dwell.');
+  console.log('[SAGE] VR entered.');
   pageReady = true;
   currentLanguage = 'en';
   gazeCursor.setAttribute('visible', true);
   showPrimaryHotspots(false);
 
-  // Keep the profile selector open until the visitor chooses a profile.
   if (!experienceStarted) {
     showAudioStartOverlay();
+    return;
   }
+
+  // Re-prime if needed while entering XR, then start the 5-second gate.
+  primeNarratorAudio();
+  setTimeout(startVrIntroCountdown, 100);
 });
 
 
