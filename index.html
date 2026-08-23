@@ -1090,7 +1090,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v14:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-sage-fixed-v23:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -2021,39 +2021,51 @@ const QuestCue = {
   group: null,
   groups: [],
   token: 0,
+  rotationTimer: null,
+  rotationIndex: 0,
 
   hideAll() {
     this.token += 1;
     this.activePoi = null;
+
+    if (this.rotationTimer) {
+      clearInterval(this.rotationTimer);
+      this.rotationTimer = null;
+    }
+
     for (const group of this.groups) {
       if (group) disposeEntityTree(group);
     }
+
     this.groups = [];
     this.group = null;
+    this.rotationIndex = 0;
   },
 
   fadeOut(duration = 240) {
-    if (!this.group) return;
-    const group = this.group;
-    const token = this.token;
-    const plane = group.querySelector('a-plane');
+    // For the three-choice condition, remove all offered cues together
+    // after the participant selects one.
+    const groups = [...this.groups];
+    if (!groups.length) return;
 
-    if (!plane) {
-      this.hideAll();
-      return;
+    if (this.rotationTimer) {
+      clearInterval(this.rotationTimer);
+      this.rotationTimer = null;
     }
 
-    plane.removeAttribute('animation__halopulse');
-    plane.setAttribute('animation__halofade', {
-      property: 'material.opacity',
-      to: 0,
-      dur: duration,
-      easing: 'easeOutQuad'
+    groups.forEach(group => {
+      const plane = group.querySelector('a-plane');
+      if (!plane) return;
+      plane.removeAttribute('animation__halopulse');
+      plane.setAttribute('animation__halofade', {
+        property: 'material.opacity',
+        to: 0,
+        dur: duration,
+        easing: 'easeOutQuad'
+      });
     });
 
-    setTimeout(() => {
-      if (token === this.token && group === this.group) this.hideAll();
-    }, duration + 30);
+    setTimeout(() => this.hideAll(), duration + 30);
   },
 
   async show(poiId) {
@@ -2062,34 +2074,84 @@ const QuestCue = {
 
   async showMany(poiIds) {
     this.hideAll();
+
     const ids = [...new Set((poiIds || []).filter(Boolean))].slice(0, 3);
     if (selectedGuidanceMode === 'baseline' || !ids.length) return;
+
+    const sessionToken = this.token;
     this.activePoi = ids;
-    await Promise.all(ids.map(id => this.showOne(id)));
-    SAGEIntegration.record('three_choice_cues_rendered', {poi_ids: ids});
+
+    for (const id of ids) {
+      await this.showOne(id, sessionToken);
+    }
+
+    // All three remain subtly visible, but ONLY ONE pulses at a time.
+    // Attention rotates every 2 seconds: 1 -> 2 -> 3 -> 1 ...
+    this.rotationIndex = 0;
+    this.activateRotatingCue(this.rotationIndex);
+
+    if (ids.length > 1) {
+      this.rotationTimer = setInterval(() => {
+        if (sessionToken !== this.token || !this.groups.length) return;
+        this.rotationIndex = (this.rotationIndex + 1) % this.groups.length;
+        this.activateRotatingCue(this.rotationIndex);
+      }, 2000);
+    }
+
+    SAGEIntegration.record('three_choice_cues_rendered', {
+      poi_ids: ids,
+      cue_rotation_ms: 2000,
+      simultaneous_pulses: 1
+    });
   },
 
-  async showOne(poiId) {
-    const cueIntensity = cueIntensityForPoi(poiId);
+  activateRotatingCue(index) {
+    this.groups.forEach((group, i) => {
+      const plane = group.querySelector('a-plane');
+      if (!plane) return;
+
+      plane.removeAttribute('animation__halopulse');
+
+      if (i === index) {
+        // Active suggestion: fast 500 ms pulse for the next 2 seconds.
+        plane.setAttribute('material', 'opacity', MARCO_CONFIG.cueOpacityMin);
+        plane.setAttribute('animation__halopulse', {
+          property: 'material.opacity',
+          from: MARCO_CONFIG.cueOpacityMin,
+          to: MARCO_CONFIG.cueOpacityMax,
+          dur: MARCO_CONFIG.cuePulseMs,
+          easing: 'easeInOutSine',
+          dir: 'alternate',
+          loop: true
+        });
+      } else {
+        // Other two choices stay visible but quiet; they remain selectable.
+        plane.setAttribute('material', 'opacity', 0.055);
+      }
+    });
+
+    const activeGroup = this.groups[index];
+    SAGEIntegration.record('cue_rotation_focus', {
+      poi: activeGroup?.dataset?.poi || null,
+      rotation_index: index,
+      duration_ms: 2000
+    });
+  },
+
+  async showOne(poiId, sessionToken) {
     if (selectedGuidanceMode === 'baseline') return;
 
     const shape = SAGEIntegration.pois?.shapes?.[poiId];
     const bounds = SAGEIntegration.shapeBounds(shape);
     const center = SAGEIntegration.shapeCenter(shape);
-    if (!bounds || !center) return;
-
-    const localToken = ++this.token;
-    this.activePoi = poiId;
+    if (!bounds || !center || sessionToken !== this.token) return;
 
     const group = document.createElement('a-entity');
     group.dataset.poi = poiId;
     cueLayer.appendChild(group);
-    this.group = group;
     this.groups.push(group);
+    this.group = group;
 
-    // Fixed visual cue size for ALL POIs.
-    // The interaction ROI can be large or small, but the visible SAGE halo
-    // should not grow with the POI geometry.
     const haloW = 0.38;
     const haloH = 0.38;
 
@@ -2104,7 +2166,7 @@ const QuestCue = {
     plane.setAttribute('render-layer', 'layer: 1');
     plane.setAttribute('material', {
       shader: 'tile-glow',
-      opacity: MARCO_CONFIG.cueOpacityMin,
+      opacity: 0.055,
       transparent: true,
       depthTest: false,
       depthWrite: false,
@@ -2117,26 +2179,16 @@ const QuestCue = {
       plane.object3D.traverse(object => object.layers.set(1));
     });
 
-    plane.setAttribute('animation__halopulse', {
-      property: 'material.opacity',
-      from: MARCO_CONFIG.cueOpacityMin,
-      to: MARCO_CONFIG.cueOpacityMax,
-      dur: MARCO_CONFIG.cuePulseMs,
-      easing: 'easeInOutSine',
-      dir: 'alternate',
-      loop: true
-    });
-
-    if (localToken !== this.token || this.activePoi !== poiId) return;
-
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'transparent_halo',
+      cue_type: 'rotating_three_choice_halo',
       halo_width_world: haloW,
       halo_height_world: haloH,
       cue_anchor: cueAnchor,
-      opacity_min: MARCO_CONFIG.cueOpacityMin,
-      opacity_max: MARCO_CONFIG.cueOpacityMax
+      quiet_opacity: 0.055,
+      pulse_opacity_min: MARCO_CONFIG.cueOpacityMin,
+      pulse_opacity_max: MARCO_CONFIG.cueOpacityMax,
+      pulse_transition_ms: MARCO_CONFIG.cuePulseMs
     });
   }
 };
@@ -3118,7 +3170,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v14:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-sage-fixed-v23:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
