@@ -1031,7 +1031,17 @@ const SAGEIntegration = {
     moveEllipse('lieutenant',       0.040, -0.070); // up to face
     moveEllipse('girl',             0.020,  0.000);
     moveEllipse('hand_shadow',      0,      0, {x: 0.535, y: 0.620}); // lower
-    moveEllipse('standard',         0,      0, {x: 0.300, y: 0.400}); // user-marked Standard Bearer position
+    // Standard Bearer is a polygon in the source POI JSON, so moveEllipse() never
+    // changed it. Replace that provisional polygon with one registered ellipse so
+    // the cue, gaze ROI, and zoom all use the same corrected location.
+    this.pois.shapes.standard = {
+      type: 'ellipse',
+      cx: 0.300,
+      cy: 0.400,
+      rx: 0.065,
+      ry: 0.145,
+      confidence: 'provisional_visual_adjusted'
+    };
     moveEllipse('musketeer_left',  -0.040, -0.040); // left + up
     moveEllipse('musketeer_right',  0.000, -0.035);
     moveEllipse('musketeer_center', 0.055,  0.040); // a little further right
