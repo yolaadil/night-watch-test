@@ -2119,6 +2119,7 @@ const QuestCue = {
       const plane = group.querySelector('a-plane');
       if (!plane) return;
       plane.removeAttribute('animation__halopulse');
+      plane.removeAttribute('animation__halobreath');
       plane.setAttribute('animation__halofade', {
         property: 'material.opacity',
         to: 0,
@@ -2147,23 +2148,41 @@ const QuestCue = {
       await this.showOne(id, sessionToken);
     }
 
-    // All three remain subtly visible, but ONLY ONE pulses at a time.
-    // Attention rotates every 2 seconds: 1 -> 2 -> 3 -> 1 ...
-    this.rotationIndex = 0;
-    this.activateRotatingCue(this.rotationIndex);
+    // All offered regions glow and breathe at the same time.
+    // Each halo gently brightens/enlarges, then dims/reduces, continuously.
+    this.groups.forEach(group => {
+      const plane = group.querySelector('a-plane');
+      if (!plane) return;
 
-    if (ids.length > 1) {
-      this.rotationTimer = setInterval(() => {
-        if (sessionToken !== this.token || !this.groups.length) return;
-        this.rotationIndex = (this.rotationIndex + 1) % this.groups.length;
-        this.activateRotatingCue(this.rotationIndex);
-      }, 2000);
-    }
+      plane.setAttribute('material', 'opacity', MARCO_CONFIG.cueOpacityMin);
+      plane.setAttribute('scale', '0.90 0.90 0.90');
+
+      plane.setAttribute('animation__halopulse', {
+        property: 'material.opacity',
+        from: MARCO_CONFIG.cueOpacityMin,
+        to: MARCO_CONFIG.cueOpacityMax,
+        dur: MARCO_CONFIG.cuePulseMs,
+        easing: 'easeInOutSine',
+        dir: 'alternate',
+        loop: true
+      });
+
+      plane.setAttribute('animation__halobreath', {
+        property: 'scale',
+        from: '0.90 0.90 0.90',
+        to: '1.08 1.08 1.08',
+        dur: MARCO_CONFIG.cuePulseMs,
+        easing: 'easeInOutSine',
+        dir: 'alternate',
+        loop: true
+      });
+    });
 
     SAGEIntegration.record('three_choice_cues_rendered', {
       poi_ids: ids,
-      cue_rotation_ms: 2000,
-      simultaneous_pulses: 1
+      cue_rotation_ms: null,
+      simultaneous_pulses: ids.length,
+      cue_motion: 'simultaneous_breathing'
     });
   },
 
@@ -2244,7 +2263,7 @@ const QuestCue = {
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'rotating_three_choice_halo',
+      cue_type: 'simultaneous_three_choice_breathing_halo',
       halo_width_world: haloW,
       halo_height_world: haloH,
       cue_anchor: cueAnchor,
