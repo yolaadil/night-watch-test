@@ -210,7 +210,7 @@ AFRAME.registerShader('tile-glow', {
       float glow = 1.0 - smoothstep(0.05, 1.0, r);
       glow = pow(glow, 1.35);
 
-      vec3 glowColor = vec3(1.0, 0.92, 0.76);
+      vec3 glowColor = vec3(1.0, 0.88, 0.40); // warmer yellow glow (#FFE066 approx.)
       gl_FragColor = vec4(glowColor, opacity * glow);
     }
   `
@@ -678,7 +678,7 @@ const MARCO_CONFIG = Object.freeze({
   cueMinHeightNorm: 0.045,
   cueOpacityMin: 0.08,
   cueOpacityMax: 0.20,
-  cuePulseMs: 500,
+  cuePulseMs: 250,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -2124,7 +2124,7 @@ const QuestCue = {
       plane.removeAttribute('animation__halopulse');
 
       if (i === index) {
-        // Active suggestion: fast 500 ms pulse for the next 2 seconds.
+        // Active suggestion: 4 full pulses during the 2-second focus window (250 ms each direction).
         plane.setAttribute('material', 'opacity', MARCO_CONFIG.cueOpacityMin);
         plane.setAttribute('animation__halopulse', {
           property: 'material.opacity',
