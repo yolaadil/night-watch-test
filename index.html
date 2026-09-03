@@ -539,7 +539,8 @@ AFRAME.registerComponent('quest-gaze-select', {
         fuse="true"
         fuse-timeout="2000"
         raycaster="objects: .paintingTarget"
-        color="black">
+        color="black"
+        material="transparent: true; opacity: 0; depthWrite: false">
       </a-cursor>
     </a-camera>
   </a-entity>
