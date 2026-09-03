@@ -727,9 +727,9 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.08,
-  cueOpacityMax: 0.20,
-  cuePulseMs: 350,
+  cueOpacityMin: 0.10,
+  cueOpacityMax: 0.28,
+  cuePulseMs: 500,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -2195,7 +2195,7 @@ const QuestCue = {
 
       if (i === index) {
         // Active suggestion: slower, softer pulsing. The 2-second focus rotation is
-        // unchanged, but each brighten/dim transition now takes 350 ms.
+        // unchanged, but each brighten/dim transition now takes 500 ms.
         plane.setAttribute('material', 'opacity', MARCO_CONFIG.cueOpacityMin);
         plane.setAttribute('animation__halopulse', {
           property: 'material.opacity',
