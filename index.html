@@ -539,8 +539,8 @@ AFRAME.registerComponent('quest-gaze-select', {
         fuse="true"
         fuse-timeout="2000"
         raycaster="objects: .paintingTarget"
-        color="black"
-        material="transparent: true; opacity: 0; depthWrite: false">
+        color="#d8d1c4"
+        material="shader: flat; color: #d8d1c4; transparent: true; opacity: 0.32; depthTest: false; depthWrite: false">
       </a-cursor>
     </a-camera>
   </a-entity>
@@ -554,7 +554,16 @@ const gazeCursor = document.querySelector('#gazeCursor');
 
 function setGazePointerInsideCue(isInside) {
   if (!gazeCursor) return;
-  gazeCursor.setAttribute('color', isInside ? '#ff2020' : '#000000');
+
+  // Keep the reticle visible but subdued so it supports aiming without
+  // becoming a dominant overlay on the artwork. Inside an active hotspot,
+  // shift to a muted warm gold and slightly increase visibility.
+  const color = isInside ? '#e3c56f' : '#d8d1c4';
+  const opacity = isInside ? 0.52 : 0.32;
+
+  gazeCursor.setAttribute('color', color);
+  gazeCursor.setAttribute('material', 'color', color);
+  gazeCursor.setAttribute('material', 'opacity', opacity);
 }
 
 const languageOverlay = document.querySelector('#languageOverlay');
@@ -678,7 +687,7 @@ const MARCO_CONFIG = Object.freeze({
   cueMinHeightNorm: 0.045,
   cueOpacityMin: 0.08,
   cueOpacityMax: 0.20,
-  cuePulseMs: 250,
+  cuePulseMs: 350,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -2124,7 +2133,8 @@ const QuestCue = {
       plane.removeAttribute('animation__halopulse');
 
       if (i === index) {
-        // Active suggestion: 4 full pulses during the 2-second focus window (250 ms each direction).
+        // Active suggestion: slower, softer pulsing. The 2-second focus rotation is
+        // unchanged, but each brighten/dim transition now takes 350 ms.
         plane.setAttribute('material', 'opacity', MARCO_CONFIG.cueOpacityMin);
         plane.setAttribute('animation__halopulse', {
           property: 'material.opacity',
