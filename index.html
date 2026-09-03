@@ -181,6 +181,42 @@ body {
   background: rgba(60,60,60,0.92);
 }
 
+
+
+#endTourOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 8, 8, 0.88);
+  color: #f3f0e8;
+  text-align: center;
+}
+
+#endTourBox {
+  width: min(560px, 88vw);
+  padding: 34px 30px;
+  border-radius: 18px;
+  background: rgba(24, 24, 24, 0.96);
+  border: 1px solid rgba(255, 224, 102, 0.35);
+  box-shadow: 0 18px 55px rgba(0,0,0,0.35);
+}
+
+#endTourBox h1 {
+  margin: 0 0 12px;
+  color: #ffe680;
+  font-size: 31px;
+}
+
+#endTourBox p {
+  margin: 0;
+  color: #ddd8cc;
+  font-size: 17px;
+  line-height: 1.55;
+}
+
 </style>
 
 
@@ -446,6 +482,12 @@ AFRAME.registerComponent('quest-gaze-select', {
 </head>
 
 <body>
+<div id="endTourOverlay" aria-live="polite">
+  <div id="endTourBox">
+    <h1>End of Tour</h1>
+    <p>You have visited all points of interest.<br>Thank you for exploring <em>The Night Watch</em> with VRPaint.</p>
+  </div>
+</div>
 <div id="sageStatus" style="
   position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
   z-index:30; padding:7px 12px; border-radius:8px;
@@ -3035,11 +3077,75 @@ const TourEngine = {
   },
 
   finishTour() {
+    if (this.tourEnding) return;
+    this.tourEnding = true;
+
     QuestCue.hideAll();
+    clearTimeout(SAGEIntegration.guidanceTimer);
+    clearTimeout(SAGEIntegration.restTimer);
+    setGazePointerInsideCue(false);
+
     this.target = null;
     this.currentStop = null;
     this.setState(State.FREE);
-    SAGEIntegration.record('tour_idle_no_recommendation', {});
+
+    SAGEIntegration.record('tour_completed', {
+      visited_count: SAGEIntegration.visitedFixedStopIndices.size,
+      total_stops: FIXED_STOPS.length
+    });
+
+    setSageStatus('Tour complete');
+
+    const scene = document.querySelector('a-scene');
+    const endOverlay = document.querySelector('#endTourOverlay');
+
+    const showEndScreen = () => {
+      if (endOverlay) endOverlay.style.display = 'flex';
+      SAGEIntegration.record('end_screen_shown', {});
+    };
+
+    // Exit immersive VR first, then show the browser-based closing screen.
+    // If the page is already outside VR, show the closing screen immediately.
+    if (scene && scene.is && scene.is('vr-mode') && typeof scene.exitVR === 'function') {
+      let shown = false;
+      const onExit = () => {
+        if (shown) return;
+        shown = true;
+        scene.removeEventListener('exit-vr', onExit);
+        setTimeout(showEndScreen, 150);
+      };
+
+      scene.addEventListener('exit-vr', onExit);
+
+      try {
+        const result = scene.exitVR();
+        if (result && typeof result.catch === 'function') {
+          result.catch(() => {
+            if (!shown) {
+              shown = true;
+              scene.removeEventListener('exit-vr', onExit);
+              showEndScreen();
+            }
+          });
+        }
+      } catch (error) {
+        console.warn('[VRPaint] Could not exit VR automatically', error);
+        scene.removeEventListener('exit-vr', onExit);
+        shown = true;
+        showEndScreen();
+      }
+
+      // Safety fallback in case a browser fails to emit exit-vr.
+      setTimeout(() => {
+        if (!shown) {
+          shown = true;
+          scene.removeEventListener('exit-vr', onExit);
+          showEndScreen();
+        }
+      }, 1800);
+    } else {
+      showEndScreen();
+    }
   }
 };
 
