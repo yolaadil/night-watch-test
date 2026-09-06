@@ -741,7 +741,7 @@ const MARCO_CONFIG = Object.freeze({
   cueMinHeightNorm: 0.045,
   cueOpacityMin: 0.12,
   cueOpacityMax: 0.30,
-  cuePulseMs: 700,
+  cuePulseMs: 900,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -1165,7 +1165,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v32-quest-safe:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v33-slower-glow:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -3367,7 +3367,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v32-quest-safe:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v33-slower-glow:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
