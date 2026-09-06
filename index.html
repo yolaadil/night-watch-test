@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>The Night Watch — SAGE Guided Tour</title>
+<title>VRPaint — The Night Watch</title>
 <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 <script type="module">
 import {
@@ -222,9 +222,10 @@ body {
 
 <script>
 AFRAME.registerShader('tile-glow', {
-  // Small transparent filled glow. No ring, no dark center, no tile look.
+  // Diffuse amber illumination: no ring, border, or dark center.
   schema: {
-    opacity: {type: 'number', is: 'uniform', default: 0.12}
+    opacity: {type: 'number', is: 'uniform', default: 0.16},
+    warmth: {type: 'number', is: 'uniform', default: 1.0}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -235,19 +236,30 @@ AFRAME.registerShader('tile-glow', {
   `,
   fragmentShader: `
     uniform float opacity;
+    uniform float warmth;
     varying vec2 vUv;
 
     void main() {
-      vec2 p = vUv - vec2(0.5);
+      // Elliptical distance with a very soft falloff.
+      vec2 p = (vUv - vec2(0.5)) * vec2(0.92, 1.0);
       float r = length(p) / 0.7071;
 
-      // Filled glow: strongest in the center, smoothly fades to zero.
-      // There is intentionally NO ring and NO dark hole.
-      float glow = 1.0 - smoothstep(0.05, 1.0, r);
-      glow = pow(glow, 1.35);
+      // Broad feathered illumination like a warm patch of light.
+      float broad = 1.0 - smoothstep(0.20, 1.0, r);
+      broad = pow(broad, 1.15);
 
-      vec3 glowColor = vec3(1.0, 0.88, 0.40); // warmer yellow glow (#FFE066 approx.)
-      gl_FragColor = vec4(glowColor, opacity * glow);
+      // Slightly brighter center, still completely diffuse.
+      float core = 1.0 - smoothstep(0.00, 0.58, r);
+      core = pow(core, 1.45);
+
+      float a = opacity * (0.66 * broad + 0.34 * core);
+
+      // Warm museum-light amber rather than white/yellow UI color.
+      vec3 amber = vec3(1.00, 0.66, 0.18);
+      vec3 softGold = vec3(1.00, 0.79, 0.36);
+      vec3 glowColor = mix(softGold, amber, clamp(warmth, 0.0, 1.0));
+
+      gl_FragColor = vec4(glowColor, a);
     }
   `
 });
@@ -727,9 +739,9 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.10,
-  cueOpacityMax: 0.28,
-  cuePulseMs: 500,
+  cueOpacityMin: 0.12,
+  cueOpacityMax: 0.30,
+  cuePulseMs: 700,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -1152,7 +1164,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-sage-fixed-v23:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v31-soft-amber:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -2116,15 +2128,18 @@ const QuestCue = {
     }
 
     groups.forEach(group => {
-      const plane = group.querySelector('a-plane');
-      if (!plane) return;
-      plane.removeAttribute('animation__halopulse');
-      plane.removeAttribute('animation__halobreath');
-      plane.setAttribute('animation__halofade', {
-        property: 'material.opacity',
-        to: 0,
-        dur: duration,
-        easing: 'easeOutQuad'
+      const planes = group.querySelectorAll('a-plane');
+      planes.forEach((plane, index) => {
+        plane.removeAttribute(`animation__halopulse${index}`);
+        plane.removeAttribute(`animation__halobreath${index}`);
+        plane.removeAttribute('animation__halopulse');
+        plane.removeAttribute('animation__halobreath');
+        plane.setAttribute(`animation__halofade${index}`, {
+          property: 'material.opacity',
+          to: 0,
+          dur: duration,
+          easing: 'easeOutQuad'
+        });
       });
     });
 
@@ -2148,33 +2163,41 @@ const QuestCue = {
       await this.showOne(id, sessionToken);
     }
 
-    // All offered regions glow and breathe at the same time.
-    // Each halo gently brightens/enlarges, then dims/reduces, continuously.
+    // All three candidate regions glow together.
+    // Each cue uses a broad diffuse amber layer plus a smaller brighter core,
+    // creating the soft illuminated-region appearance used in the paper mockup.
     this.groups.forEach(group => {
-      const plane = group.querySelector('a-plane');
-      if (!plane) return;
+      const planes = group.querySelectorAll('a-plane');
 
-      plane.setAttribute('material', 'opacity', MARCO_CONFIG.cueOpacityMin);
-      plane.setAttribute('scale', '0.90 0.90 0.90');
+      planes.forEach((plane, index) => {
+        const isCore = index === 1;
+        const minOpacity = isCore ? 0.08 : MARCO_CONFIG.cueOpacityMin;
+        const maxOpacity = isCore ? 0.20 : MARCO_CONFIG.cueOpacityMax;
+        const fromScale = isCore ? '0.94 0.94 0.94' : '0.92 0.92 0.92';
+        const toScale   = isCore ? '1.04 1.04 1.04' : '1.08 1.08 1.08';
 
-      plane.setAttribute('animation__halopulse', {
-        property: 'material.opacity',
-        from: MARCO_CONFIG.cueOpacityMin,
-        to: MARCO_CONFIG.cueOpacityMax,
-        dur: MARCO_CONFIG.cuePulseMs,
-        easing: 'easeInOutSine',
-        dir: 'alternate',
-        loop: true
-      });
+        plane.setAttribute('material', 'opacity', minOpacity);
+        plane.setAttribute('scale', fromScale);
 
-      plane.setAttribute('animation__halobreath', {
-        property: 'scale',
-        from: '0.90 0.90 0.90',
-        to: '1.08 1.08 1.08',
-        dur: MARCO_CONFIG.cuePulseMs,
-        easing: 'easeInOutSine',
-        dir: 'alternate',
-        loop: true
+        plane.setAttribute(`animation__halopulse${index}`, {
+          property: 'material.opacity',
+          from: minOpacity,
+          to: maxOpacity,
+          dur: MARCO_CONFIG.cuePulseMs,
+          easing: 'easeInOutSine',
+          dir: 'alternate',
+          loop: true
+        });
+
+        plane.setAttribute(`animation__halobreath${index}`, {
+          property: 'scale',
+          from: fromScale,
+          to: toScale,
+          dur: MARCO_CONFIG.cuePulseMs,
+          easing: 'easeInOutSine',
+          dir: 'alternate',
+          loop: true
+        });
       });
     });
 
@@ -2182,7 +2205,7 @@ const QuestCue = {
       poi_ids: ids,
       cue_rotation_ms: null,
       simultaneous_pulses: ids.length,
-      cue_motion: 'simultaneous_breathing'
+      cue_motion: 'simultaneous_soft_amber_breathing'
     });
   },
 
@@ -2234,40 +2257,47 @@ const QuestCue = {
     this.groups.push(group);
     this.group = group;
 
-    const haloW = 0.38;
-    const haloH = 0.38;
-
     const cueAnchor = cueAnchorForPoi(poiId, bounds, center);
     const centerX = (cueAnchor.x - 0.5) * WORLD_WIDTH;
     const centerY = (0.5 - cueAnchor.y) * WORLD_HEIGHT;
 
-    const plane = document.createElement('a-plane');
-    plane.setAttribute('width', haloW);
-    plane.setAttribute('height', haloH);
-    plane.setAttribute('position', `${centerX} ${centerY} 0.032`);
-    plane.setAttribute('render-layer', 'layer: 1');
-    plane.setAttribute('material', {
-      shader: 'tile-glow',
-      opacity: 0.055,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-      side: 'double'
-    });
+    const makeGlowPlane = (width, height, opacity, warmth, z) => {
+      const plane = document.createElement('a-plane');
+      plane.setAttribute('width', width);
+      plane.setAttribute('height', height);
+      plane.setAttribute('position', `${centerX} ${centerY} ${z}`);
+      plane.setAttribute('render-layer', 'layer: 1');
+      plane.setAttribute('material', {
+        shader: 'tile-glow',
+        opacity,
+        warmth,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        side: 'double'
+      });
+      group.appendChild(plane);
 
-    group.appendChild(plane);
+      plane.addEventListener('object3dset', () => {
+        plane.object3D.traverse(object => object.layers.set(1));
+      });
 
-    plane.addEventListener('object3dset', () => {
-      plane.object3D.traverse(object => object.layers.set(1));
-    });
+      return plane;
+    };
+
+    // Large feathered illumination plus a smaller warm center.
+    // Neither layer has a visible circular border.
+    makeGlowPlane(0.56, 0.56, MARCO_CONFIG.cueOpacityMin, 0.95, 0.032);
+    makeGlowPlane(0.38, 0.38, 0.08, 0.72, 0.033);
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'simultaneous_three_choice_breathing_halo',
-      halo_width_world: haloW,
-      halo_height_world: haloH,
+      cue_type: 'simultaneous_three_choice_soft_amber_glow',
+      broad_halo_width_world: 0.56,
+      broad_halo_height_world: 0.56,
+      core_width_world: 0.38,
+      core_height_world: 0.38,
       cue_anchor: cueAnchor,
-      quiet_opacity: 0.055,
       pulse_opacity_min: MARCO_CONFIG.cueOpacityMin,
       pulse_opacity_max: MARCO_CONFIG.cueOpacityMax,
       pulse_transition_ms: MARCO_CONFIG.cuePulseMs
@@ -3316,7 +3346,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-sage-fixed-v23:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v31-soft-amber:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
