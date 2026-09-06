@@ -739,8 +739,8 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.12,
-  cueOpacityMax: 0.30,
+  cueOpacityMin: 0.13,
+  cueOpacityMax: 0.34,
   cuePulseMs: 900,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
@@ -1165,7 +1165,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v33-slower-glow:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v34-compact-amber:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -2194,8 +2194,8 @@ const QuestCue = {
         const isCore = index === 1;
         const minOpacity = isCore ? 0.08 : MARCO_CONFIG.cueOpacityMin;
         const maxOpacity = isCore ? 0.20 : MARCO_CONFIG.cueOpacityMax;
-        const fromScale = isCore ? '0.94 0.94 0.94' : '0.92 0.92 0.92';
-        const toScale   = isCore ? '1.04 1.04 1.04' : '1.08 1.08 1.08';
+        const fromScale = isCore ? '0.96 0.96 0.96' : '0.94 0.94 0.94';
+        const toScale   = isCore ? '1.03 1.03 1.03' : '1.06 1.06 1.06';
 
         plane.setAttribute('material', 'opacity', minOpacity);
         plane.setAttribute('scale', fromScale);
@@ -2308,16 +2308,16 @@ const QuestCue = {
 
     // Large feathered illumination plus a smaller warm center.
     // Neither layer has a visible circular border.
-    makeGlowPlane(0.56, 0.56, MARCO_CONFIG.cueOpacityMin, 0.95, 0.032);
-    makeGlowPlane(0.38, 0.38, 0.08, 0.72, 0.033);
+    makeGlowPlane(0.46, 0.46, MARCO_CONFIG.cueOpacityMin, 1.00, 0.032);
+    makeGlowPlane(0.30, 0.30, 0.11, 0.90, 0.033);
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
       cue_type: 'simultaneous_three_choice_soft_amber_glow',
-      broad_halo_width_world: 0.56,
-      broad_halo_height_world: 0.56,
-      core_width_world: 0.38,
-      core_height_world: 0.38,
+      broad_halo_width_world: 0.46,
+      broad_halo_height_world: 0.46,
+      core_width_world: 0.30,
+      core_height_world: 0.30,
       cue_anchor: cueAnchor,
       pulse_opacity_min: MARCO_CONFIG.cueOpacityMin,
       pulse_opacity_max: MARCO_CONFIG.cueOpacityMax,
@@ -3367,7 +3367,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v33-slower-glow:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v34-compact-amber:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
