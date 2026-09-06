@@ -1130,7 +1130,8 @@ const SAGEIntegration = {
       this.poiNarrationCounts = new Map(persisted.poiNarrationCounts || []);
       this.narrationProgress = new Map(persisted.narrationProgress || []);
       this.resumeCounts = new Map(persisted.resumeCounts || []);
-      this.log = persisted.log || [];
+      // Detailed event logs are session-only; never restore a large log from storage.
+      this.log = [];
       window.SAGE_EVENT_LOG = this.log;
     } else {
       this.poiCooldownUntil = new Map();
@@ -1164,7 +1165,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v31-soft-amber:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v32-quest-safe:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1174,10 +1175,26 @@ const SAGEIntegration = {
       poiCooldownUntil: [...this.poiCooldownUntil.entries()],
       poiNarrationCounts: [...this.poiNarrationCounts.entries()],
       narrationProgress: [...this.narrationProgress.entries()],
-      resumeCounts: [...this.resumeCounts.entries()],
-      log: this.log.slice(-5000)
+      resumeCounts: [...this.resumeCounts.entries()]
+      // Detailed event logs remain in memory and are exported by StudyLogger.
+      // They are intentionally not duplicated into localStorage on Quest.
     };
-    localStorage.setItem(this.storageKey(), JSON.stringify(payload));
+
+    const key = this.storageKey();
+    const serialized = JSON.stringify(payload);
+
+    try {
+      localStorage.setItem(key, serialized);
+    } catch (error) {
+      console.warn('[VRPaint] localStorage write failed; retrying with a clean current-session key.', error);
+      try {
+        localStorage.removeItem(key);
+        localStorage.setItem(key, serialized);
+      } catch (retryError) {
+        // Resume persistence is optional; the live tour and StudyLogger continue.
+        console.warn('[VRPaint] localStorage unavailable/full. Continuing without resume persistence.', retryError);
+      }
+    }
   },
 
   loadPersistedState(profile) {
@@ -1191,7 +1208,11 @@ const SAGEIntegration = {
   },
 
   resetSession() {
-    localStorage.removeItem(this.storageKey());
+    try {
+      localStorage.removeItem(this.storageKey());
+    } catch (error) {
+      console.warn('[VRPaint] Could not clear localStorage session state.', error);
+    }
     location.reload();
   },
 
@@ -3346,7 +3367,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v31-soft-amber:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v32-quest-safe:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
