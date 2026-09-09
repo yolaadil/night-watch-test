@@ -497,7 +497,13 @@ AFRAME.registerComponent('quest-gaze-select', {
 <div id="endTourOverlay" aria-live="polite">
   <div id="endTourBox">
     <h1>End of Tour</h1>
-    <p>You have visited all points of interest.<br>Thank you for exploring <em>The Night Watch</em> with VRPaint.</p>
+    <p>You have visited all points of interest.<br>
+    Study data have been saved automatically on this headset.<br>
+    Use the button below to download the JSON file.</p>
+    <button id="endExportButton" class="tileButton"
+      style="display:inline-block; margin-top:14px; position:static;">
+      Export Study Data
+    </button>
   </div>
 </div>
 <div id="sageStatus" style="
@@ -809,6 +815,13 @@ const StudyLogger = {
     this.events = [];
     this.viewSamples = [];
     this.lastSampleMs = 0;
+    this.finalized = false;
+    this.preparedJson = null;
+    if (this.preparedUrl) {
+      try { URL.revokeObjectURL(this.preparedUrl); } catch (e) {}
+    }
+    this.preparedUrl = null;
+    this.preparedFilename = null;
 
     this.logEvent('session_started', {
       fixed_sequence: [...FIXED_POI_SEQUENCE],
@@ -823,6 +836,7 @@ const StudyLogger = {
 
   logEvent(event, data = {}) {
     if (this.startedAtMs == null) return;
+    if (this.finalized && event !== 'study_autosave_prepared') return;
     this.events.push({
       t_ms: this.nowMs(),
       event,
@@ -831,7 +845,7 @@ const StudyLogger = {
   },
 
   sampleView({uv, headPose, angularVelocityDegPerSec, activeTarget, state}) {
-    if (this.startedAtMs == null) return;
+    if (this.startedAtMs == null || this.finalized) return;
 
     const now = performance.now();
     if (now - this.lastSampleMs < 200) return; // 5 Hz: sufficient for paths/heatmaps, lighter in Quest VR
@@ -913,12 +927,20 @@ const StudyLogger = {
     };
   },
 
-  exportJson() {
-    if (this.startedAtMs == null) return;
 
-    this.endedAtIso = new Date().toISOString();
+  finalized: false,
+  preparedJson: null,
+  preparedUrl: null,
+  preparedFilename: null,
 
-    const payload = {
+  buildPayload() {
+    if (this.startedAtMs == null) return null;
+
+    if (!this.endedAtIso) {
+      this.endedAtIso = new Date().toISOString();
+    }
+
+    return {
       participant_id: this.participantId,
       condition: this.condition,
       profile: this.profile,
@@ -929,20 +951,125 @@ const StudyLogger = {
       events: this.events,
       view_samples: this.viewSamples
     };
+  },
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json'
+  async savePreparedJsonToIndexedDB(jsonText, filename) {
+    // Automatic local recovery copy for Quest Browser.
+    // This does not depend on a download gesture and survives the end screen.
+    return new Promise((resolve) => {
+      try {
+        const request = indexedDB.open('VRPaintStudyDB', 1);
+
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('sessions')) {
+            db.createObjectStore('sessions', { keyPath: 'id' });
+          }
+        };
+
+        request.onerror = () => {
+          console.warn('[VRPaint] IndexedDB autosave unavailable:', request.error);
+          resolve(false);
+        };
+
+        request.onsuccess = () => {
+          const db = request.result;
+          try {
+            const tx = db.transaction('sessions', 'readwrite');
+            const store = tx.objectStore('sessions');
+
+            store.put({
+              id: `${this.participantId}:${this.startedAtIso}`,
+              participant_id: this.participantId,
+              session_start: this.startedAtIso,
+              session_end: this.endedAtIso,
+              filename,
+              json: jsonText,
+              saved_at: new Date().toISOString()
+            });
+
+            tx.oncomplete = () => {
+              db.close();
+              resolve(true);
+            };
+            tx.onerror = () => {
+              console.warn('[VRPaint] IndexedDB autosave transaction failed:', tx.error);
+              db.close();
+              resolve(false);
+            };
+          } catch (error) {
+            console.warn('[VRPaint] IndexedDB autosave failed:', error);
+            db.close();
+            resolve(false);
+          }
+        };
+      } catch (error) {
+        console.warn('[VRPaint] IndexedDB unavailable:', error);
+        resolve(false);
+      }
     });
+  },
 
-    const url = URL.createObjectURL(blob);
+  async finalizeAndPrepareExport() {
+    if (this.startedAtMs == null) return false;
+    if (this.finalized && this.preparedUrl) return true;
+
+    this.finalized = true;
+    this.endedAtIso = new Date().toISOString();
+
+    // Stop accepting any more view samples/events after completion.
+    const payload = this.buildPayload();
+    if (!payload) return false;
+
+    // Do the expensive stringify once, at end of tour, rather than on button click.
+    const jsonText = JSON.stringify(payload, null, 2);
+    this.preparedJson = jsonText;
+
+    const stamp = this.endedAtIso.replace(/[:.]/g, '-');
+    const filename = `${this.participantId}_fixed_${stamp}.json`;
+    this.preparedFilename = filename;
+
+    if (this.preparedUrl) {
+      try { URL.revokeObjectURL(this.preparedUrl); } catch (e) {}
+    }
+
+    const blob = new Blob([jsonText], { type: 'application/json' });
+    this.preparedUrl = URL.createObjectURL(blob);
+
+    const saved = await this.savePreparedJsonToIndexedDB(jsonText, filename);
+
+    try {
+      this.logEvent('study_autosave_prepared', {
+        indexeddb_saved: saved,
+        filename
+      });
+    } catch (e) {}
+
+    return true;
+  },
+
+  downloadPreparedExport() {
+    if (!this.preparedUrl || !this.preparedFilename) {
+      // Fallback if export is requested before finalization.
+      this.finalizeAndPrepareExport().then(() => this.downloadPreparedExport());
+      return;
+    }
+
     const a = document.createElement('a');
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    a.href = url;
-    a.download = `${this.participantId}_fixed_${stamp}.json`;
+    a.href = this.preparedUrl;
+    a.download = this.preparedFilename;
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+
+    // Keep the prepared Blob URL alive for the entire page session so the
+    // researcher can press Export again if Quest blocks the first download.
+    setTimeout(() => a.remove(), 1500);
+  },
+
+  async exportJson() {
+    await this.finalizeAndPrepareExport();
+    this.downloadPreparedExport();
   }
 };
 
@@ -1165,7 +1292,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v34-compact-amber:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v36-auto-save:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -3164,55 +3291,71 @@ const TourEngine = {
       total_stops: FIXED_STOPS.length
     });
 
-    setSageStatus('Tour complete');
-
     const scene = document.querySelector('a-scene');
     const endOverlay = document.querySelector('#endTourOverlay');
+    const endExportButton = document.querySelector('#endExportButton');
 
     const showEndScreen = () => {
-      if (endOverlay) endOverlay.style.display = 'flex';
-      SAGEIntegration.record('end_screen_shown', {});
+      if (endOverlay) {
+        endOverlay.style.display = 'flex';
+        endOverlay.style.visibility = 'visible';
+        endOverlay.style.opacity = '1';
+        endOverlay.style.pointerEvents = 'auto';
+        endOverlay.style.zIndex = '2147483647';
+      }
+
+      if (endExportButton) {
+        endExportButton.disabled = false;
+        endExportButton.style.pointerEvents = 'auto';
+      }
     };
 
-    // Exit immersive VR first, then show the browser-based closing screen.
-    // If the page is already outside VR, show the closing screen immediately.
-    if (scene && scene.is && scene.is('vr-mode') && typeof scene.exitVR === 'function') {
-      let shown = false;
+    // Save immediately at the end of the tour. The participant's complete
+    // session is now protected even if the Quest end screen/download misbehaves.
+    setSageStatus('Tour complete — saving study data…');
+
+    StudyLogger.finalizeAndPrepareExport().then((prepared) => {
+      setSageStatus(
+        prepared
+          ? 'Tour complete — study data saved. Exit VR to finish.'
+          : 'Tour complete — exit VR and use Export Study Data.'
+      );
+
+      // If already outside immersive mode, expose the end screen now.
+      if (!(scene && scene.is && scene.is('vr-mode'))) {
+        showEndScreen();
+
+        // Best-effort automatic download. Some browsers require a user gesture,
+        // so the visible button remains available as a reliable retry.
+        if (prepared) {
+          setTimeout(() => StudyLogger.downloadPreparedExport(), 300);
+        }
+      }
+    }).catch((error) => {
+      console.error('[VRPaint] End-of-tour autosave failed:', error);
+      setSageStatus('Tour complete — exit VR and use Export Study Data.');
+    });
+
+    // Quest is more stable when the participant exits immersive mode normally.
+    // Once WebXR has closed, show the HTML end screen and attempt the prepared
+    // download. The button remains a user-gesture fallback.
+    if (scene && scene.is && scene.is('vr-mode')) {
       const onExit = () => {
-        if (shown) return;
-        shown = true;
         scene.removeEventListener('exit-vr', onExit);
-        setTimeout(showEndScreen, 150);
+
+        // Give Quest Browser one animation frame + a short settling interval.
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            showEndScreen();
+
+            if (StudyLogger.preparedUrl) {
+              StudyLogger.downloadPreparedExport();
+            }
+          }, 350);
+        });
       };
 
       scene.addEventListener('exit-vr', onExit);
-
-      try {
-        const result = scene.exitVR();
-        if (result && typeof result.catch === 'function') {
-          result.catch(() => {
-            if (!shown) {
-              shown = true;
-              scene.removeEventListener('exit-vr', onExit);
-              showEndScreen();
-            }
-          });
-        }
-      } catch (error) {
-        console.warn('[VRPaint] Could not exit VR automatically', error);
-        scene.removeEventListener('exit-vr', onExit);
-        shown = true;
-        showEndScreen();
-      }
-
-      // Safety fallback in case a browser fails to emit exit-vr.
-      setTimeout(() => {
-        if (!shown) {
-          shown = true;
-          scene.removeEventListener('exit-vr', onExit);
-          showEndScreen();
-        }
-      }, 1800);
     } else {
       showEndScreen();
     }
@@ -3367,7 +3510,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v34-compact-amber:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v36-auto-save:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
@@ -3389,6 +3532,30 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
 document.querySelector('#exportLogButton').addEventListener('click', () => {
   StudyLogger.exportJson();
+});
+
+document.querySelector('#endExportButton').addEventListener('click', async () => {
+  const button = document.querySelector('#endExportButton');
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Preparing…';
+  }
+
+  try {
+    await StudyLogger.finalizeAndPrepareExport();
+    StudyLogger.downloadPreparedExport();
+
+    if (button) {
+      button.textContent = 'Export Again';
+      button.disabled = false;
+    }
+  } catch (error) {
+    console.error('[VRPaint] Manual export failed:', error);
+    if (button) {
+      button.textContent = 'Retry Export';
+      button.disabled = false;
+    }
+  }
 });
 
 document.querySelector('#resetSessionButton').addEventListener('click', () => {
