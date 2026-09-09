@@ -783,10 +783,9 @@ const FIXED_STOPS = Object.freeze([
   {poi: 'costume_detail',    nodeIds: ['NW014', 'NW057']},
   {poi: 'captain_breeches',  nodeIds: ['NW086']},
   {poi: 'drum_repair',       nodeIds: ['NW087']},
-  {poi: 'acid_region',       nodeIds: ['NW088', 'NW089']},
-  {poi: 'cropped_edge',      nodeIds: ['NW009', 'NW067']},
+
   {poi: 'canvas',            nodeIds: ['NW083', 'NW084']},
-  {poi: 'paint_sample',      nodeIds: ['NW073', 'NW074']},
+
   {poi: 'whole',             nodeIds: ['NW100']}
 ]);
 
@@ -1292,7 +1291,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v36-auto-save:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v37-shorter-tour:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -3510,7 +3509,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v36-auto-save:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v37-shorter-tour:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
