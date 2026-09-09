@@ -1305,7 +1305,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v39-dynamic-2-pois:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v40-dynamic-2-pois-start-fix:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -2474,7 +2474,7 @@ const QuestCue = {
   async showMany(poiIds) {
     this.hideAll();
 
-    const ids = [...new Set((poiIds || []).filter(Boolean))].slice(0, 3);
+    const ids = [...new Set((poiIds || []).filter(Boolean))].slice(0, 2);
     if (selectedGuidanceMode === 'baseline' || !ids.length) return;
 
     const sessionToken = this.token;
@@ -3272,6 +3272,8 @@ const TourEngine = {
   },
 
   async startCueChoices(poiIds) {
+    // Hard cap at two visible recommendations, including the initial cue set.
+    poiIds = [...new Set((poiIds || []).filter(Boolean))].slice(0, 2);
     clearTimeout(this.autoTimer);
     this.currentStop = null;
     this.target = null;
@@ -3683,7 +3685,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v39-dynamic-2-pois:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v40-dynamic-2-pois-start-fix:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
