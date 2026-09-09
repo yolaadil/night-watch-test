@@ -1305,7 +1305,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v40-dynamic-2-pois-start-fix:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v41-true-2-pois:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1680,7 +1680,7 @@ const SAGEIntegration = {
         return {...item, distance};
       })
       .sort((a, b) => (a.distance - b.distance) || (a.index - b.index))
-      .slice(0, 3);
+      .slice(0, 2);
   },
 
   buildRecommendations(items) {
@@ -1720,7 +1720,7 @@ const SAGEIntegration = {
       return null;
     }
 
-    const recommendations = this.buildRecommendations(available);
+    const recommendations = this.buildRecommendations(available).slice(0, 2);
     if (!recommendations.length) return null;
 
     this.activeRecommendations = recommendations;
@@ -1740,7 +1740,7 @@ const SAGEIntegration = {
 
     const poiIds = recommendations.map(r => r.poi);
     setSageStatus(`Choose one of the ${poiIds.length} nearby illuminated regions`);
-    this.record('three_choice_offered', {
+    this.record('two_choice_offered', {
       poi_ids: poiIds,
       stop_indices: recommendations.map(r => r.fixedStopIndex),
       pointer_uv: this.lastUv ? {...this.lastUv} : null,
@@ -1765,7 +1765,7 @@ const SAGEIntegration = {
     if (dwellPoi) return;
 
     const nextItems = this.spatialCandidateStops(uv);
-    const next = this.buildRecommendations(nextItems);
+    const next = this.buildRecommendations(nextItems).slice(0, 2);
     if (!next.length) return;
 
     const oldIds = this.activeRecommendations.map(r => r.poi);
@@ -1791,7 +1791,7 @@ const SAGEIntegration = {
       QuestCue.hideAll();
       await QuestCue.showMany(newIds);
 
-      this.record('three_choice_updated', {
+      this.record('two_choice_updated', {
         previous_poi_ids: oldIds,
         poi_ids: newIds,
         stop_indices: next.map(r => r.fixedStopIndex),
@@ -1997,7 +1997,7 @@ const SAGEIntegration = {
       if (event.type === 'orientation_confirmed') {
         const acquisitionMs = nowMs - rec.onsetMs;
         setSageStatus(`Target acquired: ${rec.poi} — zooming`);
-        this.record('three_choice_selected', {
+        this.record('two_choice_selected', {
           node_id: rec.node.id, poi: rec.poi,
           offered_pois: choices.map(r => r.poi),
           acquisition_ms: acquisitionMs
@@ -2522,7 +2522,7 @@ const QuestCue = {
       });
     });
 
-    SAGEIntegration.record('three_choice_cues_rendered', {
+    SAGEIntegration.record('two_choice_cues_rendered', {
       poi_ids: ids,
       cue_rotation_ms: null,
       simultaneous_pulses: ids.length,
@@ -2613,7 +2613,7 @@ const QuestCue = {
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'simultaneous_three_choice_soft_amber_glow',
+      cue_type: 'simultaneous_two_choice_soft_amber_glow',
       broad_halo_width_world: 0.46,
       broad_halo_height_world: 0.46,
       core_width_world: 0.30,
@@ -3685,7 +3685,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v40-dynamic-2-pois-start-fix:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v41-true-2-pois:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
