@@ -796,7 +796,7 @@ let selectedGuidanceMode = 'sage';
 
 const StudyLogger = {
   participantId: 'P000',
-  condition: 'fixed_sequence',
+  condition: 'adaptive_pointer',
   profile: 'general',
   startedAtIso: null,
   startedAtMs: null,
@@ -823,8 +823,9 @@ const StudyLogger = {
     this.preparedFilename = null;
 
     this.logEvent('session_started', {
-      fixed_sequence: [...FIXED_POI_SEQUENCE],
-      fixed_stops: FIXED_STOPS.map(s => ({poi: s.poi, node_ids: [...s.nodeIds]})),
+      poi_pool: [...FIXED_POI_SEQUENCE],
+      poi_stops: FIXED_STOPS.map(s => ({poi: s.poi, node_ids: [...s.nodeIds]})),
+      recommendation_policy: 'nearest_eligible_three_from_head_directed_painting_uv',
       logger_sampling_hz: 5
     });
   },
@@ -1185,6 +1186,19 @@ const SAGEIntegration = {
   restTimer: null,
   recommendationToken: 0,
   fixedPoiIndex: 0,
+
+  // Dynamic three-POI recommendation state.
+  // Candidates follow the visitor's current head-directed painting location,
+  // but are intentionally updated slowly to prevent cue flicker.
+  candidateAnchorUv: null,
+  candidatePendingUv: null,
+  candidatePendingSinceMs: 0,
+  candidateLastRefreshMs: 0,
+  candidateRefreshDelayMs: 1500,
+  candidateMoveThreshold: 0.12,
+  candidateMinRefreshGapMs: 1200,
+  candidateRefreshBusy: false,
+
   sessionStartedAt: performance.now(),
 
   async init({profile = selectedProfile, forceNew = false} = {}) {
@@ -1280,7 +1294,7 @@ const SAGEIntegration = {
     this.record('session_initialized', {
       profile,
       guidance_mode: selectedGuidanceMode,
-      tour_condition: 'fixed_sequence',
+      tour_condition: 'adaptive_pointer',
       config: MARCO_CONFIG,
       weights: runtime.DEFAULT_WEIGHTS,
       resumed: !!persisted,
@@ -1291,7 +1305,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v37-shorter-tour:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v38-dynamic-pointer-pois:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1631,41 +1645,87 @@ const SAGEIntegration = {
     };
   },
 
-  async recommendNext() {
-    if (!this.ready) await this.init();
-    if (this.activeRecommendation || !['IDLE', 'FREE'].includes(TourEngine.state)) return null;
+  poiCenter(poiId) {
+    const shape = this.pois?.shapes?.[poiId];
+    if (!shape) return null;
 
-    const available = FIXED_STOPS
-      .map((stop, index) => ({stop, index}))
-      .filter(item => !this.visitedFixedStopIndices.has(item.index))
-      .slice(0, 3);
-
-    if (!available.length) {
-      setSageStatus('Guided tour complete');
-      this.record('fixed_tour_complete', {sequence_length: FIXED_STOPS.length});
-      TourEngine.finishTour();
-      return null;
+    if (shape.type === 'ellipse') {
+      return {x: shape.cx, y: shape.cy};
     }
 
-    const recommendations = available.map(({stop, index}) => {
+    // Generic fallback for polygon/rect-like registered shapes.
+    const b = this.shapeBounds(shape);
+    if (!b) return null;
+    return {x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2};
+  },
+
+  spatialCandidateStops(uv = this.lastUv) {
+    const available = FIXED_STOPS
+      .map((stop, index) => ({stop, index}))
+      .filter(item => !this.visitedFixedStopIndices.has(item.index));
+
+    if (!available.length) return [];
+
+    // Before a valid painting pointer exists, preserve a deterministic start.
+    if (!uv || !Number.isFinite(uv.x) || !Number.isFinite(uv.y)) {
+      return available.slice(0, 3);
+    }
+
+    return available
+      .map(item => {
+        const c = this.poiCenter(item.stop.poi);
+        const distance = c
+          ? Math.hypot(c.x - uv.x, c.y - uv.y)
+          : Number.POSITIVE_INFINITY;
+        return {...item, distance};
+      })
+      .sort((a, b) => (a.distance - b.distance) || (a.index - b.index))
+      .slice(0, 3);
+  },
+
+  buildRecommendations(items) {
+    return items.map(({stop, index, distance = null}) => {
       const nodes = stop.nodeIds
         .map(id => this.corpus.nodes.find(node => node.id === id))
         .filter(Boolean);
       if (!nodes.length) return null;
+
       const metrics = this.angularMetrics(stop.poi);
       return {
-        node: nodes[0], nodes, poi: stop.poi, fixedStopIndex: index,
-        score: null, contributions: null, features: null,
+        node: nodes[0],
+        nodes,
+        poi: stop.poi,
+        fixedStopIndex: index,
+        score: Number.isFinite(distance) ? 1 / (1 + distance) : null,
+        pointerDistance: Number.isFinite(distance) ? distance : null,
+        contributions: null,
+        features: null,
         onsetMs: performance.now(),
         eccentricityDeg: metrics?.eccentricity ?? null,
         angularSizeDeg: metrics?.angularSize ?? null
       };
     }).filter(Boolean);
+  },
 
+  async recommendNext() {
+    if (!this.ready) await this.init();
+    if (this.activeRecommendation || !['IDLE', 'FREE'].includes(TourEngine.state)) return null;
+
+    const available = this.spatialCandidateStops(this.lastUv);
+
+    if (!available.length) {
+      setSageStatus('Guided tour complete');
+      this.record('adaptive_tour_complete', {sequence_length: FIXED_STOPS.length});
+      TourEngine.finishTour();
+      return null;
+    }
+
+    const recommendations = this.buildRecommendations(available);
     if (!recommendations.length) return null;
 
     this.activeRecommendations = recommendations;
-    // No target is selected yet. activeRecommendation becomes the user's chosen target on gaze entry.
+    // This is only a fallback target for reset/timeout handling. The actual
+    // target is whichever of the three inner ROIs the visitor dwells on.
     this.activeRecommendation = recommendations[0];
     this.visitorState.activeNode = null;
     this.visitorState.lastGuidanceTime = performance.now() / 1000;
@@ -1673,11 +1733,18 @@ const SAGEIntegration = {
     this.dwell.reset();
     this.roiInside = {outer: false, inner: false};
 
+    this.candidateAnchorUv = this.lastUv ? {...this.lastUv} : null;
+    this.candidatePendingUv = null;
+    this.candidatePendingSinceMs = 0;
+    this.candidateLastRefreshMs = performance.now();
+
     const poiIds = recommendations.map(r => r.poi);
-    setSageStatus(`Choose one of the ${poiIds.length} illuminated regions`);
+    setSageStatus(`Choose one of the ${poiIds.length} nearby illuminated regions`);
     this.record('three_choice_offered', {
       poi_ids: poiIds,
-      stop_indices: recommendations.map(r => r.fixedStopIndex)
+      stop_indices: recommendations.map(r => r.fixedStopIndex),
+      pointer_uv: this.lastUv ? {...this.lastUv} : null,
+      pointer_distances: recommendations.map(r => r.pointerDistance)
     });
 
     await TourEngine.startCueChoices(poiIds);
@@ -1686,6 +1753,106 @@ const SAGEIntegration = {
     this.guidanceTimer = setTimeout(() => this.guidanceTimeout(), MARCO_CONFIG.guidanceTimeoutMs);
     this.persist();
     return recommendations;
+  },
+
+  async refreshDynamicCandidates(uv, nowMs) {
+    if (this.candidateRefreshBusy) return;
+    if (!['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) return;
+    if (!uv || !this.activeRecommendations?.length) return;
+
+    // Never move the choices while a dwell is underway.
+    const dwellPoi = this.dwell?.poi || this.dwell?.poiId || null;
+    if (dwellPoi) return;
+
+    const nextItems = this.spatialCandidateStops(uv);
+    const next = this.buildRecommendations(nextItems);
+    if (!next.length) return;
+
+    const oldIds = this.activeRecommendations.map(r => r.poi);
+    const newIds = next.map(r => r.poi);
+    if (oldIds.join('|') === newIds.join('|')) {
+      this.candidateAnchorUv = {...uv};
+      this.candidatePendingUv = null;
+      this.candidatePendingSinceMs = 0;
+      return;
+    }
+
+    this.candidateRefreshBusy = true;
+    try {
+      this.activeRecommendations = next;
+      this.activeRecommendation = next[0];
+      this.dwell.reset();
+      this.roiInside = {outer: false, inner: false};
+      this.candidateAnchorUv = {...uv};
+      this.candidatePendingUv = null;
+      this.candidatePendingSinceMs = 0;
+      this.candidateLastRefreshMs = nowMs;
+
+      QuestCue.hideAll();
+      await QuestCue.showMany(newIds);
+
+      this.record('three_choice_updated', {
+        previous_poi_ids: oldIds,
+        poi_ids: newIds,
+        stop_indices: next.map(r => r.fixedStopIndex),
+        pointer_uv: {...uv},
+        pointer_distances: next.map(r => r.pointerDistance),
+        reason: 'stable_pointer_relocation'
+      });
+      setSageStatus(`Nearby suggestions updated — choose one of ${newIds.length}`);
+    } finally {
+      this.candidateRefreshBusy = false;
+    }
+  },
+
+  considerDynamicCandidateRefresh(nowMs, uv) {
+    if (!['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) return;
+    if (!uv || !this.activeRecommendations?.length) return;
+    if (this.candidateRefreshBusy) return;
+
+    const dwellPoi = this.dwell?.poi || this.dwell?.poiId || null;
+    if (dwellPoi) {
+      this.candidatePendingUv = null;
+      this.candidatePendingSinceMs = 0;
+      return;
+    }
+
+    const anchor = this.candidateAnchorUv;
+    if (!anchor) {
+      this.candidateAnchorUv = {...uv};
+      return;
+    }
+
+    const moved = Math.hypot(uv.x - anchor.x, uv.y - anchor.y);
+    if (moved < this.candidateMoveThreshold) {
+      this.candidatePendingUv = null;
+      this.candidatePendingSinceMs = 0;
+      return;
+    }
+
+    if (!this.candidatePendingUv) {
+      this.candidatePendingUv = {...uv};
+      this.candidatePendingSinceMs = nowMs;
+      return;
+    }
+
+    // Require the pointer to remain near its new area for ~1.5 s.
+    const pendingDrift = Math.hypot(
+      uv.x - this.candidatePendingUv.x,
+      uv.y - this.candidatePendingUv.y
+    );
+    if (pendingDrift > 0.07) {
+      this.candidatePendingUv = {...uv};
+      this.candidatePendingSinceMs = nowMs;
+      return;
+    }
+
+    if (
+      nowMs - this.candidatePendingSinceMs >= this.candidateRefreshDelayMs &&
+      nowMs - this.candidateLastRefreshMs >= this.candidateMinRefreshGapMs
+    ) {
+      this.refreshDynamicCandidates(uv, nowMs).catch(console.error);
+    }
   },
 
   guidanceTimeout() {
@@ -1705,6 +1872,9 @@ const SAGEIntegration = {
 
     this.activeRecommendation = null;
     this.activeRecommendations = [];
+    this.candidateAnchorUv = null;
+    this.candidatePendingUv = null;
+    this.candidatePendingSinceMs = 0;
     this.visitorState.activeNode = null;
     this.visitorState.narrationState = 'idle';
     this.dwell.reset();
@@ -1739,6 +1909,10 @@ const SAGEIntegration = {
     }
 
     if (this.activeRecommendation && ['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) {
+      // Candidate set follows the current head-directed painting location.
+      // Stability + movement thresholds prevent the three cues from jumping
+      // during ordinary small head movements.
+      this.considerDynamicCandidateRefresh(nowMs, uv);
       this.updateDwell(nowMs, uv, angularVelocityDegPerSec);
     }
 
@@ -3509,7 +3683,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v37-shorter-tour:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v38-dynamic-pointer-pois:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
