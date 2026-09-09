@@ -825,7 +825,7 @@ const StudyLogger = {
     this.logEvent('session_started', {
       poi_pool: [...FIXED_POI_SEQUENCE],
       poi_stops: FIXED_STOPS.map(s => ({poi: s.poi, node_ids: [...s.nodeIds]})),
-      recommendation_policy: 'nearest_eligible_three_from_head_directed_painting_uv',
+      recommendation_policy: 'nearest_eligible_two_from_head_directed_painting_uv',
       logger_sampling_hz: 5
     });
   },
@@ -1187,7 +1187,7 @@ const SAGEIntegration = {
   recommendationToken: 0,
   fixedPoiIndex: 0,
 
-  // Dynamic three-POI recommendation state.
+  // Dynamic two-POI recommendation state.
   // Candidates follow the visitor's current head-directed painting location,
   // but are intentionally updated slowly to prevent cue flicker.
   candidateAnchorUv: null,
@@ -1305,7 +1305,7 @@ const SAGEIntegration = {
   },
 
   storageKey(profile = selectedProfile) {
-    return `nightwatch-vrpaint-v38-dynamic-pointer-pois:${profile}:${selectedGuidanceMode}`;
+    return `nightwatch-vrpaint-v39-dynamic-2-pois:${profile}:${selectedGuidanceMode}`;
   },
 
   persist() {
@@ -1668,7 +1668,7 @@ const SAGEIntegration = {
 
     // Before a valid painting pointer exists, preserve a deterministic start.
     if (!uv || !Number.isFinite(uv.x) || !Number.isFinite(uv.y)) {
-      return available.slice(0, 3);
+      return available.slice(0, 2);
     }
 
     return available
@@ -1725,7 +1725,7 @@ const SAGEIntegration = {
 
     this.activeRecommendations = recommendations;
     // This is only a fallback target for reset/timeout handling. The actual
-    // target is whichever of the three inner ROIs the visitor dwells on.
+    // target is whichever of the two inner ROIs the visitor dwells on.
     this.activeRecommendation = recommendations[0];
     this.visitorState.activeNode = null;
     this.visitorState.lastGuidanceTime = performance.now() / 1000;
@@ -1910,7 +1910,7 @@ const SAGEIntegration = {
 
     if (this.activeRecommendation && ['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) {
       // Candidate set follows the current head-directed painting location.
-      // Stability + movement thresholds prevent the three cues from jumping
+      // Stability + movement thresholds prevent the two cues from jumping
       // during ordinary small head movements.
       this.considerDynamicCandidateRefresh(nowMs, uv);
       this.updateDwell(nowMs, uv, angularVelocityDegPerSec);
@@ -1935,7 +1935,7 @@ const SAGEIntegration = {
     const dwellPoi = this.dwell?.poi || this.dwell?.poiId || null;
     if (dwellPoi) rec = choices.find(r => r.poi === dwellPoi) || null;
 
-    // Otherwise whichever of the three inner ROIs the user enters becomes the candidate.
+    // Otherwise whichever of the two inner ROIs the user enters becomes the candidate.
     if (!rec && uv) {
       for (const candidate of choices) {
         const candidateShape = this.activationShapeForPoi(candidate.poi);
@@ -3683,7 +3683,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
 
     // Always begin a fresh engineering session when a profile is selected.
     try {
-      localStorage.removeItem(`nightwatch-vrpaint-v38-dynamic-pointer-pois:${selectedProfile}:${selectedGuidanceMode}`);
+      localStorage.removeItem(`nightwatch-vrpaint-v39-dynamic-2-pois:${selectedProfile}:${selectedGuidanceMode}`);
     } catch (e) {}
 
     setSageStatus('Playing NW001…');
