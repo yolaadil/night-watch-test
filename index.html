@@ -274,6 +274,76 @@ AFRAME.registerShader('painting-enhance', {
   `
 });
 
+// High-resolution cue layer. Each Level-14 Deep Zoom tile is rendered in its
+// exact painting position and feathered against the registered POI bounds.
+// This lets the suggested detail become visibly crisper and gently brighter
+// without drawing a UI marker over the artwork.
+AFRAME.registerShader('living-tile-enhance', {
+  schema: {
+    src:        {type: 'map',    is: 'uniform'},
+    opacity:    {type: 'number', is: 'uniform', default: 0.0},
+    brightness: {type: 'number', is: 'uniform', default: 0.28},
+    contrast:   {type: 'number', is: 'uniform', default: 1.10},
+    saturation: {type: 'number', is: 'uniform', default: 1.06},
+    tileX0:     {type: 'number', is: 'uniform', default: 0.0},
+    tileY0:     {type: 'number', is: 'uniform', default: 0.0},
+    tileX1:     {type: 'number', is: 'uniform', default: 1.0},
+    tileY1:     {type: 'number', is: 'uniform', default: 1.0},
+    cueCX:      {type: 'number', is: 'uniform', default: 0.5},
+    cueCY:      {type: 'number', is: 'uniform', default: 0.5},
+    cueRX:      {type: 'number', is: 'uniform', default: 0.1},
+    cueRY:      {type: 'number', is: 'uniform', default: 0.1}
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D src;
+    uniform float opacity;
+    uniform float brightness;
+    uniform float contrast;
+    uniform float saturation;
+    uniform float tileX0;
+    uniform float tileY0;
+    uniform float tileX1;
+    uniform float tileY1;
+    uniform float cueCX;
+    uniform float cueCY;
+    uniform float cueRX;
+    uniform float cueRY;
+    varying vec2 vUv;
+
+    void main() {
+      vec4 base = texture2D(src, vUv);
+
+      vec3 enhanced = (base.rgb - vec3(0.5)) * contrast + vec3(0.5);
+      float luma = dot(enhanced, vec3(0.2126, 0.7152, 0.0722));
+      enhanced = mix(vec3(luma), enhanced, saturation);
+      enhanced *= (1.0 + brightness);
+      enhanced = clamp(enhanced, 0.0, 1.0);
+
+      // A-Frame plane UVs are bottom-up; painting coordinates are top-down.
+      float gx = mix(tileX0, tileX1, vUv.x);
+      float gy = mix(tileY1, tileY0, vUv.y);
+      vec2 q = vec2((gx - cueCX) / max(cueRX, 0.0001),
+                    (gy - cueCY) / max(cueRY, 0.0001));
+      float r = length(q);
+
+      // Broad edge feather makes the high-resolution detail seem to emerge
+      // from the painting rather than sit on top of it.
+      float feather = 1.0 - smoothstep(0.58, 1.03, r);
+      feather = pow(max(feather, 0.0), 1.10);
+
+      gl_FragColor = vec4(enhanced, opacity * feather * base.a);
+    }
+  `
+});
+
+
 
 // Render an entity on a dedicated Three.js camera layer.
 // Layer 0 remains the normal binocular scene; layer 1 is reserved for
@@ -300,7 +370,7 @@ AFRAME.registerComponent('render-layer', {
 });
 
 // Approach B: both eyes see the original painting, while only one eye sees
-// the existing warm, brightened tile overlay. Nothing else in the scene is
+// the temporary high-resolution local enhancement. Nothing else in the scene is
 // rendered monocularly. Outside immersive VR, the cue remains binocular so
 // desktop testing still works normally.
 AFRAME.registerComponent('dichoptic-cue-camera', {
@@ -757,14 +827,21 @@ const MARCO_CONFIG = Object.freeze({
   cueMinHeightNorm: 0.045,
   // Painting-native dichoptic enhancement. The primary (nearest) candidate
   // is slightly stronger; the second remains visible but quieter.
-  cueOpacityMin: 0.24,
-  cueOpacityMax: 0.48,
-  cueSecondaryScale: 0.67,
-  cuePulseMs: 1600,
-  cueFadeInMs: 600,
+  // Immediate low-resolution fallback stays restrained while the Level-14
+  // tiles arrive. The high-resolution overlay then becomes the perceptual cue.
+  cueOpacityMin: 0.16,
+  cueOpacityMax: 0.30,
+  cueSecondaryScale: 0.68,
+  cuePulseMs: 1700,
+  cueFadeInMs: 500,
   cueFadeOutMs: 500,
-  cueBrightnessBoost: 0.14,
-  cueContrast: 1.05,
+  cueBrightnessBoost: 0.18,
+  cueContrast: 1.07,
+  cueHighResOpacityMin: 0.38,
+  cueHighResOpacityMax: 0.68,
+  cueHighResBrightness: 0.28,
+  cueHighResContrast: 1.10,
+  cueHighResSaturation: 1.06,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -2463,6 +2540,8 @@ const QuestCue = {
       planes.forEach((plane, index) => {
         plane.removeAttribute(`animation__cuepulse${index}`);
         plane.removeAttribute(`animation__cuefadein${index}`);
+        plane.removeAttribute('animation__highrespulse');
+        plane.removeAttribute('animation__highresfade');
         plane.setAttribute(`animation__cuefadeout${index}`, {
           property: 'material.opacity',
           to: 0,
@@ -2495,7 +2574,7 @@ const QuestCue = {
     }
 
     this.groups.forEach((group, groupIndex) => {
-      const planes = group.querySelectorAll('a-plane');
+      const planes = group.querySelectorAll('.cue-fallback-plane');
       const roleScale = groupIndex === 0 ? 1.0 : MARCO_CONFIG.cueSecondaryScale;
       const minOpacity = MARCO_CONFIG.cueOpacityMin * roleScale;
       const maxOpacity = MARCO_CONFIG.cueOpacityMax * roleScale;
@@ -2531,8 +2610,8 @@ const QuestCue = {
       poi_ids: ids,
       cue_rotation_ms: null,
       simultaneous_pulses: ids.length,
-      cue_motion: 'slow_luminance_breathing',
-      cue_style: 'painting_native_dichoptic_local_enhancement',
+      cue_motion: 'highres_detail_fade_in_and_slow_breathing',
+      cue_style: 'highres_living_dichoptic_detail',
       primary_candidate: ids[0] || null,
       secondary_candidate: ids[1] || null
     });
@@ -2570,6 +2649,130 @@ const QuestCue = {
     };
   },
 
+  addHighResLivingTiles(group, rect, poiId, rankIndex, sessionToken) {
+    const level = MAX_LEVEL;
+    const dims = levelDimensions(level);
+    const leftPx = rect.x0 * dims.width;
+    const rightPx = rect.x1 * dims.width;
+    const topPx = rect.y0 * dims.height;
+    const bottomPx = rect.y1 * dims.height;
+
+    const startCol = Math.floor(leftPx / TILE_SIZE);
+    const endCol = Math.floor(Math.max(0, rightPx - 1) / TILE_SIZE);
+    const startRow = Math.floor(topPx / TILE_SIZE);
+    const endRow = Math.floor(Math.max(0, bottomPx - 1) / TILE_SIZE);
+
+    const roleScale = rankIndex === 0 ? 1.0 : MARCO_CONFIG.cueSecondaryScale;
+    const intensity = cueIntensityForPoi(poiId);
+    const minOpacity = MARCO_CONFIG.cueHighResOpacityMin * roleScale;
+    const maxOpacity = MARCO_CONFIG.cueHighResOpacityMax * roleScale;
+    const brightness = MARCO_CONFIG.cueHighResBrightness * intensity * (rankIndex === 0 ? 1.0 : 0.90);
+    const cueCX = (rect.x0 + rect.x1) / 2;
+    const cueCY = (rect.y0 + rect.y1) / 2;
+    const cueRX = Math.max(0.0001, (rect.x1 - rect.x0) / 2);
+    const cueRY = Math.max(0.0001, (rect.y1 - rect.y0) / 2);
+
+    let requested = 0;
+    let loaded = 0;
+
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        const geometry = tileGeometry(level, col, row);
+        if (!geometry) continue;
+        requested += 1;
+
+        const tile = document.createElement('a-plane');
+        tile.classList.add('cue-highres-tile');
+        const tileX0 = geometry.fileX / dims.width;
+        const tileY0 = geometry.fileY / dims.height;
+        const tileX1 = (geometry.fileX + geometry.fileW) / dims.width;
+        const tileY1 = (geometry.fileY + geometry.fileH) / dims.height;
+        const url = `${TILE_FOLDER}/${level}/${col}_${row}.jpeg`;
+
+        tile.setAttribute('width', geometry.worldW);
+        tile.setAttribute('height', geometry.worldH);
+        tile.setAttribute('position', `${geometry.centerX} ${geometry.centerY} 0.034`);
+        tile.setAttribute('render-layer', 'layer: 1');
+        tile.setAttribute('material', {
+          shader: 'living-tile-enhance',
+          src: url,
+          opacity: 0.0,
+          brightness,
+          contrast: MARCO_CONFIG.cueHighResContrast,
+          saturation: MARCO_CONFIG.cueHighResSaturation,
+          tileX0,
+          tileY0,
+          tileX1,
+          tileY1,
+          cueCX,
+          cueCY,
+          cueRX,
+          cueRY,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false,
+          side: 'double'
+        });
+        group.appendChild(tile);
+
+        tile.addEventListener('object3dset', () => {
+          tile.object3D.traverse(object => object.layers.set(1));
+        });
+
+        const startLivingAnimation = () => {
+          if (sessionToken !== this.token || !tile.isConnected) return;
+          if (tile.dataset.livingStarted === '1') return;
+          tile.dataset.livingStarted = '1';
+          loaded += 1;
+
+          tile.setAttribute('animation__highresfade', {
+            property: 'material.opacity',
+            from: 0.0,
+            to: minOpacity,
+            dur: 420,
+            easing: 'easeOutQuad'
+          });
+
+          setTimeout(() => {
+            if (sessionToken !== this.token || !tile.isConnected) return;
+            tile.removeAttribute('animation__highresfade');
+            tile.setAttribute('animation__highrespulse', {
+              property: 'material.opacity',
+              from: minOpacity,
+              to: maxOpacity,
+              dur: MARCO_CONFIG.cuePulseMs,
+              easing: 'easeInOutSine',
+              dir: 'alternate',
+              loop: true
+            });
+          }, 450);
+
+          if (loaded === requested) {
+            SAGEIntegration.record('cue_highres_tiles_loaded', {
+              poi: poiId,
+              cue_rank: rankIndex,
+              level,
+              loaded_count: loaded,
+              requested_count: requested,
+              cue_style: 'highres_living_dichoptic_detail'
+            });
+          }
+        };
+
+        tile.addEventListener('materialtextureloaded', startLivingAnimation, {once: true});
+        // Fallback for browsers where materialtextureloaded is inconsistent.
+        tile.addEventListener('loaded', () => setTimeout(startLivingAnimation, 800), {once: true});
+      }
+    }
+
+    SAGEIntegration.record('cue_highres_tiles_requested', {
+      poi: poiId,
+      cue_rank: rankIndex,
+      level,
+      requested_count: requested
+    });
+  },
+
   async showOne(poiId, sessionToken, rankIndex = 0) {
     if (selectedGuidanceMode === 'baseline') return;
 
@@ -2596,6 +2799,7 @@ const QuestCue = {
     const brightness = MARCO_CONFIG.cueBrightnessBoost * intensity * (rankIndex === 0 ? 1.0 : 0.88);
 
     const plane = document.createElement('a-plane');
+    plane.classList.add('cue-fallback-plane');
     plane.setAttribute('width', widthWorld);
     plane.setAttribute('height', heightWorld);
     plane.setAttribute('position', `${centerX} ${centerY} 0.032`);
@@ -2618,13 +2822,18 @@ const QuestCue = {
     });
     group.appendChild(plane);
 
+    // The low-resolution copy appears immediately. Level-14 tiles are then
+    // streamed into the same registered region and gently fade in, so the
+    // suggested detail becomes both sharper and more luminous.
+    this.addHighResLivingTiles(group, rect, poiId, rankIndex, sessionToken);
+
     plane.addEventListener('object3dset', () => {
       plane.object3D.traverse(object => object.layers.set(1));
     });
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'dichoptic_local_painting_enhancement',
+      cue_type: 'highres_living_dichoptic_detail',
       cue_rank: rankIndex,
       cue_role: rankIndex === 0 ? 'primary_nearest' : 'secondary_nearby',
       cue_rect: rect,
