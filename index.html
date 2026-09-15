@@ -221,11 +221,19 @@ body {
 
 
 <script>
-AFRAME.registerShader('tile-glow', {
-  // Diffuse amber illumination: no ring, border, or dark center.
+AFRAME.registerShader('painting-enhance', {
+  // Painting-native cue: re-render the same local image region with a small
+  // luminance/contrast lift and a very soft feathered edge. No amber tint,
+  // ring, marker, or dark center is added to the artwork.
   schema: {
-    opacity: {type: 'number', is: 'uniform', default: 0.16},
-    warmth: {type: 'number', is: 'uniform', default: 1.0}
+    src:        {type: 'map',    is: 'uniform'},
+    opacity:    {type: 'number', is: 'uniform', default: 0.24},
+    brightness: {type: 'number', is: 'uniform', default: 0.14},
+    contrast:   {type: 'number', is: 'uniform', default: 1.05},
+    u0:         {type: 'number', is: 'uniform', default: 0.0},
+    v0:         {type: 'number', is: 'uniform', default: 0.0},
+    u1:         {type: 'number', is: 'uniform', default: 1.0},
+    v1:         {type: 'number', is: 'uniform', default: 1.0}
   },
   vertexShader: `
     varying vec2 vUv;
@@ -235,31 +243,33 @@ AFRAME.registerShader('tile-glow', {
     }
   `,
   fragmentShader: `
+    uniform sampler2D src;
     uniform float opacity;
-    uniform float warmth;
+    uniform float brightness;
+    uniform float contrast;
+    uniform float u0;
+    uniform float v0;
+    uniform float u1;
+    uniform float v1;
     varying vec2 vUv;
 
     void main() {
-      // Elliptical distance with a very soft falloff.
-      vec2 p = (vUv - vec2(0.5)) * vec2(0.92, 1.0);
-      float r = length(p) / 0.7071;
+      vec2 sampleUv = vec2(mix(u0, u1, vUv.x), mix(v0, v1, vUv.y));
+      vec4 base = texture2D(src, sampleUv);
 
-      // Broad feathered illumination like a warm patch of light.
-      float broad = 1.0 - smoothstep(0.20, 1.0, r);
-      broad = pow(broad, 1.15);
+      // Preserve the painting's own hue. Only a restrained local lift is used.
+      vec3 enhanced = (base.rgb - vec3(0.5)) * contrast + vec3(0.5);
+      enhanced *= (1.0 + brightness);
+      enhanced = clamp(enhanced, 0.0, 1.0);
 
-      // Slightly brighter center, still completely diffuse.
-      float core = 1.0 - smoothstep(0.00, 0.58, r);
-      core = pow(core, 1.45);
+      // Broad feathering keeps the cue from reading as a rectangular overlay.
+      vec2 p = (vUv - vec2(0.5)) * 2.0;
+      p.x *= 0.96;
+      float r = length(p);
+      float feather = 1.0 - smoothstep(0.56, 1.02, r);
+      feather = pow(max(feather, 0.0), 1.15);
 
-      float a = opacity * (0.66 * broad + 0.34 * core);
-
-      // Warm museum-light amber rather than white/yellow UI color.
-      vec3 amber = vec3(1.00, 0.66, 0.18);
-      vec3 softGold = vec3(1.00, 0.79, 0.36);
-      vec3 glowColor = mix(softGold, amber, clamp(warmth, 0.0, 1.0));
-
-      gl_FragColor = vec4(glowColor, a);
+      gl_FragColor = vec4(enhanced, opacity * feather * base.a);
     }
   `
 });
@@ -745,9 +755,16 @@ const MARCO_CONFIG = Object.freeze({
   cueMaxHeightNorm: 0.11,
   cueMinWidthNorm: 0.035,
   cueMinHeightNorm: 0.045,
-  cueOpacityMin: 0.13,
-  cueOpacityMax: 0.34,
-  cuePulseMs: 900,
+  // Painting-native dichoptic enhancement. The primary (nearest) candidate
+  // is slightly stronger; the second remains visible but quieter.
+  cueOpacityMin: 0.24,
+  cueOpacityMax: 0.48,
+  cueSecondaryScale: 0.67,
+  cuePulseMs: 1600,
+  cueFadeInMs: 600,
+  cueFadeOutMs: 500,
+  cueBrightnessBoost: 0.14,
+  cueContrast: 1.05,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -1429,8 +1446,8 @@ const SAGEIntegration = {
     const center = this.shapeCenter(source);
     if (!bounds || !center) return source || null;
 
-    // EXACT same center as the visible cue. The cue is 0.38 world units.
-    // Convert that footprint back into painting-normalized coordinates.
+    // Keep activation centered on the same registered POI as the visible cue.
+    // Selection retains the established 0.38-world-unit activation footprint.
     return {
       type: 'ellipse',
       cx: center.x,
@@ -2437,25 +2454,16 @@ const QuestCue = {
     this.rotationIndex = 0;
   },
 
-  fadeOut(duration = 240) {
-    // For the three-choice condition, remove all offered cues together
-    // after the participant selects one.
+  fadeOut(duration = MARCO_CONFIG.cueFadeOutMs || 500) {
     const groups = [...this.groups];
     if (!groups.length) return;
-
-    if (this.rotationTimer) {
-      clearInterval(this.rotationTimer);
-      this.rotationTimer = null;
-    }
 
     groups.forEach(group => {
       const planes = group.querySelectorAll('a-plane');
       planes.forEach((plane, index) => {
-        plane.removeAttribute(`animation__halopulse${index}`);
-        plane.removeAttribute(`animation__halobreath${index}`);
-        plane.removeAttribute('animation__halopulse');
-        plane.removeAttribute('animation__halobreath');
-        plane.setAttribute(`animation__halofade${index}`, {
+        plane.removeAttribute(`animation__cuepulse${index}`);
+        plane.removeAttribute(`animation__cuefadein${index}`);
+        plane.setAttribute(`animation__cuefadeout${index}`, {
           property: 'material.opacity',
           to: 0,
           dur: duration,
@@ -2480,45 +2488,42 @@ const QuestCue = {
     const sessionToken = this.token;
     this.activePoi = ids;
 
-    for (const id of ids) {
-      await this.showOne(id, sessionToken);
+    // Candidate 0 is the closest spatial recommendation, so it receives a
+    // slightly stronger enhancement. Candidate 1 remains visible but quieter.
+    for (let i = 0; i < ids.length; i++) {
+      await this.showOne(ids[i], sessionToken, i);
     }
 
-    // All three candidate regions glow together.
-    // Each cue uses a broad diffuse amber layer plus a smaller brighter core,
-    // creating the soft illuminated-region appearance used in the paper mockup.
-    this.groups.forEach(group => {
+    this.groups.forEach((group, groupIndex) => {
       const planes = group.querySelectorAll('a-plane');
+      const roleScale = groupIndex === 0 ? 1.0 : MARCO_CONFIG.cueSecondaryScale;
+      const minOpacity = MARCO_CONFIG.cueOpacityMin * roleScale;
+      const maxOpacity = MARCO_CONFIG.cueOpacityMax * roleScale;
 
       planes.forEach((plane, index) => {
-        const isCore = index === 1;
-        const minOpacity = isCore ? 0.08 : MARCO_CONFIG.cueOpacityMin;
-        const maxOpacity = isCore ? 0.20 : MARCO_CONFIG.cueOpacityMax;
-        const fromScale = isCore ? '0.96 0.96 0.96' : '0.94 0.94 0.94';
-        const toScale   = isCore ? '1.03 1.03 1.03' : '1.06 1.06 1.06';
-
-        plane.setAttribute('material', 'opacity', minOpacity);
-        plane.setAttribute('scale', fromScale);
-
-        plane.setAttribute(`animation__halopulse${index}`, {
+        // Fade in gently before beginning the slow luminance breathing cycle.
+        plane.setAttribute('material', 'opacity', 0.0);
+        plane.setAttribute(`animation__cuefadein${index}`, {
           property: 'material.opacity',
-          from: minOpacity,
-          to: maxOpacity,
-          dur: MARCO_CONFIG.cuePulseMs,
-          easing: 'easeInOutSine',
-          dir: 'alternate',
-          loop: true
+          from: 0.0,
+          to: minOpacity,
+          dur: MARCO_CONFIG.cueFadeInMs,
+          easing: 'easeOutQuad'
         });
 
-        plane.setAttribute(`animation__halobreath${index}`, {
-          property: 'scale',
-          from: fromScale,
-          to: toScale,
-          dur: MARCO_CONFIG.cuePulseMs,
-          easing: 'easeInOutSine',
-          dir: 'alternate',
-          loop: true
-        });
+        setTimeout(() => {
+          if (sessionToken !== this.token || !plane.isConnected) return;
+          plane.removeAttribute(`animation__cuefadein${index}`);
+          plane.setAttribute(`animation__cuepulse${index}`, {
+            property: 'material.opacity',
+            from: minOpacity,
+            to: maxOpacity,
+            dur: MARCO_CONFIG.cuePulseMs,
+            easing: 'easeInOutSine',
+            dir: 'alternate',
+            loop: true
+          });
+        }, MARCO_CONFIG.cueFadeInMs + 20);
       });
     });
 
@@ -2526,45 +2531,46 @@ const QuestCue = {
       poi_ids: ids,
       cue_rotation_ms: null,
       simultaneous_pulses: ids.length,
-      cue_motion: 'simultaneous_soft_amber_breathing'
+      cue_motion: 'slow_luminance_breathing',
+      cue_style: 'painting_native_dichoptic_local_enhancement',
+      primary_candidate: ids[0] || null,
+      secondary_candidate: ids[1] || null
     });
   },
 
+  // Retained only for compatibility with older calls. The natural cue no
+  // longer rotates a bright focus among candidates.
   activateRotatingCue(index) {
-    this.groups.forEach((group, i) => {
-      const plane = group.querySelector('a-plane');
-      if (!plane) return;
-
-      plane.removeAttribute('animation__halopulse');
-
-      if (i === index) {
-        // Active suggestion: slower, softer pulsing. The 2-second focus rotation is
-        // unchanged, but each brighten/dim transition now takes 500 ms.
-        plane.setAttribute('material', 'opacity', MARCO_CONFIG.cueOpacityMin);
-        plane.setAttribute('animation__halopulse', {
-          property: 'material.opacity',
-          from: MARCO_CONFIG.cueOpacityMin,
-          to: MARCO_CONFIG.cueOpacityMax,
-          dur: MARCO_CONFIG.cuePulseMs,
-          easing: 'easeInOutSine',
-          dir: 'alternate',
-          loop: true
-        });
-      } else {
-        // Other two choices stay visible but quiet; they remain selectable.
-        plane.setAttribute('material', 'opacity', 0.055);
-      }
-    });
-
-    const activeGroup = this.groups[index];
-    SAGEIntegration.record('cue_rotation_focus', {
-      poi: activeGroup?.dataset?.poi || null,
-      rotation_index: index,
-      duration_ms: 2000
-    });
+    return;
   },
 
-  async showOne(poiId, sessionToken) {
+  cueRect(bounds, center) {
+    const rawW = Math.max(0.001, bounds.x1 - bounds.x0);
+    const rawH = Math.max(0.001, bounds.y1 - bounds.y0);
+
+    // Follow the registered POI proportions while keeping the cue compact.
+    const width = THREE.MathUtils.clamp(rawW * 1.12, 0.065, 0.15);
+    const height = THREE.MathUtils.clamp(rawH * 1.12, 0.070, 0.18);
+
+    let x0 = center.x - width / 2;
+    let x1 = center.x + width / 2;
+    let y0 = center.y - height / 2;
+    let y1 = center.y + height / 2;
+
+    if (x0 < 0) { x1 -= x0; x0 = 0; }
+    if (x1 > 1) { x0 -= (x1 - 1); x1 = 1; }
+    if (y0 < 0) { y1 -= y0; y0 = 0; }
+    if (y1 > 1) { y0 -= (y1 - 1); y1 = 1; }
+
+    return {
+      x0: THREE.MathUtils.clamp(x0, 0, 1),
+      y0: THREE.MathUtils.clamp(y0, 0, 1),
+      x1: THREE.MathUtils.clamp(x1, 0, 1),
+      y1: THREE.MathUtils.clamp(y1, 0, 1)
+    };
+  },
+
+  async showOne(poiId, sessionToken, rankIndex = 0) {
     if (selectedGuidanceMode === 'baseline') return;
 
     const shape = SAGEIntegration.pois?.shapes?.[poiId];
@@ -2574,54 +2580,63 @@ const QuestCue = {
 
     const group = document.createElement('a-entity');
     group.dataset.poi = poiId;
+    group.dataset.cueRank = String(rankIndex);
     cueLayer.appendChild(group);
     this.groups.push(group);
     this.group = group;
 
-    const cueAnchor = cueAnchorForPoi(poiId, bounds, center);
-    const centerX = (cueAnchor.x - 0.5) * WORLD_WIDTH;
-    const centerY = (0.5 - cueAnchor.y) * WORLD_HEIGHT;
+    const rect = this.cueRect(bounds, center);
+    const centerX = (((rect.x0 + rect.x1) / 2) - 0.5) * WORLD_WIDTH;
+    const centerY = (0.5 - ((rect.y0 + rect.y1) / 2)) * WORLD_HEIGHT;
+    const widthWorld = (rect.x1 - rect.x0) * WORLD_WIDTH;
+    const heightWorld = (rect.y1 - rect.y0) * WORLD_HEIGHT;
 
-    const makeGlowPlane = (width, height, opacity, warmth, z) => {
-      const plane = document.createElement('a-plane');
-      plane.setAttribute('width', width);
-      plane.setAttribute('height', height);
-      plane.setAttribute('position', `${centerX} ${centerY} ${z}`);
-      plane.setAttribute('render-layer', 'layer: 1');
-      plane.setAttribute('material', {
-        shader: 'tile-glow',
-        opacity,
-        warmth,
-        transparent: true,
-        depthTest: false,
-        depthWrite: false,
-        side: 'double'
-      });
-      group.appendChild(plane);
+    const roleScale = rankIndex === 0 ? 1.0 : MARCO_CONFIG.cueSecondaryScale;
+    const intensity = cueIntensityForPoi(poiId);
+    const brightness = MARCO_CONFIG.cueBrightnessBoost * intensity * (rankIndex === 0 ? 1.0 : 0.88);
 
-      plane.addEventListener('object3dset', () => {
-        plane.object3D.traverse(object => object.layers.set(1));
-      });
+    const plane = document.createElement('a-plane');
+    plane.setAttribute('width', widthWorld);
+    plane.setAttribute('height', heightWorld);
+    plane.setAttribute('position', `${centerX} ${centerY} 0.032`);
+    plane.setAttribute('render-layer', 'layer: 1');
+    plane.setAttribute('material', {
+      shader: 'painting-enhance',
+      src: 'painting_low.jpg?v=2',
+      opacity: 0.0,
+      brightness,
+      contrast: MARCO_CONFIG.cueContrast,
+      u0: rect.x0,
+      // Painting coordinates use a top-left origin; texture V is bottom-up.
+      v0: 1.0 - rect.y1,
+      u1: rect.x1,
+      v1: 1.0 - rect.y0,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      side: 'double'
+    });
+    group.appendChild(plane);
 
-      return plane;
-    };
-
-    // Large feathered illumination plus a smaller warm center.
-    // Neither layer has a visible circular border.
-    makeGlowPlane(0.46, 0.46, MARCO_CONFIG.cueOpacityMin, 1.00, 0.032);
-    makeGlowPlane(0.30, 0.30, 0.11, 0.90, 0.033);
+    plane.addEventListener('object3dset', () => {
+      plane.object3D.traverse(object => object.layers.set(1));
+    });
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'simultaneous_two_choice_soft_amber_glow',
-      broad_halo_width_world: 0.46,
-      broad_halo_height_world: 0.46,
-      core_width_world: 0.30,
-      core_height_world: 0.30,
-      cue_anchor: cueAnchor,
-      pulse_opacity_min: MARCO_CONFIG.cueOpacityMin,
-      pulse_opacity_max: MARCO_CONFIG.cueOpacityMax,
-      pulse_transition_ms: MARCO_CONFIG.cuePulseMs
+      cue_type: 'dichoptic_local_painting_enhancement',
+      cue_rank: rankIndex,
+      cue_role: rankIndex === 0 ? 'primary_nearest' : 'secondary_nearby',
+      cue_rect: rect,
+      cue_width_world: widthWorld,
+      cue_height_world: heightWorld,
+      brightness_boost: brightness,
+      contrast: MARCO_CONFIG.cueContrast,
+      pulse_opacity_min: MARCO_CONFIG.cueOpacityMin * roleScale,
+      pulse_opacity_max: MARCO_CONFIG.cueOpacityMax * roleScale,
+      pulse_transition_ms: MARCO_CONFIG.cuePulseMs,
+      fade_in_ms: MARCO_CONFIG.cueFadeInMs,
+      fade_out_ms: MARCO_CONFIG.cueFadeOutMs
     });
   }
 };
