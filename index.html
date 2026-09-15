@@ -1189,14 +1189,14 @@ const SAGEIntegration = {
 
   // Dynamic two-POI recommendation state.
   // Candidates follow the visitor's current head-directed painting location,
-  // but are intentionally updated slowly to prevent cue flicker.
+  // and update quickly after a meaningful, briefly stable head-direction change.
   candidateAnchorUv: null,
   candidatePendingUv: null,
   candidatePendingSinceMs: 0,
   candidateLastRefreshMs: 0,
-  candidateRefreshDelayMs: 1500,
-  candidateMoveThreshold: 0.12,
-  candidateMinRefreshGapMs: 1200,
+  candidateRefreshDelayMs: 450,
+  candidateMoveThreshold: 0.065,
+  candidateMinRefreshGapMs: 500,
   candidateRefreshBusy: false,
 
   sessionStartedAt: performance.now(),
@@ -1788,7 +1788,6 @@ const SAGEIntegration = {
       this.candidatePendingSinceMs = 0;
       this.candidateLastRefreshMs = nowMs;
 
-      QuestCue.hideAll();
       await QuestCue.showMany(newIds);
 
       this.record('two_choice_updated', {
@@ -1836,12 +1835,12 @@ const SAGEIntegration = {
       return;
     }
 
-    // Require the pointer to remain near its new area for ~1.5 s.
+    // Require only a brief stable hold in the new area before refreshing.
     const pendingDrift = Math.hypot(
       uv.x - this.candidatePendingUv.x,
       uv.y - this.candidatePendingUv.y
     );
-    if (pendingDrift > 0.07) {
+    if (pendingDrift > 0.055) {
       this.candidatePendingUv = {...uv};
       this.candidatePendingSinceMs = nowMs;
       return;
@@ -1910,8 +1909,8 @@ const SAGEIntegration = {
 
     if (this.activeRecommendation && ['CUE', 'WAIT_GAZE'].includes(TourEngine.state)) {
       // Candidate set follows the current head-directed painting location.
-      // Stability + movement thresholds prevent the two cues from jumping
-      // during ordinary small head movements.
+      // A small movement threshold plus a short stability window keeps the
+      // suggestions responsive without reacting to ordinary headset jitter.
       this.considerDynamicCandidateRefresh(nowMs, uv);
       this.updateDwell(nowMs, uv, angularVelocityDegPerSec);
     }
