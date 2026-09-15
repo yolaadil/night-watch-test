@@ -221,6 +221,47 @@ body {
 
 
 <script>
+AFRAME.registerShader('painting-muted', {
+  // Context cue: preserve the artwork, but gently push the non-target painting
+  // into the background by reducing saturation, brightness, and contrast.
+  // `strength` is animated so the effect fades in/out instead of appearing abruptly.
+  schema: {
+    src:        {type: 'map',    is: 'uniform'},
+    strength:   {type: 'number', is: 'uniform', default: 0.0},
+    brightness: {type: 'number', is: 'uniform', default: 0.88},
+    contrast:   {type: 'number', is: 'uniform', default: 0.96},
+    saturation: {type: 'number', is: 'uniform', default: 0.70}
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D src;
+    uniform float strength;
+    uniform float brightness;
+    uniform float contrast;
+    uniform float saturation;
+    varying vec2 vUv;
+
+    void main() {
+      vec4 base = texture2D(src, vUv);
+
+      float luma = dot(base.rgb, vec3(0.2126, 0.7152, 0.0722));
+      vec3 muted = mix(vec3(luma), base.rgb, saturation);
+      muted = (muted - vec3(0.5)) * contrast + vec3(0.5);
+      muted *= brightness;
+      muted = clamp(muted, 0.0, 1.0);
+
+      vec3 rgb = mix(base.rgb, muted, clamp(strength, 0.0, 1.0));
+      gl_FragColor = vec4(rgb, base.a);
+    }
+  `
+});
+
 AFRAME.registerShader('painting-enhance', {
   // Painting-native cue: re-render the same local image region with a small
   // luminance/contrast lift and a very soft feathered edge. No amber tint,
@@ -276,8 +317,9 @@ AFRAME.registerShader('painting-enhance', {
 
 // High-resolution cue layer. Each Level-14 Deep Zoom tile is rendered in its
 // exact painting position and feathered against the registered POI bounds.
-// This lets the suggested detail become visibly crisper and gently brighter
-// without drawing a UI marker over the artwork.
+// The rest of the painting is gently muted binocularly while these tiles
+// remain in natural color and higher resolution, creating a figure-ground cue
+// without drawing a ring, halo, or marker over the artwork.
 AFRAME.registerShader('living-tile-enhance', {
   schema: {
     src:        {type: 'map',    is: 'uniform'},
@@ -369,9 +411,9 @@ AFRAME.registerComponent('render-layer', {
   }
 });
 
-// Approach B: both eyes see the original painting, while only one eye sees
-// the temporary high-resolution local enhancement. Nothing else in the scene is
-// rendered monocularly. Outside immersive VR, the cue remains binocular so
+// Both eyes see the softly muted painting context, while only one eye sees
+// the temporary high-resolution local reveal. Nothing else in the scene is
+// rendered monocularly. Outside immersive VR, the local reveal remains binocular so
 // desktop testing still works normally.
 AFRAME.registerComponent('dichoptic-cue-camera', {
   schema: {
@@ -634,6 +676,26 @@ AFRAME.registerComponent('quest-gaze-select', {
       material="shader: flat; toneMapped: false">
     </a-image>
 
+    <!-- Binocular context layer used only while guidance is active.
+         It softly dims/desaturates the whole artwork so the suggested
+         high-resolution regions can remain in natural color and stand out
+         without a halo or marker. -->
+    <a-plane
+      id="paintingMuteCue"
+      width="4"
+      height="3.45"
+      position="0 0 0.006"
+      material="shader: painting-muted;
+                src: painting_low.jpg?v=2;
+                strength: 0;
+                brightness: 0.88;
+                contrast: 0.96;
+                saturation: 0.70;
+                transparent: false;
+                depthTest: false;
+                depthWrite: false">
+    </a-plane>
+
 <a-plane
   id="paintingBlur"
   width="4"
@@ -708,6 +770,7 @@ function setGazePointerInsideCue(isInside) {
 
 const languageOverlay = document.querySelector('#languageOverlay');
 const cueLayer = document.querySelector('#cueLayer');
+const paintingMuteCue = document.querySelector('#paintingMuteCue');
 const focusLayer = document.querySelector('#focusLayer');
 const paintingBlur = document.querySelector('#paintingBlur');
 const paintingRoot = document.querySelector('#paintingRoot');
@@ -829,19 +892,25 @@ const MARCO_CONFIG = Object.freeze({
   // is slightly stronger; the second remains visible but quieter.
   // Immediate low-resolution fallback stays restrained while the Level-14
   // tiles arrive. The high-resolution overlay then becomes the perceptual cue.
-  cueOpacityMin: 0.16,
-  cueOpacityMax: 0.30,
-  cueSecondaryScale: 0.68,
-  cuePulseMs: 1700,
-  cueFadeInMs: 500,
+  // Muted-context + high-resolution reveal cue.
+  // The whole painting recedes slightly while the candidate regions retain
+  // their natural color and become sharper through Level-14 tiles.
+  cueOpacityMin: 0.34,
+  cueOpacityMax: 0.46,
+  cueSecondaryScale: 0.82,
+  cuePulseMs: 1800,
+  cueFadeInMs: 550,
   cueFadeOutMs: 500,
-  cueBrightnessBoost: 0.18,
-  cueContrast: 1.07,
-  cueHighResOpacityMin: 0.38,
-  cueHighResOpacityMax: 0.68,
-  cueHighResBrightness: 0.28,
-  cueHighResContrast: 1.10,
-  cueHighResSaturation: 1.06,
+  cueBrightnessBoost: 0.08,
+  cueContrast: 1.04,
+  cueHighResOpacityMin: 0.78,
+  cueHighResOpacityMax: 0.94,
+  cueHighResBrightness: 0.12,
+  cueHighResContrast: 1.06,
+  cueHighResSaturation: 1.00,
+  cueMuteStrength: 0.86,
+  cueMuteFadeInMs: 500,
+  cueMuteFadeOutMs: 450,
   cueLift: 0.64,
   cueCoreBoost: 0.24,
   // Provisional visual POIs are allowed for engineering/pilot work only.
@@ -2513,7 +2582,18 @@ const QuestCue = {
   rotationTimer: null,
   rotationIndex: 0,
 
-  hideAll() {
+  setContextMute(targetStrength, duration = 500) {
+    if (!paintingMuteCue) return;
+    paintingMuteCue.removeAttribute('animation__mutecue');
+    paintingMuteCue.setAttribute('animation__mutecue', {
+      property: 'material.strength',
+      to: targetStrength,
+      dur: duration,
+      easing: 'easeInOutSine'
+    });
+  },
+
+  hideAll(preserveContextMute = false) {
     this.token += 1;
     this.activePoi = null;
 
@@ -2529,6 +2609,10 @@ const QuestCue = {
     this.groups = [];
     this.group = null;
     this.rotationIndex = 0;
+
+    if (!preserveContextMute) {
+      this.setContextMute(0.0, MARCO_CONFIG.cueMuteFadeOutMs);
+    }
   },
 
   fadeOut(duration = MARCO_CONFIG.cueFadeOutMs || 500) {
@@ -2551,6 +2635,7 @@ const QuestCue = {
       });
     });
 
+    this.setContextMute(0.0, Math.min(duration, MARCO_CONFIG.cueMuteFadeOutMs));
     setTimeout(() => this.hideAll(), duration + 30);
   },
 
@@ -2559,10 +2644,17 @@ const QuestCue = {
   },
 
   async showMany(poiIds) {
-    this.hideAll();
+    // Dynamic candidate updates replace the local tiles but keep the context
+    // treatment active, avoiding a visible flash back to the unmuted painting.
+    this.hideAll(true);
 
     const ids = [...new Set((poiIds || []).filter(Boolean))].slice(0, 2);
-    if (selectedGuidanceMode === 'baseline' || !ids.length) return;
+    if (selectedGuidanceMode === 'baseline' || !ids.length) {
+      this.setContextMute(0.0, MARCO_CONFIG.cueMuteFadeOutMs);
+      return;
+    }
+
+    this.setContextMute(MARCO_CONFIG.cueMuteStrength, MARCO_CONFIG.cueMuteFadeInMs);
 
     const sessionToken = this.token;
     this.activePoi = ids;
@@ -2610,8 +2702,8 @@ const QuestCue = {
       poi_ids: ids,
       cue_rotation_ms: null,
       simultaneous_pulses: ids.length,
-      cue_motion: 'highres_detail_fade_in_and_slow_breathing',
-      cue_style: 'highres_living_dichoptic_detail',
+      cue_motion: 'muted_context_with_highres_reveal',
+      cue_style: 'muted_context_highres_reveal',
       primary_candidate: ids[0] || null,
       secondary_candidate: ids[1] || null
     });
@@ -2666,7 +2758,7 @@ const QuestCue = {
     const intensity = cueIntensityForPoi(poiId);
     const minOpacity = MARCO_CONFIG.cueHighResOpacityMin * roleScale;
     const maxOpacity = MARCO_CONFIG.cueHighResOpacityMax * roleScale;
-    const brightness = MARCO_CONFIG.cueHighResBrightness * intensity * (rankIndex === 0 ? 1.0 : 0.90);
+    const brightness = MARCO_CONFIG.cueHighResBrightness * intensity * (rankIndex === 0 ? 1.0 : 0.92);
     const cueCX = (rect.x0 + rect.x1) / 2;
     const cueCY = (rect.y0 + rect.y1) / 2;
     const cueRX = Math.max(0.0001, (rect.x1 - rect.x0) / 2);
@@ -2754,7 +2846,7 @@ const QuestCue = {
               level,
               loaded_count: loaded,
               requested_count: requested,
-              cue_style: 'highres_living_dichoptic_detail'
+              cue_style: 'muted_context_highres_reveal'
             });
           }
         };
@@ -2833,7 +2925,7 @@ const QuestCue = {
 
     SAGEIntegration.record('cue_rendered', {
       poi: poiId,
-      cue_type: 'highres_living_dichoptic_detail',
+      cue_type: 'muted_context_highres_reveal',
       cue_rank: rankIndex,
       cue_role: rankIndex === 0 ? 'primary_nearest' : 'secondary_nearby',
       cue_rect: rect,
