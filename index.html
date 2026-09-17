@@ -496,8 +496,8 @@ AFRAME.registerComponent('quest-gaze-select', {
 <body>
 <div id="endTourOverlay" aria-live="polite">
   <div id="endTourBox">
-    <h1>Session Complete</h1>
-    <p>The guided tour and free-exploration period are complete.<br>
+    <h1>End of Tour</h1>
+    <p>You have visited all points of interest.<br>
     Study data have been saved automatically on this headset.<br>
     Use the button below to download the JSON file.</p>
     <button id="endExportButton" class="tileButton"
@@ -789,41 +789,9 @@ const FIXED_STOPS = Object.freeze([
   {poi: 'whole',             nodeIds: ['NW100']}
 ]);
 
-// Profile-specific tour lengths.
-// Expert retains the full 20-stop tour.
-// General removes the final three stops (drum repair, canvas, whole painting).
-// Child uses 10 visually engaging POIs and exactly one narration per POI.
-const GENERAL_STOPS = Object.freeze(FIXED_STOPS.slice(0, -3));
-
-const CHILD_STOPS = Object.freeze([
-  {poi: 'captain',          nodeIds: ['NW011']},
-  {poi: 'lieutenant',       nodeIds: ['NW012']},
-  {poi: 'girl',             nodeIds: ['NW016']},
-  {poi: 'standard',         nodeIds: ['NW015']},
-  {poi: 'musketeer_left',   nodeIds: ['NW023']},
-  {poi: 'musketeer_center', nodeIds: ['NW022']},
-  {poi: 'musketeer_right',  nodeIds: ['NW024']},
-  {poi: 'drummer',          nodeIds: ['NW020']},
-  {poi: 'dog',              nodeIds: ['NW021']},
-  {poi: 'architecture',     nodeIds: ['NW008']}
-]);
-
-const PROFILE_STOPS = Object.freeze({
-  child: CHILD_STOPS,
-  general: GENERAL_STOPS,
-  expert: FIXED_STOPS
-});
-
+const FIXED_POI_SEQUENCE = Object.freeze(FIXED_STOPS.map(stop => stop.poi));
 let selectedProfile = 'general';
 let selectedGuidanceMode = 'sage';
-
-function activeTourStops(profile = selectedProfile) {
-  return PROFILE_STOPS[profile] || GENERAL_STOPS;
-}
-
-function activePoiSequence(profile = selectedProfile) {
-  return activeTourStops(profile).map(stop => stop.poi);
-}
 
 
 const StudyLogger = {
@@ -855,8 +823,8 @@ const StudyLogger = {
     this.preparedFilename = null;
 
     this.logEvent('session_started', {
-      poi_pool: [...activePoiSequence(this.profile)],
-      poi_stops: activeTourStops(this.profile).map(s => ({poi: s.poi, node_ids: [...s.nodeIds]})),
+      poi_pool: [...FIXED_POI_SEQUENCE],
+      poi_stops: FIXED_STOPS.map(s => ({poi: s.poi, node_ids: [...s.nodeIds]})),
       recommendation_policy: 'nearest_eligible_three_from_head_directed_painting_uv',
       logger_sampling_hz: 5
     });
@@ -978,7 +946,7 @@ const StudyLogger = {
       profile: this.profile,
       session_start: this.startedAtIso,
       session_end: this.endedAtIso,
-      fixed_sequence: [...activePoiSequence(this.profile)],
+      fixed_sequence: [...FIXED_POI_SEQUENCE],
       summary: this.summarize(),
       events: this.events,
       view_samples: this.viewSamples
@@ -1692,7 +1660,7 @@ const SAGEIntegration = {
   },
 
   spatialCandidateStops(uv = this.lastUv) {
-    const available = activeTourStops()
+    const available = FIXED_STOPS
       .map((stop, index) => ({stop, index}))
       .filter(item => !this.visitedFixedStopIndices.has(item.index));
 
@@ -1747,7 +1715,7 @@ const SAGEIntegration = {
 
     if (!available.length) {
       setSageStatus('Guided tour complete');
-      this.record('adaptive_tour_complete', {sequence_length: activeTourStops().length});
+      this.record('adaptive_tour_complete', {sequence_length: FIXED_STOPS.length});
       TourEngine.finishTour();
       return null;
     }
@@ -2914,99 +2882,6 @@ const AUDIO_FILES = {
 const narrator = new Audio();
 narrator.preload = 'auto';
 
-const SYSTEM_AUDIO = Object.freeze({
-  welcome: {
-    file: 'audio/system/welcome.mp3',
-    text: 'Welcome to The Night Watch, painted by Rembrandt van Rijn in 1642. During this experience, subtle highlights will guide you toward details in the painting. Look around naturally, and choose the highlighted detail that interests you.'
-  },
-  closing: {
-    file: 'audio/system/closing.mp3',
-    text: 'You have reached the end of the guided tour. You can now continue exploring The Night Watch freely at your own pace. When you are finished, exit the experience.'
-  }
-});
-
-function playSystemAudio(kind, onFinished = null) {
-  const item = SYSTEM_AUDIO[kind];
-  if (!item) {
-    if (typeof onFinished === 'function') onFinished();
-    return;
-  }
-
-  // The system clips are not corpus narrations, so log them separately.
-  narrator.pause();
-  narrator.removeAttribute('src');
-  narrator.load();
-  narrator.src = item.file;
-  narrator.volume = 1.0;
-  narrator.muted = false;
-
-  let finished = false;
-  const finishOnce = (reason) => {
-    if (finished) return;
-    finished = true;
-    narrator.onloadedmetadata = null;
-    narrator.onended = null;
-    narrator.onerror = null;
-    SAGEIntegration.record('system_audio_finished', {
-      kind,
-      file: item.file,
-      reason
-    });
-    if (typeof onFinished === 'function') onFinished();
-  };
-
-  narrator.onloadedmetadata = () => {
-    SAGEIntegration.record('system_audio_start', {
-      kind,
-      file: item.file,
-      duration_s: narrator.duration
-    });
-  };
-
-  narrator.onended = () => finishOnce('audio_complete');
-
-  narrator.onerror = () => {
-    SAGEIntegration.record('system_audio_fallback', {
-      kind,
-      file: item.file,
-      reason: 'file_error'
-    });
-    speak(item.text, () => finishOnce('speech_synthesis_fallback'));
-  };
-
-  const p = narrator.play();
-  if (p && typeof p.catch === 'function') {
-    p.catch(error => {
-      SAGEIntegration.record('system_audio_fallback', {
-        kind,
-        file: item.file,
-        reason: 'play_blocked',
-        message: String(error)
-      });
-      speak(item.text, () => finishOnce('speech_synthesis_fallback'));
-    });
-  }
-}
-
-function completeIntroPrerequisite() {
-  const node = SAGEIntegration.corpus?.nodes?.find(n => n.id === 'NW001');
-  if (!node || SAGEIntegration.visitorState.completed.has(node.id)) return;
-
-  // NW001 historically served as the opening corpus node and prerequisite.
-  // The dedicated welcome clip now replaces its spoken audio, but we preserve
-  // the graph state so downstream eligibility remains unchanged.
-  SAGEIntegration.runtime.markNarrationCompleted(
-    SAGEIntegration.visitorState,
-    node,
-    performance.now() / 1000
-  );
-  SAGEIntegration.record('intro_prerequisite_completed', {
-    node_id: node.id,
-    replaced_by: 'system_welcome_audio'
-  });
-  SAGEIntegration.persist();
-}
-
 const NarrationManager = {
   node: null,
   completionRecorded: false,
@@ -3385,10 +3260,6 @@ const TourEngine = {
   },
 
   async prepare({forceNew = false} = {}) {
-    if (forceNew) {
-      this.tourEnding = false;
-      this.guidedTourComplete = false;
-    }
     await SAGEIntegration.init({profile: selectedProfile, forceNew});
     ensureDynamicPoiAnchor();
   },
@@ -3579,7 +3450,6 @@ const TourEngine = {
   finishTour() {
     if (this.tourEnding) return;
     this.tourEnding = true;
-    this.guidedTourComplete = true;
 
     QuestCue.hideAll();
     clearTimeout(SAGEIntegration.guidanceTimer);
@@ -3589,15 +3459,10 @@ const TourEngine = {
     this.target = null;
     this.currentStop = null;
     this.setState(State.FREE);
-    clearFocusTiles();
-    showPrimaryHotspots(false);
-    setBlurOpacity(0, 150);
 
     SAGEIntegration.record('tour_completed', {
       visited_count: SAGEIntegration.visitedFixedStopIndices.size,
-      total_stops: activeTourStops().length,
-      profile: selectedProfile,
-      free_exploration_enabled: true
+      total_stops: FIXED_STOPS.length
     });
 
     const scene = document.querySelector('a-scene');
@@ -3619,59 +3484,54 @@ const TourEngine = {
       }
     };
 
-    const finalizeSession = async () => {
-      setSageStatus('Free exploration complete — saving study data…');
-      try {
-        const prepared = await StudyLogger.finalizeAndPrepareExport();
-        setSageStatus(
-          prepared
-            ? 'Study data saved.'
-            : 'Session complete — use Export Study Data.'
-        );
+    // Save immediately at the end of the tour. The participant's complete
+    // session is now protected even if the Quest end screen/download misbehaves.
+    setSageStatus('Tour complete — saving study data…');
+
+    StudyLogger.finalizeAndPrepareExport().then((prepared) => {
+      setSageStatus(
+        prepared
+          ? 'Tour complete — study data saved. Exit VR to finish.'
+          : 'Tour complete — exit VR and use Export Study Data.'
+      );
+
+      // If already outside immersive mode, expose the end screen now.
+      if (!(scene && scene.is && scene.is('vr-mode'))) {
         showEndScreen();
 
+        // Best-effort automatic download. Some browsers require a user gesture,
+        // so the visible button remains available as a reliable retry.
         if (prepared) {
           setTimeout(() => StudyLogger.downloadPreparedExport(), 300);
         }
-      } catch (error) {
-        console.error('[VRPaint] End-of-session autosave failed:', error);
-        setSageStatus('Session complete — use Export Study Data.');
-        showEndScreen();
       }
-    };
-
-    // The closing clip explicitly hands control back to the visitor.
-    playSystemAudio('closing', () => {
-      SAGEIntegration.record('free_exploration_started', {
-        profile: selectedProfile
-      });
-      setSageStatus('Guided tour complete — explore freely. Exit VR when finished.');
+    }).catch((error) => {
+      console.error('[VRPaint] End-of-tour autosave failed:', error);
+      setSageStatus('Tour complete — exit VR and use Export Study Data.');
     });
 
-    // Keep logging head-directed exploration after the guided section.
-    // The session is finalized only when the participant exits immersive VR.
+    // Quest is more stable when the participant exits immersive mode normally.
+    // Once WebXR has closed, show the HTML end screen and attempt the prepared
+    // download. The button remains a user-gesture fallback.
     if (scene && scene.is && scene.is('vr-mode')) {
       const onExit = () => {
         scene.removeEventListener('exit-vr', onExit);
-        SAGEIntegration.record('free_exploration_finished', {
-          reason: 'exit_vr'
-        });
 
+        // Give Quest Browser one animation frame + a short settling interval.
         requestAnimationFrame(() => {
-          setTimeout(() => finalizeSession(), 350);
+          setTimeout(() => {
+            showEndScreen();
+
+            if (StudyLogger.preparedUrl) {
+              StudyLogger.downloadPreparedExport();
+            }
+          }, 350);
         });
       };
+
       scene.addEventListener('exit-vr', onExit);
     } else {
-      // Desktop/non-immersive fallback: close the session after the closing clip.
-      const waitForClosing = () => {
-        if (narrator.paused || narrator.ended) {
-          finalizeSession();
-        } else {
-          setTimeout(waitForClosing, 300);
-        }
-      };
-      waitForClosing();
+      showEndScreen();
     }
   }
 };
@@ -3714,7 +3574,7 @@ function primeNarratorAudio() {
   if (audioPrimed || !selectedProfile) return;
 
   try {
-    narrator.src = SYSTEM_AUDIO.welcome.file;
+    narrator.src = `audio/${selectedProfile}/NW001.mp3`;
     narrator.muted = true;
     narrator.volume = 0;
 
@@ -3726,7 +3586,7 @@ function primeNarratorAudio() {
         narrator.muted = false;
         narrator.volume = 1;
         audioPrimed = true;
-        console.log('[Audio] Welcome clip primed successfully.');
+        console.log('[Audio] NW001 primed successfully.');
       }).catch(err => {
         narrator.muted = false;
         narrator.volume = 1;
@@ -3773,37 +3633,36 @@ function startVrIntroCountdown() {
   pendingVrIntro = false;
 
   SAGEIntegration.record('vr_entered', {experience_time_origin: true});
-  setSageStatus('VR ready — welcome begins in 3 seconds…');
+  setSageStatus('VR ready — NW001 begins in 5 seconds…');
 
   setTimeout(() => {
-    setSageStatus('Welcome to The Night Watch…');
+    setSageStatus('Preparing experience…');
 
     let advanced = false;
     const advance = reason => {
       if (advanced) return;
       advanced = true;
 
-      completeIntroPrerequisite();
-
       SAGEIntegration.record('intro_completed', {
-        node_id: 'SYSTEM_WELCOME',
+        node_id: 'NW001',
         advance_reason: reason
       });
 
       TourEngine.setState(State.FREE);
-      setSageStatus('Welcome complete — starting guided tour…');
+      setSageStatus('NW001 complete — starting guided tour…');
 
       setTimeout(() => {
         TourEngine.recommendAndCue().catch(console.error);
-      }, 900);
+      }, 1500);
     };
 
-    playSystemAudio('welcome', () => advance('audio_complete'));
+    playIntroSequence(() => advance('audio_complete'));
 
-    // Safety timeout keeps the study moving if media playback is interrupted.
-    setTimeout(() => advance('welcome_safety_timeout'), 18000);
+    // If Quest blocks the delayed audio despite priming, never freeze the tour.
+    // Advance after 14 s so the first visual cue still appears.
+    setTimeout(() => advance('intro_safety_timeout'), 14000);
 
-  }, 3000);
+  }, 5000);
 }
 
 function beginExperience() {
