@@ -588,7 +588,7 @@ AFRAME.registerComponent('quest-gaze-select', {
 
 <a-plane id="infoPanel" visible="false" scale="0 0 0" position="0 0 -2.8" width="1.05" height="0.36" material="transparent:true; opacity:1"></a-plane><a-plane id="welcomePanel" visible="false" scale="0 0 0" position="0 0.55 -2.8" width="1.9" height="0.48" material="transparent:true; opacity:1"></a-plane>
 
-  <!-- Camera and gaze cursor -->
+  <!-- Camera and invisible head-directed selection cursor -->
 
   <a-entity id="cameraRig" position="0 0 0">
     <a-camera id="mainCamera" position="0 1.6 0">
@@ -600,7 +600,7 @@ AFRAME.registerComponent('quest-gaze-select', {
         fuse-timeout="2000"
         raycaster="objects: .paintingTarget"
         color="#d8d1c4"
-        material="shader: flat; color: #d8d1c4; transparent: true; opacity: 0.32; depthTest: false; depthWrite: false">
+        material="shader: flat; color: #d8d1c4; transparent: true; opacity: 0; depthTest: false; depthWrite: false">
       </a-cursor>
     </a-camera>
   </a-entity>
@@ -613,17 +613,13 @@ const welcomePanel = document.querySelector('#welcomePanel');
 const gazeCursor = document.querySelector('#gazeCursor');
 
 function setGazePointerInsideCue(isInside) {
+  // Visual pointer intentionally disabled.
+  // The invisible cursor entity remains active so quest-gaze-select,
+  // raycasting, dwell selection, and head-directed recommendation updates
+  // continue to work exactly as before.
   if (!gazeCursor) return;
-
-  // Keep the reticle visible but subdued so it supports aiming without
-  // becoming a dominant overlay on the artwork. Inside an active hotspot,
-  // shift to a muted warm gold and slightly increase visibility.
-  const color = isInside ? '#e3c56f' : '#d8d1c4';
-  const opacity = isInside ? 0.52 : 0.32;
-
-  gazeCursor.setAttribute('color', color);
-  gazeCursor.setAttribute('material', 'color', color);
-  gazeCursor.setAttribute('material', 'opacity', opacity);
+  gazeCursor.setAttribute('visible', false);
+  gazeCursor.setAttribute('material', 'opacity', 0);
 }
 
 const languageOverlay = document.querySelector('#languageOverlay');
@@ -3692,7 +3688,7 @@ document.querySelectorAll('.profileButton').forEach(button => {
     experienceStarted = true;
     pageReady = true;
     currentLanguage = 'en';
-    gazeCursor.setAttribute('visible', true);
+    gazeCursor.setAttribute('visible', false);
     showPrimaryHotspots(false);
     refreshVoices();
 
@@ -3752,7 +3748,7 @@ scene.addEventListener('enter-vr', () => {
   console.log('[SAGE] VR entered.');
   pageReady = true;
   currentLanguage = 'en';
-  gazeCursor.setAttribute('visible', true);
+  gazeCursor.setAttribute('visible', false);
   showPrimaryHotspots(false);
 
   if (!experienceStarted) {
